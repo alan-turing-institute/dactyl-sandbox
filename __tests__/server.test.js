@@ -81,4 +81,42 @@ describe('auth and task API', () => {
 
     expect(secondTasks.body.todos).toEqual([]);
   });
+
+  test('rejects invalid task patches with 400', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'patch-user', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Patch me' })
+      .expect(201);
+
+    await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: '' })
+      .expect(400);
+  });
+
+  test('malformed password hashes fail login without crashing', async () => {
+    app = makeApp();
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'broken-hash', password: 'very-secret' })
+      .expect(201);
+
+    app.locals.db.prepare('UPDATE users SET password_hash = ? WHERE username = ?')
+      .run('salt:abc123', 'broken-hash');
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'broken-hash', password: 'very-secret' })
+      .expect(401);
+  });
 });

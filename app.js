@@ -56,6 +56,8 @@ let filter = 'all';
 let focusedTodoId = loadFocusedTodoId();
 let netMode = false;
 let selectedTodoIds = new Set();
+let saveQueue = Promise.resolve();
+let saveVersion = 0;
 
 function showStorageError(message) {
   storageError.textContent = message;
@@ -197,16 +199,28 @@ function saveTodos() {
     showStorageError('Log in or sign up before changing tasks.');
     return false;
   }
-  apiRequest('/api/tasks', {
-    method: 'PUT',
-    body: JSON.stringify({ todos }),
-  })
+
+  const version = ++saveVersion;
+  const snapshot = normaliseTodos(todos);
+  saveQueue = saveQueue
+    .catch(() => {})
+    .then(() => apiRequest('/api/tasks', {
+      method: 'PUT',
+      body: JSON.stringify({ todos: snapshot }),
+    }))
     .then((body) => {
-      todos = normaliseTodos(body.todos);
-      clearStorageError();
-      render();
-    })
-    .catch((error) => showStorageError(`Tasks changed in this tab, but sync failed: ${error.message}`));
+      if (version === saveVersion) {
+        todos = normaliseTodos(body.todos);
+        clearStorageError();
+        render();
+      }
+    });
+
+  saveQueue.catch((error) => {
+    if (version === saveVersion) {
+      showStorageError(`Tasks changed in this tab, but sync failed: ${error.message}`);
+    }
+  });
   return true;
 }
 

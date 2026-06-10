@@ -4,6 +4,9 @@
   "private": true,
   "description": "Dactyl TODO app with authenticated backend sync",
   "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "jest --runInBand"

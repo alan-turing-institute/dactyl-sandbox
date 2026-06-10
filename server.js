@@ -88,9 +88,10 @@ function createPasswordHash(password) {
 
 function verifyPassword(password, passwordHash) {
   const [salt, storedHash] = String(passwordHash).split(':');
-  if (!salt || !storedHash) return false;
+  if (!salt || !storedHash || !/^[a-f0-9]{128}$/i.test(storedHash)) return false;
   const hash = crypto.scryptSync(password, salt, 64);
-  return crypto.timingSafeEqual(Buffer.from(storedHash, 'hex'), hash);
+  const stored = Buffer.from(storedHash, 'hex');
+  return stored.length === hash.length && crypto.timingSafeEqual(stored, hash);
 }
 
 function createApp(options = {}) {
@@ -240,6 +241,7 @@ function createApp(options = {}) {
       .get(req.user.id, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });
+    if (!updated) return res.status(400).json({ error: 'A task needs non-empty text.' });
     return res.json({ todo: updated });
   });
 

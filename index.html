@@ -11,7 +11,7 @@
       <section class="hero">
         <p class="eyebrow">Dactyl Sandbox</p>
         <h1 id="app-title">TODO List</h1>
-        <p class="subtitle">A lightweight browser-based TODO app with local storage.</p>
+        <p class="subtitle">A lightweight browser-based TODO pond with fishy focus mode.</p>
       </section>
 
       <form id="todo-form" class="todo-form" autocomplete="off">
@@ -24,10 +24,42 @@
           placeholder="Add a task…"
           required
         />
+        <label class="sr-only" for="due-date-input">Due date</label>
+        <input id="due-date-input" name="due-date" type="date" />
+        <label class="sr-only" for="priority-input">Priority</label>
+        <select id="priority-input" name="priority" aria-label="Priority">
+          <option value="low">Low tide</option>
+          <option value="medium" selected>Medium tide</option>
+          <option value="high">High tide</option>
+        </select>
         <button type="submit">Add</button>
       </form>
 
       <p id="storage-error" class="storage-error" role="status" aria-live="polite" hidden></p>
+      <p id="pond-message" class="pond-message" role="status" aria-live="polite" hidden></p>
+
+      <section class="pond-actions" aria-label="Pond actions">
+        <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
+        <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
+        <button id="cast-net" class="secondary-action" type="button">Cast net</button>
+        <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
+        <label id="shoal-control" class="shoal-control" hidden>
+          <span>Move to shoal</span>
+          <select id="shoal-priority" aria-label="Selected task priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <button id="move-shoal" class="secondary-action" type="button">Apply</button>
+        </label>
+      </section>
+
+      <section id="focus-panel" class="focus-panel" aria-live="polite" hidden>
+        <p class="eyebrow">Feed the fish</p>
+        <h2 id="focus-title">No fish selected</h2>
+        <p id="focus-meta" class="focus-meta"></p>
+        <button id="complete-focus" type="button">Mark fed</button>
+      </section>
 
       <section class="toolbar" aria-label="TODO filters">
         <span id="todo-count" class="count">0 tasks</span>
@@ -35,6 +67,7 @@
           <button type="button" class="filter active" data-filter="all">All</button>
           <button type="button" class="filter" data-filter="active">Active</button>
           <button type="button" class="filter" data-filter="completed">Completed</button>
+          <button type="button" class="filter" data-filter="tide">Tide mode</button>
         </div>
       </section>
 
@@ -42,19 +75,30 @@
 
       <section id="empty-state" class="empty-state">
         <h2>Nothing here yet</h2>
-        <p>Add your first task above and keep the momentum going.</p>
+        <p>Add your first task above, or stock the pond with demo tasks.</p>
       </section>
 
-      <button id="clear-completed" class="clear-completed" type="button">Clear completed</button>
+      <button id="clear-completed" class="clear-completed" type="button">Release completed</button>
     </main>
 
     <template id="todo-template">
       <li class="todo-item">
+        <input class="net-select" type="checkbox" aria-label="Select task" hidden />
         <label>
           <input class="toggle" type="checkbox" />
-          <span class="text"></span>
+          <span class="todo-copy">
+            <span class="text"></span>
+            <span class="metadata">
+              <span class="mood-badge"></span>
+              <span class="due-label"></span>
+              <span class="priority-label"></span>
+            </span>
+          </span>
         </label>
-        <button class="delete" type="button" aria-label="Delete task">×</button>
+        <div class="todo-actions">
+          <button class="focus-task" type="button">Feed</button>
+          <button class="delete" type="button" aria-label="Delete task">×</button>
+        </div>
       </li>
     </template>
 

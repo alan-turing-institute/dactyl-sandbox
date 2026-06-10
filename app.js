@@ -1,4 +1,6 @@
 const STORAGE_KEY = 'dactyl.todos';
+const MAX_TODOS = 200;
+const MAX_TODO_LENGTH = 120;
 
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
@@ -8,20 +10,71 @@ const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
+const storageError = document.querySelector('#storage-error');
 
 let todos = loadTodos();
 let filter = 'all';
 
+function showStorageError(message) {
+  storageError.textContent = message;
+  storageError.hidden = false;
+}
+
+function clearStorageError() {
+  storageError.textContent = '';
+  storageError.hidden = true;
+}
+
+function isValidDate(value) {
+  return !Number.isNaN(Date.parse(value));
+}
+
+function normaliseTodo(todo) {
+  if (!todo || typeof todo !== 'object') return null;
+  if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
+
+  const id = todo.id.trim();
+  const text = todo.text.trim().slice(0, MAX_TODO_LENGTH);
+  if (!id || !text) return null;
+
+  const createdAt = typeof todo.createdAt === 'string' && isValidDate(todo.createdAt)
+    ? todo.createdAt
+    : new Date().toISOString();
+
+  return {
+    id,
+    text,
+    completed: Boolean(todo.completed),
+    createdAt,
+  };
+}
+
+function normaliseTodos(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normaliseTodo)
+    .filter(Boolean)
+    .slice(0, MAX_TODOS);
+}
+
 function loadTodos() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? [];
+    return normaliseTodos(JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []);
   } catch {
+    showStorageError('Saved tasks could not be loaded, so the app started with an empty list.');
     return [];
   }
 }
 
 function saveTodos() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    clearStorageError();
+    return true;
+  } catch {
+    showStorageError('Tasks changed in this tab, but could not be saved to this browser. Storage may be full or unavailable.');
+    return false;
+  }
 }
 
 function visibleTodos() {
@@ -67,7 +120,7 @@ function render() {
 function addTodo(text) {
   todos.unshift({
     id: crypto.randomUUID(),
-    text,
+    text: text.slice(0, MAX_TODO_LENGTH),
     completed: false,
     createdAt: new Date().toISOString(),
   });

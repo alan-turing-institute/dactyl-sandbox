@@ -26,6 +26,7 @@ const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
 const releaseDemo = document.querySelector('#release-demo');
+const copyPondReport = document.querySelector('#copy-pond-report');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
@@ -300,6 +301,92 @@ function pluralise(countValue, singular, plural = `${singular}s`) {
   return `${countValue} ${countValue === 1 ? singular : plural}`;
 }
 
+function dueSummary() {
+  const today = todayKey();
+  const activeTodos = todos.filter((todo) => !todo.completed);
+  const overdueCount = activeTodos.filter((todo) => todo.dueDate && todo.dueDate < today).length;
+  const todayCount = activeTodos.filter((todo) => todo.dueDate === today).length;
+  return [`${overdueCount} overdue`, `${todayCount} due today`];
+}
+
+function reportDueLabel(todo) {
+  const today = todayKey();
+  if (!todo.dueDate) return 'No due date';
+  if (todo.dueDate < today) return `Overdue ${formatDateKey(todo.dueDate)}`;
+  if (todo.dueDate === today) return 'Today';
+  return formatDateKey(todo.dueDate);
+}
+
+function buildPondReport() {
+  const totalCount = todos.length;
+  const activeTodos = todos.filter((todo) => !todo.completed);
+  const completedCount = todos.filter((todo) => todo.completed).length;
+  const lines = [];
+
+  if (totalCount === 0) {
+    lines.push('Pond report: no tasks in the pond yet.');
+    return lines.join('\n');
+  }
+
+  const dueCounts = dueSummary();
+  const headlineParts = [
+    `${pluralise(totalCount, 'task')}`,
+    `${activeTodos.length} active`,
+    `${completedCount} completed`,
+    ...dueCounts,
+  ];
+  lines.push(`Pond report: ${headlineParts.join(' — ')}.`);
+
+  const focusedTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
+  if (focusedTodo) lines.push(`Focus fish: ${focusedTodo.text}.`);
+
+  const highPriorityTodos = sortTodos(activeTodos.filter((todo) => todo.priority === 'high')).slice(0, 3);
+  if (highPriorityTodos.length > 0) {
+    lines.push('High-priority active:');
+    highPriorityTodos.forEach((todo) => lines.push(`• ${todo.text}`));
+  }
+
+  const nextDueTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate)).slice(0, 3);
+  if (nextDueTodos.length > 0) {
+    lines.push('Next due:');
+    nextDueTodos.forEach((todo) => {
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-1000px';
+  textarea.style.opacity = '0';
+  document.body.append(textarea);
+  textarea.select();
+  try {
+    if (!document.execCommand('copy')) throw new Error('copy command was rejected');
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyPondProgressReport() {
+  try {
+    await copyText(buildPondReport());
+    showPondMessage('Copied a Slack-friendly pond report to the clipboard.');
+  } catch {
+    showPondMessage('Could not copy the pond report. Select the tasks and try again?');
+  }
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -404,6 +491,7 @@ function renderAuth() {
     element.disabled = !signedIn;
   });
   stockPond.disabled = !signedIn;
+  copyPondReport.disabled = !signedIn;
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
 }
@@ -720,6 +808,7 @@ clearCompleted.addEventListener('click', () => {
 
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
+copyPondReport.addEventListener('click', copyPondProgressReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);

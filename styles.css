@@ -401,9 +401,17 @@ h1 {
   gap: .65rem;
   padding: .9rem;
   border: 1px solid rgb(255 255 255 / 10%);
+  border-left: .35rem solid rgb(141 212 255 / 55%);
   border-radius: 1.25rem;
   background: rgb(255 255 255 / 4%);
 }
+
+.tide-group[data-tide-group="washed"] { border-left-color: var(--danger); }
+.tide-group[data-tide-group="high"] { border-left-color: var(--warning); }
+.tide-group[data-tide-group="ebbing"] { border-left-color: var(--accent); }
+.tide-group[data-tide-group="incoming"] { border-left-color: var(--success); }
+.tide-group[data-tide-group="completed"] { opacity: .88; }
+.tide-group-empty { text-align: center; }
 
 .tide-group h3 {
   margin: 0;

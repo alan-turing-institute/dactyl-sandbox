@@ -38,10 +38,11 @@ const focusMeta = document.querySelector('#focus-meta');
 const completeFocus = document.querySelector('#complete-focus');
 
 const tideGroups = [
-  { key: 'incoming', label: 'Incoming tide', description: 'Fresh or low-pressure fish.' },
-  { key: 'high', label: 'High tide', description: 'Urgent fish needing attention today.' },
-  { key: 'ebbing', label: 'Ebbing tide', description: 'Future fish drifting along.' },
-  { key: 'washed', label: 'Washed ashore', description: 'Overdue fish looking sternly at you.' },
+  { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
+  { key: 'high', label: 'High tide', description: 'Active tasks due today or marked high priority.' },
+  { key: 'ebbing', label: 'Ebbing', description: 'Active scheduled tasks due after today.' },
+  { key: 'incoming', label: 'Incoming', description: 'Active unscheduled or low-pressure tasks.' },
+  { key: 'completed', label: 'Resting shells', description: 'Completed tasks resting after the active work.' },
 ];
 
 const celebrations = [
@@ -269,8 +270,8 @@ function tideFor(todo) {
   const today = todayKey();
   if (todo.dueDate && todo.dueDate < today) return 'washed';
   if (todo.dueDate === today || todo.priority === 'high') return 'high';
-  if (!todo.dueDate || todo.priority === 'low') return 'incoming';
-  return 'ebbing';
+  if (todo.dueDate && todo.dueDate > today) return 'ebbing';
+  return 'incoming';
 }
 
 function moodFor(todo) {
@@ -429,26 +430,40 @@ function createTodoItem(todo) {
 }
 
 function renderTideMode() {
-  const activeTodos = sortTodos(todos.filter((todo) => !todo.completed));
-  for (const group of tideGroups) {
-    const groupTodos = activeTodos.filter((todo) => tideFor(todo) === group.key);
+  const sortedTodos = sortTodos(todos);
+  const populatedGroups = tideGroups
+    .map((group) => ({ ...group, todos: sortedTodos.filter((todo) => tideFor(todo) === group.key) }))
+    .filter((group) => group.todos.length > 0);
+
+  if (populatedGroups.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.className = 'tide-group tide-group-empty';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Still waters (0)';
+    const description = document.createElement('p');
+    description.textContent = 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
+    emptyItem.append(heading, description);
+    list.append(emptyItem);
+    return;
+  }
+
+  for (const group of populatedGroups) {
     const groupItem = document.createElement('li');
     groupItem.className = 'tide-group';
+    groupItem.dataset.tideGroup = group.key;
 
     const heading = document.createElement('h3');
-    heading.textContent = `${group.label} (${groupTodos.length})`;
+    heading.textContent = `${group.label} (${group.todos.length})`;
     groupItem.append(heading);
 
     const description = document.createElement('p');
     description.textContent = group.description;
     groupItem.append(description);
 
-    if (groupTodos.length > 0) {
-      const nestedList = document.createElement('ul');
-      nestedList.className = 'todo-list tide-list';
-      groupTodos.forEach((todo) => nestedList.append(createTodoItem(todo)));
-      groupItem.append(nestedList);
-    }
+    const nestedList = document.createElement('ul');
+    nestedList.className = 'todo-list tide-list';
+    group.todos.forEach((todo) => nestedList.append(createTodoItem(todo)));
+    groupItem.append(nestedList);
 
     list.append(groupItem);
   }

@@ -58,6 +58,7 @@ let netMode = false;
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
+let lastUndoAction = null;
 
 function showStorageError(message) {
   storageError.textContent = message;
@@ -69,13 +70,30 @@ function clearStorageError() {
   storageError.hidden = true;
 }
 
-function showPondMessage(message) {
-  pondMessage.textContent = message;
+function clearUndoAction() {
+  if (lastUndoAction?.timeoutId) window.clearTimeout(lastUndoAction.timeoutId);
+  lastUndoAction = null;
+}
+
+function showPondMessage(message, options = {}) {
+  if (!options.preserveUndo) clearUndoAction();
+
+  pondMessage.replaceChildren(document.createTextNode(message));
+  if (options.action) {
+    pondMessage.append(document.createTextNode(' '));
+    const actionButton = document.createElement('button');
+    actionButton.type = 'button';
+    actionButton.className = 'undo-action';
+    actionButton.textContent = options.action.label;
+    actionButton.addEventListener('click', options.action.onClick);
+    pondMessage.append(actionButton);
+  }
   pondMessage.hidden = false;
 }
 
 function hidePondMessage() {
-  pondMessage.textContent = '';
+  clearUndoAction();
+  pondMessage.replaceChildren();
   pondMessage.hidden = true;
 }
 
@@ -442,11 +460,66 @@ function toggleTodo(id) {
   render();
 }
 
-function deleteTodo(id) {
-  todos = todos.filter((todo) => todo.id !== id);
-  if (id === focusedTodoId) saveFocusedTodoId('');
+function restoreUndoAction() {
+  if (!lastUndoAction) return;
+
+  const undoAction = lastUndoAction;
+  clearUndoAction();
+  todos = normaliseTodos(undoAction.todos);
+  netMode = undoAction.netMode;
+  selectedTodoIds = new Set(undoAction.selectedTodoIds.filter((id) => todos.some((todo) => todo.id === id)));
+  saveFocusedTodoId(undoAction.focusedTodoId && todos.some((todo) => todo.id === undoAction.focusedTodoId)
+    ? undoAction.focusedTodoId
+    : '');
   saveTodos();
   render();
+  showPondMessage(undoAction.confirmation);
+}
+
+function removeTodosWithUndo(predicate, message) {
+  const previousTodos = normaliseTodos(todos);
+  const removedTodos = previousTodos.filter(predicate);
+  if (removedTodos.length === 0) return false;
+
+  clearUndoAction();
+  const previousFocus = focusedTodoId;
+  const previousSelection = [...selectedTodoIds];
+  const previousNetMode = netMode;
+
+  todos = previousTodos.filter((todo) => !predicate(todo));
+  if (previousFocus && removedTodos.some((todo) => todo.id === previousFocus)) saveFocusedTodoId('');
+  selectedTodoIds = new Set(previousSelection.filter((id) => todos.some((todo) => todo.id === id)));
+  saveTodos();
+  render();
+
+  const undoMessage = message(removedTodos.length);
+  const undoAction = {
+    todos: previousTodos,
+    focusedTodoId: previousFocus,
+    selectedTodoIds: previousSelection,
+    netMode: previousNetMode,
+    confirmation: `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`,
+    timeoutId: null,
+  };
+  undoAction.timeoutId = window.setTimeout(() => {
+    if (lastUndoAction === undoAction) {
+      lastUndoAction = null;
+      showPondMessage(undoMessage);
+    }
+  }, 9000);
+  lastUndoAction = undoAction;
+  showPondMessage(undoMessage, {
+    preserveUndo: true,
+    action: { label: 'Undo', onClick: restoreUndoAction },
+  });
+  return true;
+}
+
+function deleteTodo(id) {
+  removeTodosWithUndo(
+    (todo) => todo.id === id,
+    () => 'Released 1 fish from the pond.',
+  );
 }
 
 function focusTodo(id) {
@@ -468,13 +541,14 @@ function toggleSelectedTodo(id) {
 }
 
 function releaseSelectedTodos() {
-  const releaseCount = selectedTodoIds.size;
-  todos = todos.filter((todo) => !selectedTodoIds.has(todo.id));
-  if (focusedTodoId && !todos.some((todo) => todo.id === focusedTodoId)) saveFocusedTodoId('');
-  selectedTodoIds.clear();
-  saveTodos();
-  showPondMessage(`Released ${pluralise(releaseCount, 'selected fish', 'selected fish')} from the pond.`);
-  render();
+  const selectedIds = new Set(selectedTodoIds);
+  if (removeTodosWithUndo(
+    (todo) => selectedIds.has(todo.id),
+    (count) => `Released ${pluralise(count, 'selected fish', 'selected fish')} from the pond.`,
+  )) {
+    selectedTodoIds.clear();
+    render();
+  }
 }
 
 function moveSelectedToShoal() {
@@ -551,12 +625,10 @@ function stockDemoPond() {
 }
 
 function releaseDemoFish() {
-  const beforeCount = todos.length;
-  todos = todos.filter((todo) => !DEMO_TODO_IDS.includes(todo.id));
-  if (focusedTodoId && !todos.some((todo) => todo.id === focusedTodoId)) saveFocusedTodoId('');
-  saveTodos();
-  showPondMessage(`Released ${pluralise(beforeCount - todos.length, 'demo fish', 'demo fish')} from the pond.`);
-  render();
+  removeTodosWithUndo(
+    (todo) => DEMO_TODO_IDS.includes(todo.id),
+    (count) => `Released ${pluralise(count, 'demo fish', 'demo fish')} from the pond.`,
+  );
 }
 
 async function authenticate(mode) {
@@ -640,10 +712,10 @@ filterButtons.forEach((button) => {
 });
 
 clearCompleted.addEventListener('click', () => {
-  todos = todos.filter((todo) => !todo.completed);
-  if (focusedTodoId && !todos.some((todo) => todo.id === focusedTodoId)) saveFocusedTodoId('');
-  saveTodos();
-  render();
+  removeTodosWithUndo(
+    (todo) => todo.completed,
+    (count) => `Released ${pluralise(count, 'completed fish', 'completed fish')} from the pond.`,
+  );
 });
 
 stockPond.addEventListener('click', stockDemoPond);

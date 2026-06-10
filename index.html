@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dactyl TODO</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app" aria-labelledby="app-title">
+      <section class="hero">
+        <p class="eyebrow">Dactyl Sandbox</p>
+        <h1 id="app-title">TODO List</h1>
+        <p class="subtitle">A lightweight browser-based TODO app with local storage.</p>
+      </section>
+
+      <form id="todo-form" class="todo-form" autocomplete="off">
+        <label class="sr-only" for="todo-input">New TODO</label>
+        <input
+          id="todo-input"
+          name="todo"
+          type="text"
+          maxlength="120"
+          placeholder="Add a task…"
+          required
+        />
+        <button type="submit">Add</button>
+      </form>
+
+      <section class="toolbar" aria-label="TODO filters">
+        <span id="todo-count" class="count">0 tasks</span>
+        <div class="filters" role="group" aria-label="Filter tasks">
+          <button type="button" class="filter active" data-filter="all">All</button>
+          <button type="button" class="filter" data-filter="active">Active</button>
+          <button type="button" class="filter" data-filter="completed">Completed</button>
+        </div>
+      </section>
+
+      <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
+
+      <section id="empty-state" class="empty-state">
+        <h2>Nothing here yet</h2>
+        <p>Add your first task above and keep the momentum going.</p>
+      </section>
+
+      <button id="clear-completed" class="clear-completed" type="button">Clear completed</button>
+    </main>
+
+    <template id="todo-template">
+      <li class="todo-item">
+        <label>
+          <input class="toggle" type="checkbox" />
+          <span class="text"></span>
+        </label>
+        <button class="delete" type="button" aria-label="Delete task">×</button>
+      </li>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

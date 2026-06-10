@@ -1,10 +1,17 @@
-const STORAGE_KEY = 'dactyl.todos';
+const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 
+const authPanel = document.querySelector('#auth-panel');
+const authForm = document.querySelector('#auth-form');
+const usernameInput = document.querySelector('#username-input');
+const passwordInput = document.querySelector('#password-input');
+const signupButton = document.querySelector('#signup-button');
+const logoutButton = document.querySelector('#logout-button');
+const authStatus = document.querySelector('#auth-status');
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
@@ -42,11 +49,15 @@ const celebrations = [
   'A productive splash has occurred.',
 ];
 
-let todos = loadTodos();
+let authToken = loadAuthToken();
+let currentUser = null;
+let todos = [];
 let filter = 'all';
 let focusedTodoId = loadFocusedTodoId();
 let netMode = false;
 let selectedTodoIds = new Set();
+let saveQueue = Promise.resolve();
+let saveVersion = 0;
 
 function showStorageError(message) {
   storageError.textContent = message;
@@ -132,12 +143,21 @@ function normaliseTodos(value) {
     .slice(0, MAX_TODOS);
 }
 
-function loadTodos() {
+function loadAuthToken() {
   try {
-    return normaliseTodos(JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []);
+    return localStorage.getItem(TOKEN_KEY) ?? '';
   } catch {
-    showStorageError('Saved tasks could not be loaded, so the app started with an empty list.');
-    return [];
+    return '';
+  }
+}
+
+function saveAuthToken(value) {
+  authToken = value;
+  try {
+    if (value) localStorage.setItem(TOKEN_KEY, value);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    showStorageError('Authentication changed, but could not be saved in this browser.');
   }
 }
 
@@ -159,15 +179,49 @@ function saveFocusedTodoId(value) {
   }
 }
 
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (response.status === 204) return null;
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'The server could not complete that request.');
+  return body;
+}
+
 function saveTodos() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-    clearStorageError();
-    return true;
-  } catch {
-    showStorageError('Tasks changed in this tab, but could not be saved to this browser. Storage may be full or unavailable.');
+  if (!authToken) {
+    showStorageError('Log in or sign up before changing tasks.');
     return false;
   }
+
+  const version = ++saveVersion;
+  const snapshot = normaliseTodos(todos);
+  saveQueue = saveQueue
+    .catch(() => {})
+    .then(() => apiRequest('/api/tasks', {
+      method: 'PUT',
+      body: JSON.stringify({ todos: snapshot }),
+    }))
+    .then((body) => {
+      if (version === saveVersion) {
+        todos = normaliseTodos(body.todos);
+        clearStorageError();
+        render();
+      }
+    });
+
+  saveQueue.catch((error) => {
+    if (version === saveVersion) {
+      showStorageError(`Tasks changed in this tab, but sync failed: ${error.message}`);
+    }
+  });
+  return true;
 }
 
 function priorityRank(priority) {
@@ -300,8 +354,8 @@ function renderNetControls() {
   castNet.textContent = netMode ? 'Haul net in' : 'Cast net';
   releaseSelected.hidden = !netMode;
   shoalControl.hidden = !netMode;
-  releaseSelected.disabled = selectedCount === 0;
-  moveShoal.disabled = selectedCount === 0;
+  releaseSelected.disabled = !currentUser || selectedCount === 0;
+  moveShoal.disabled = !currentUser || selectedCount === 0;
   releaseSelected.textContent = selectedCount > 0 ? `Release selected (${selectedCount})` : 'Release selected';
 }
 
@@ -318,7 +372,26 @@ function renderFocusPanel() {
   focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
 }
 
+function renderAuth() {
+  const signedIn = Boolean(currentUser);
+  authPanel.classList.toggle('signed-in', signedIn);
+  authStatus.textContent = signedIn
+    ? `Signed in as ${currentUser.username}. Your tasks sync to the backend.`
+    : 'Create an account or log in to load your TODO pond.';
+  logoutButton.hidden = !signedIn;
+  usernameInput.disabled = signedIn;
+  passwordInput.disabled = signedIn;
+  form.classList.toggle('disabled', !signedIn);
+  [...form.elements].forEach((element) => {
+    element.disabled = !signedIn;
+  });
+  stockPond.disabled = !signedIn;
+  castNet.disabled = !signedIn;
+  clearCompleted.disabled = !signedIn;
+}
+
 function render() {
+  renderAuth();
   list.replaceChildren();
 
   if (filter === 'tide') {
@@ -333,7 +406,7 @@ function render() {
   count.textContent = `${pluralise(activeCount, 'task')} left`;
   emptyState.classList.toggle('visible', filter !== 'tide' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
-  releaseDemo.disabled = !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
+  releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
   renderNetControls();
 
@@ -486,6 +559,65 @@ function releaseDemoFish() {
   render();
 }
 
+async function authenticate(mode) {
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+  if (!username || !password) return;
+
+  authStatus.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
+  try {
+    const body = await apiRequest(`/api/${mode}`, {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+    saveAuthToken(body.token);
+    currentUser = body.user;
+    todos = normaliseTodos(body.todos);
+    passwordInput.value = '';
+    clearStorageError();
+    hidePondMessage();
+    render();
+  } catch (error) {
+    authStatus.textContent = error.message;
+  }
+}
+
+function logout() {
+  saveAuthToken('');
+  currentUser = null;
+  todos = [];
+  selectedTodoIds.clear();
+  netMode = false;
+  saveFocusedTodoId('');
+  hidePondMessage();
+  render();
+}
+
+async function restoreSession() {
+  if (!authToken) {
+    render();
+    return;
+  }
+  try {
+    const body = await apiRequest('/api/me');
+    currentUser = body.user;
+    todos = normaliseTodos(body.todos);
+  } catch {
+    saveAuthToken('');
+    currentUser = null;
+    todos = [];
+  }
+  render();
+}
+
+authForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  authenticate('login');
+});
+
+signupButton.addEventListener('click', () => authenticate('signup'));
+logoutButton.addEventListener('click', logout);
+
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   const text = input.value.trim();
@@ -521,4 +653,4 @@ releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
 completeFocus.addEventListener('click', completeFocusedTodo);
 
-render();
+restoreSession();

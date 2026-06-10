@@ -4,6 +4,9 @@ Dockerfile
 .dockerignore
 README.md
 node_modules
+data
+coverage
+__tests__
 *.log
 .DS_Store
 .vscode

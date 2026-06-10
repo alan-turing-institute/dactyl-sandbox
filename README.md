@@ -4,10 +4,13 @@ Sandbox for the Dactyl OpenClaw agent (Hack Week 2026).
 
 ## TODO app
 
-This repository contains a small static web-based TODO app built with HTML, CSS, and vanilla JavaScript.
+This repository contains a small TODO app built with HTML, CSS, vanilla JavaScript, and a Node/Express backend. Users can sign up or log in, then sync tasks through a SQLite-backed API protected by simple JWT authentication.
 
 ### Features
 
+- Sign up and log in with username/password credentials
+- Sync TODOs to a server-side SQLite database instead of browser-only task storage
+- REST API for creating, reading, updating, replacing, and deleting tasks
 - Add and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
 - Filter all, active, completed, and tide-mode task groups
@@ -16,35 +19,40 @@ This repository contains a small static web-based TODO app built with HTML, CSS,
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
 - Clear completed tasks
-- Persist tasks and focus mode in `localStorage`
-- Validate saved browser data before rendering
-- Warn if browser storage is unavailable or full
+- Validate saved task data before rendering
 - Responsive layout with accessible labels
 
 ### Run locally
 
-Open `index.html` directly in a browser, or serve the directory with a simple static server:
+Install dependencies and start the app:
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm start
 ```
 
-Then visit <http://localhost:8000>.
+Then visit <http://localhost:8080>. Data is stored in `data/todos.sqlite` by default. Set `DATABASE_PATH` to choose another SQLite file and `JWT_SECRET` to provide a stable signing secret across restarts.
+
+### Test
+
+```bash
+npm test
+```
+
+The test suite uses Jest and Supertest to cover signup, login, authenticated task persistence, and user isolation.
 
 ### Run with Docker
 
-Build the static web app image:
+Build the app image:
 
 ```bash
 docker build -t dactyl-sandbox .
 ```
 
-Run the container on local port 8080:
+Run the container on local port 8080, mounting a volume for SQLite persistence:
 
 ```bash
-docker run --rm -p 8080:8080 dactyl-sandbox
+docker run --rm -p 8080:8080 -v dactyl-data:/data -e JWT_SECRET=change-me dactyl-sandbox
 ```
 
-Then visit <http://localhost:8080>. TODO data remains browser-local via `localStorage`; the container does not store server-side application state.
-
-The container uses an unprivileged nginx image listening on port 8080 and sends a restrictive Content Security Policy plus common browser hardening headers (`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and frame protection).
+Then visit <http://localhost:8080>. The container runs an unprivileged Node process that serves the frontend and API on port 8080.

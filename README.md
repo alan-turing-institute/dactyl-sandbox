@@ -13,6 +13,8 @@ This repository contains a small static web-based TODO app built with HTML, CSS,
 - Filter all, active, and completed tasks
 - Clear completed tasks
 - Persist tasks in `localStorage`
+- Validate saved browser data before rendering
+- Warn if browser storage is unavailable or full
 - Responsive layout with accessible labels
 
 ### Run locally
@@ -36,7 +38,9 @@ docker build -t dactyl-sandbox .
 Run the container on local port 8080:
 
 ```bash
-docker run --rm -p 8080:80 dactyl-sandbox
+docker run --rm -p 8080:8080 dactyl-sandbox
 ```
 
 Then visit <http://localhost:8080>. TODO data remains browser-local via `localStorage`; the container does not store server-side application state.
+
+The container uses an unprivileged nginx image listening on port 8080 and sends a restrictive Content Security Policy plus common browser hardening headers (`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and frame protection).

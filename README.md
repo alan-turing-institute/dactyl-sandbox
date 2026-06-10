@@ -24,3 +24,19 @@ python3 -m http.server 8000
 ```
 
 Then visit <http://localhost:8000>.
+
+### Run with Docker
+
+Build the static web app image:
+
+```bash
+docker build -t dactyl-sandbox .
+```
+
+Run the container on local port 8080:
+
+```bash
+docker run --rm -p 8080:80 dactyl-sandbox
+```
+
+Then visit <http://localhost:8080>. TODO data remains browser-local via `localStorage`; the container does not store server-side application state.

@@ -197,6 +197,20 @@ h1 {
   color: var(--success);
 }
 
+.undo-action {
+  margin-left: .35rem;
+  padding: .3rem .65rem;
+  border: 1px solid rgb(141 255 202 / 40%);
+  background: rgb(141 255 202 / 16%);
+  color: var(--success);
+}
+
+.undo-action:hover,
+.undo-action:focus-visible {
+  background: rgb(141 255 202 / 24%);
+  outline: none;
+}
+
 .storage-error[hidden],
 .pond-message[hidden],
 .focus-panel[hidden],

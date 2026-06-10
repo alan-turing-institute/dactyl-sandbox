@@ -8,11 +8,15 @@ This repository contains a small static web-based TODO app built with HTML, CSS,
 
 ### Features
 
-- Add and delete tasks
+- Add and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
-- Filter all, active, and completed tasks
+- Filter all, active, completed, and tide-mode task groups
+- Show deterministic fishy mood badges with accessible text
+- Pick one active task for "feed the fish" focus mode
+- Stock or release fish-themed demo tasks without duplicating sample data
+- Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
 - Clear completed tasks
-- Persist tasks in `localStorage`
+- Persist tasks and focus mode in `localStorage`
 - Validate saved browser data before rendering
 - Warn if browser storage is unavailable or full
 - Responsive layout with accessible labels

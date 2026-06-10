@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Run linters
+        run: npm run lint
+
+  unit:
+    name: Node tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check server.js
+
+      - name: Run tests
+        run: npm test -- --runInBand
+
+  docker-http:
+    name: Docker HTTP smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t dactyl-sandbox:ci .
+
+      - name: Run container
+        run: |
+          docker run --rm -d \
+            --name dactyl-sandbox-ci \
+            -p 8080:8080 \
+            -e JWT_SECRET=ci-secret \
+            dactyl-sandbox:ci
+
+      - name: Wait for app
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs dactyl-sandbox-ci
+          exit 1
+
+      - name: Run HTTP smoke checks
+        run: scripts/http-smoke.sh
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs dactyl-sandbox-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker stop dactyl-sandbox-ci || true

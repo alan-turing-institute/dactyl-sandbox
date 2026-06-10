@@ -11,7 +11,30 @@
       <section class="hero">
         <p class="eyebrow">Dactyl Sandbox</p>
         <h1 id="app-title">TODO List</h1>
-        <p class="subtitle">A lightweight browser-based TODO pond with fishy focus mode.</p>
+        <p class="subtitle">A lightweight TODO pond with sign-in and backend sync.</p>
+      </section>
+
+      <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
+        <div>
+          <p class="eyebrow">Account</p>
+          <h2 id="auth-title">Sign in to sync tasks</h2>
+          <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your TODO pond.</p>
+        </div>
+        <form id="auth-form" class="auth-form" autocomplete="on">
+          <label>
+            <span>Username</span>
+            <input id="username-input" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" required />
+          </label>
+          <div class="auth-actions">
+            <button id="login-button" type="submit">Log in</button>
+            <button id="signup-button" class="secondary-action" type="button">Sign up</button>
+            <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
+          </div>
+        </form>
       </section>
 
       <form id="todo-form" class="todo-form" autocomplete="off">

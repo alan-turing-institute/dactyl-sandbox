@@ -11,7 +11,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Sign up and log in with username/password credentials
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
-- Add and delete tasks with optional due dates and low, medium, or high priority
+- Add, edit, and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
 - Filter all, active, completed, Tide mode grouped urgency lanes, and a Week ahead agenda
 - Show deterministic fishy mood badges with accessible text

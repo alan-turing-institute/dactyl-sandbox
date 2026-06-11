@@ -555,6 +555,14 @@ kbd {
 .todo-item[data-tide="washed"] { background: rgb(255 141 141 / 9%); }
 .todo-item[data-tide="high"] { background: rgb(255 210 141 / 9%); }
 .todo-item.focused { box-shadow: 0 0 0 3px rgb(141 212 255 / 20%); }
+.todo-item.editing {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.todo-item.editing > label,
+.todo-item.editing > .todo-actions { opacity: .65; }
 
 .todo-item label {
   display: flex;
@@ -612,6 +620,58 @@ kbd {
   display: flex;
   align-items: center;
   gap: .5rem;
+}
+
+.edit-task-form {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(9rem, auto) auto;
+  gap: .65rem;
+  align-items: end;
+  padding-top: .75rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.edit-task-form label {
+  display: grid;
+  gap: .35rem;
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.edit-task-form input,
+.edit-task-form select {
+  min-width: 0;
+  padding: .7rem .85rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+}
+
+.edit-task-form input:focus,
+.edit-task-form select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
+}
+
+.edit-task-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.edit-task-actions button:first-child {
+  padding: .7rem 1rem;
+  color: #07111a;
+  background: var(--accent);
+}
+
+.edit-task {
+  padding: .5rem .75rem;
+  background: rgb(255 255 255 / 8%);
+  color: var(--text);
 }
 
 .delete {
@@ -706,4 +766,5 @@ kbd {
   .todo-actions { align-items: stretch; }
   .todo-item { flex-direction: column; }
   .todo-actions { justify-content: flex-end; }
+  .edit-task-form { grid-template-columns: 1fr; }
 }

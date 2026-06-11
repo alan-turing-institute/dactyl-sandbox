@@ -74,6 +74,13 @@ case "$(header_value "Content-Type")" in
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 
+fetch /triage-mode.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /triage-mode.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+
 fetch /styles.css
 case "$(header_value "Content-Type")" in
   text/css*) ;;

@@ -11,7 +11,7 @@
     "start": "node server.js",
     "test": "jest --runInBand",
     "lint": "npm run lint:js && npm run lint:html && npm run lint:css",
-    "lint:js": "eslint app.js analytics.js fish-emoji.js first-task-onboarding.js quick-add-parser.js screen-state.js server.js __tests__/**/*.js",
+    "lint:js": "eslint app.js analytics.js fish-emoji.js first-task-onboarding.js quick-add-parser.js screen-state.js triage-mode.js server.js __tests__/**/*.js",
     "lint:html": "htmlhint index.html",
     "lint:css": "stylelint styles.css"
   },

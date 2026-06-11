@@ -590,6 +590,7 @@ function createApp(options = {}) {
   app.get('/fish-emoji.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'fish-emoji.js')));
   app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));
   app.get('/quick-add-parser.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'quick-add-parser.js')));
+  app.get('/triage-mode.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'triage-mode.js')));
   app.get('/app.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'app.js')));
 
   app.close = () => db.close();

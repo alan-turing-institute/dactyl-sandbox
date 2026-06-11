@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremium, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -77,6 +77,7 @@ const {
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
+const { createCallout: createPremiumCallout } = DactylPremium;
 const { parseQuickAdd } = DactylQuickAdd;
 const analytics = DactylAnalytics.createAnalytics();
 const {
@@ -2603,6 +2604,19 @@ function renderAuth() {
   updateRestorePreview();
 }
 
+function renderPremiumHints() {
+  const features = [
+    { featureId: 'export', anchorEl: exportPond },
+    { featureId: 'sharing', anchorEl: sharePond },
+  ];
+  for (const { featureId, anchorEl } of features) {
+    if (!anchorEl) continue;
+    if (anchorEl.parentElement.querySelector(`.premium-callout[data-premium-feature="${featureId}"]`)) continue;
+    const callout = createPremiumCallout(featureId);
+    if (callout) anchorEl.insertAdjacentElement('afterend', callout);
+  }
+}
+
 function setFilter(nextFilter) {
   // Clear selection when filter changes so hidden tasks can't be affected by bulk actions.
   selectedTodoIds.clear();
@@ -3396,6 +3410,7 @@ async function authenticate(mode) {
     clearStorageError();
     hidePondMessage();
     render();
+    renderPremiumHints();
   } catch (error) {
     authStatus.textContent = error.message;
     if (error.field === 'username') usernameInput.focus();

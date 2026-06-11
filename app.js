@@ -2,8 +2,10 @@
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
+const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const MAX_TODOS = 200;
+const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
@@ -68,6 +70,12 @@ const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
+const focusSprintStatus = document.querySelector('#focus-sprint-status');
+const focusSprintPresets = [...document.querySelectorAll('.focus-sprint-preset')];
+const startFocusSprint = document.querySelector('#start-focus-sprint');
+const pauseFocusSprint = document.querySelector('#pause-focus-sprint');
+const cancelFocusSprint = document.querySelector('#cancel-focus-sprint');
+const completeFocusSprint = document.querySelector('#complete-focus-sprint');
 const completeFocus = document.querySelector('#complete-focus');
 const showcaseToggle = document.querySelector('#showcase-toggle');
 const showcasePanel = document.querySelector('#showcase-panel');
@@ -95,6 +103,8 @@ let filter = 'all';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
+let focusSprint = createFocusSprint();
+let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
 let pendingEditFocusId = '';
@@ -273,6 +283,33 @@ function loadTourDismissed() {
   } catch {
     return false;
   }
+}
+
+function loadFocusSprintMinutes() {
+  try {
+    const storedMinutes = Number(localStorage.getItem(SPRINT_LENGTH_KEY));
+    return [15, 25].includes(storedMinutes) ? storedMinutes : DEFAULT_SPRINT_MINUTES;
+  } catch {
+    return DEFAULT_SPRINT_MINUTES;
+  }
+}
+
+function saveFocusSprintMinutes(value) {
+  try {
+    localStorage.setItem(SPRINT_LENGTH_KEY, String(value));
+  } catch {
+    showStorageError('Focus sprint length changed, but could not be saved in this browser.');
+  }
+}
+
+function createFocusSprint(minutes = loadFocusSprintMinutes()) {
+  return {
+    minutes,
+    status: 'idle',
+    todoId: '',
+    endsAt: 0,
+    remainingMs: minutes * 60 * 1000,
+  };
 }
 
 function saveTourDismissed(value) {
@@ -1174,17 +1211,154 @@ function renderTourPanel() {
   tourCopyReport.disabled = todos.length === 0;
 }
 
+function formatSprintTime(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes + ':' + String(seconds).padStart(2, '0');
+}
+
+function selectedFocusTodo() {
+  return todos.find((todo) => todo.id === focusedTodoId && !todo.completed);
+}
+
+function setFocusSprintTimer(active) {
+  if (focusSprintTimerId) {
+    window.clearInterval(focusSprintTimerId);
+    focusSprintTimerId = null;
+  }
+  if (active) focusSprintTimerId = window.setInterval(tickFocusSprint, 1000);
+}
+
+function resetFocusSprint(todoId = focusedTodoId) {
+  setFocusSprintTimer(false);
+  focusSprint = createFocusSprint(focusSprint.minutes);
+  focusSprint.todoId = todoId;
+}
+
+function syncFocusSprintWithSelection() {
+  const focusedTodo = selectedFocusTodo();
+  if (!focusedTodo) {
+    resetFocusSprint('');
+    return;
+  }
+  if (focusSprint.todoId && focusSprint.todoId !== focusedTodo.id) resetFocusSprint(focusedTodo.id);
+  else if (!focusSprint.todoId) focusSprint.todoId = focusedTodo.id;
+}
+
+function renderFocusSprint() {
+  const focusedTodo = selectedFocusTodo();
+  const hasFocus = Boolean(focusedTodo);
+  const isRunning = focusSprint.status === 'running';
+  const isPaused = focusSprint.status === 'paused';
+  const isFinished = focusSprint.status === 'finished';
+  const remaining = isRunning ? Math.max(0, focusSprint.endsAt - Date.now()) : focusSprint.remainingMs;
+
+  focusSprintPresets.forEach((button) => {
+    const minutes = Number(button.dataset.sprintMinutes);
+    button.classList.toggle('active', minutes === focusSprint.minutes);
+    button.setAttribute('aria-pressed', String(minutes === focusSprint.minutes));
+    button.disabled = !hasFocus || isRunning;
+  });
+
+  startFocusSprint.disabled = !hasFocus || isRunning || isFinished;
+  startFocusSprint.textContent = isPaused ? 'Resume sprint' : 'Start sprint';
+  pauseFocusSprint.disabled = !hasFocus || !isRunning;
+  cancelFocusSprint.disabled = !hasFocus || focusSprint.status === 'idle';
+  completeFocusSprint.hidden = !isFinished;
+  completeFocusSprint.disabled = !hasFocus || !isFinished;
+
+  if (!hasFocus) {
+    focusSprintStatus.textContent = 'Pick a fish to start a focus sprint.';
+  } else if (isFinished) {
+    focusSprintStatus.textContent = 'Sprint complete. Mark this fish fed when you are ready.';
+  } else if (isRunning) {
+    focusSprintStatus.textContent = formatSprintTime(remaining) + ' left in this sprint.';
+  } else if (isPaused) {
+    focusSprintStatus.textContent = formatSprintTime(remaining) + ' paused.';
+  } else {
+    focusSprintStatus.textContent = focusSprint.minutes + ' minute sprint ready.';
+  }
+}
+
+function selectFocusSprintLength(minutes) {
+  if (focusSprint.status === 'running') return;
+  focusSprint = createFocusSprint(minutes);
+  focusSprint.todoId = focusedTodoId;
+  saveFocusSprintMinutes(minutes);
+  renderFocusSprint();
+}
+
+function startOrResumeFocusSprint() {
+  const focusedTodo = selectedFocusTodo();
+  if (!focusedTodo || focusSprint.status === 'running' || focusSprint.status === 'finished') return;
+  focusSprint.todoId = focusedTodo.id;
+  focusSprint.status = 'running';
+  focusSprint.endsAt = Date.now() + focusSprint.remainingMs;
+  setFocusSprintTimer(true);
+  renderFocusSprint();
+  showPondMessage('Focus sprint started for ' + focusedTodo.text + '.');
+}
+
+function pauseCurrentFocusSprint() {
+  if (focusSprint.status !== 'running') return;
+  focusSprint.remainingMs = Math.max(0, focusSprint.endsAt - Date.now());
+  focusSprint.status = 'paused';
+  focusSprint.endsAt = 0;
+  setFocusSprintTimer(false);
+  renderFocusSprint();
+  showPondMessage('Focus sprint paused.');
+}
+
+function cancelCurrentFocusSprint(message = 'Focus sprint cancelled.') {
+  const hadActiveSprint = focusSprint.status !== 'idle';
+  resetFocusSprint(focusedTodoId);
+  renderFocusSprint();
+  if (hadActiveSprint && message) showPondMessage(message);
+}
+
+function finishFocusSprint() {
+  focusSprint.status = 'finished';
+  focusSprint.remainingMs = 0;
+  focusSprint.endsAt = 0;
+  setFocusSprintTimer(false);
+  renderFocusSprint();
+  showPondMessage('Focus sprint complete. Nice steady swimming.');
+}
+
+function tickFocusSprint() {
+  if (focusSprint.status !== 'running') return;
+  if (!selectedFocusTodo() || focusSprint.todoId !== focusedTodoId) {
+    cancelCurrentFocusSprint('Focus sprint cancelled because the selected fish changed.');
+    return;
+  }
+  const remaining = focusSprint.endsAt - Date.now();
+  if (remaining <= 0) {
+    finishFocusSprint();
+    return;
+  }
+  renderFocusSprint();
+}
+
+function completeSprintFocusedTodo() {
+  if (focusSprint.status !== 'finished') return;
+  completeFocusedTodo();
+}
+
 function renderFocusPanel() {
-  const focusedTodo = todos.find((todo) => todo.id === focusedTodoId && !todo.completed);
+  const focusedTodo = selectedFocusTodo();
+  syncFocusSprintWithSelection();
   if (!focusedTodo) {
     saveFocusedTodoId('');
     focusPanel.hidden = true;
+    renderFocusSprint();
     return;
   }
 
   focusPanel.hidden = false;
   focusTitle.textContent = focusedTodo.text;
   focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
+  renderFocusSprint();
 }
 
 function renderAuth() {
@@ -1289,7 +1463,10 @@ function toggleTodo(id) {
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: !todo.completed } : todo
   ));
-  if (id === focusedTodoId && todos.find((todo) => todo.id === id)?.completed) saveFocusedTodoId('');
+  if (id === focusedTodoId && todos.find((todo) => todo.id === id)?.completed) {
+    cancelCurrentFocusSprint('Focus sprint cancelled because this fish was completed.');
+    saveFocusedTodoId('');
+  }
   saveTodos();
   render();
 }
@@ -1321,7 +1498,10 @@ function removeTodosWithUndo(predicate, message) {
   const previousNetMode = netMode;
 
   todos = previousTodos.filter((todo) => !predicate(todo));
-  if (previousFocus && removedTodos.some((todo) => todo.id === previousFocus)) saveFocusedTodoId('');
+  if (previousFocus && removedTodos.some((todo) => todo.id === previousFocus)) {
+    cancelCurrentFocusSprint('Focus sprint cancelled because that fish left the pond.');
+    saveFocusedTodoId('');
+  }
   selectedTodoIds = new Set(previousSelection.filter((id) => todos.some((todo) => todo.id === id)));
   saveTodos();
   render();
@@ -1421,7 +1601,10 @@ function archiveTodo(id) {
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: true, archivedAt } : todo
   ));
-  if (id === focusedTodoId) saveFocusedTodoId('');
+  if (id === focusedTodoId) {
+    cancelCurrentFocusSprint('Focus sprint cancelled because this fish moved to the reef.');
+    saveFocusedTodoId('');
+  }
   selectedTodoIds.delete(id);
   saveTodos();
   showPondMessage('Moved 1 completed fish to the reef archive.');
@@ -1436,7 +1619,10 @@ function archiveCompletedTodos() {
   todos = todos.map((todo) => (
     completedIdSet.has(todo.id) ? { ...todo, completed: true, archivedAt } : todo
   ));
-  if (completedIdSet.has(focusedTodoId)) saveFocusedTodoId('');
+  if (completedIdSet.has(focusedTodoId)) {
+    cancelCurrentFocusSprint('Focus sprint cancelled because this fish moved to the reef.');
+    saveFocusedTodoId('');
+  }
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => !completedIdSet.has(id)));
   saveTodos();
   showPondMessage(`Moved ${pluralise(completedIds.length, 'completed fish', 'completed fish')} to the reef archive.`);
@@ -1461,6 +1647,7 @@ function releaseArchivedTodos() {
 
 function focusTodo(id) {
   editingTodoId = '';
+  if (id !== focusedTodoId) resetFocusSprint(id);
   saveFocusedTodoId(id);
   hidePondMessage();
   render();
@@ -1516,6 +1703,7 @@ function moveSelectedToShoal() {
 function completeFocusedTodo() {
   if (!focusedTodoId) return;
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
+  cancelCurrentFocusSprint('');
   todos = todos.map((todo) => (
     todo.id === focusedTodoId ? { ...todo, completed: true } : todo
   ));
@@ -1734,6 +1922,7 @@ function logout() {
   selectedTodoIds.clear();
   netMode = false;
   tourForcedVisible = false;
+  resetFocusSprint('');
   saveFocusedTodoId('');
   markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
@@ -1891,6 +2080,13 @@ dismissPondTour.addEventListener('click', () => {
   render();
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
 });
+focusSprintPresets.forEach((button) => {
+  button.addEventListener('click', () => selectFocusSprintLength(Number(button.dataset.sprintMinutes)));
+});
+startFocusSprint.addEventListener('click', startOrResumeFocusSprint);
+pauseFocusSprint.addEventListener('click', pauseCurrentFocusSprint);
+cancelFocusSprint.addEventListener('click', () => cancelCurrentFocusSprint());
+completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
 completeFocus.addEventListener('click', completeFocusedTodo);
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));

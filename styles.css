@@ -58,6 +58,43 @@ button:disabled {
 
 .hero { margin-bottom: 1.5rem; }
 
+@keyframes fishSwim {
+  0%   { transform: translateX(0) rotate(0deg); }
+  25%  { transform: translateX(4px) rotate(4deg); }
+  75%  { transform: translateX(-4px) rotate(-4deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@keyframes fishBob {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+.fish-decoration {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.fish {
+  display: inline-block;
+  animation: fishSwim 3s ease-in-out infinite, fishBob 2.5s ease-in-out infinite;
+  font-size: 1.4rem;
+}
+
+.fish-1 { animation-delay: 0s, 0s; animation-duration: 3s, 2.5s; }
+.fish-2 { animation-delay: 0.4s, 0.6s; animation-duration: 3.4s, 2.8s; }
+.fish-3 { animation-delay: 0.8s, 1.1s; animation-duration: 2.8s, 3.1s; }
+
+[data-motion="reduced"] .fish { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fish { animation: none; }
+}
+
 .eyebrow {
   margin: 0 0 .35rem;
   color: var(--accent);
@@ -1803,6 +1840,18 @@ kbd {
 .pref-option span span {
   font-size: .8rem;
   color: var(--muted);
+}
+
+.pond-wave {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary, #1a6fa8), transparent);
+  border-radius: 2px;
+  margin: 0.5rem 0;
+  opacity: 0.35;
+}
+
+.pond-screen {
+  background-image: radial-gradient(ellipse 80% 40% at 50% 100%, rgb(26 111 168 / 8%), transparent);
 }
 
 [data-motion="reduced"] * {

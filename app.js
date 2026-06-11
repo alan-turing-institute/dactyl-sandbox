@@ -797,7 +797,12 @@ function logActivity(action, todoText) {
 function setActivityLogOpen(open) {
   activityLogPanel.hidden = !open;
   activityLogToggle.setAttribute('aria-expanded', String(open));
-  if (open) activityLogPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (open) {
+    activityLogPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    activityLogClose.focus();
+  } else {
+    activityLogToggle.focus();
+  }
 }
 
 function renderActivityLog() {

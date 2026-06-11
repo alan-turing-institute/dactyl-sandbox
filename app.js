@@ -384,7 +384,9 @@ function saveNotifiedTodayIds() {
       date: todayKey(),
       ids: [...notifiedTodayIds],
     }));
-  } catch {}
+  } catch {
+    // Ignore: this cache only suppresses duplicate reminders for the current day.
+  }
 }
 
 function saveFocusedTodoId(value) {
@@ -1750,7 +1752,7 @@ function renderFocusPanel() {
 }
 
 function checkDueNotifications() {
-  if (!notificationsEnabled || Notification.permission !== 'granted') return;
+  if (!notificationsEnabled || window.Notification.permission !== 'granted') return;
   if (!currentUser || todos.length === 0) return;
 
   const today = todayKey();
@@ -1759,7 +1761,7 @@ function checkDueNotifications() {
   );
 
   newlyDue.forEach((todo) => {
-    new Notification('Dactyl TODO', {
+    new window.Notification('Dactyl TODO', {
       body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
       tag: `dactyl-due-${todo.id}`,
     });
@@ -1774,7 +1776,7 @@ async function enableNotifications() {
     showPondMessage('This browser does not support notifications.');
     return;
   }
-  const permission = await Notification.requestPermission();
+  const permission = await window.Notification.requestPermission();
   if (permission === 'granted') {
     saveNotificationsEnabled(true);
     startNotificationInterval();
@@ -1810,7 +1812,7 @@ function renderNotificationToggle() {
     notificationToggle.hidden = true;
     return;
   }
-  const enabled = notificationsEnabled && Notification.permission === 'granted';
+  const enabled = notificationsEnabled && window.Notification.permission === 'granted';
   notificationToggle.hidden = !currentUser;
   notificationToggle.textContent = enabled ? 'Notifications on' : 'Enable notifications';
   notificationToggle.setAttribute('aria-pressed', String(enabled));
@@ -2370,7 +2372,7 @@ async function authenticate(mode) {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Loaded tasks for the current session.');
-    if (notificationsEnabled && Notification.permission === 'granted') startNotificationInterval();
+    if (notificationsEnabled && window.Notification.permission === 'granted') startNotificationInterval();
     checkDueNotifications();
     passwordInput.value = '';
     clearStorageError();
@@ -2442,7 +2444,7 @@ async function restoreSession() {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Restored the signed-in task pond.');
-    if (notificationsEnabled && Notification.permission === 'granted') startNotificationInterval();
+    if (notificationsEnabled && window.Notification.permission === 'granted') startNotificationInterval();
     checkDueNotifications();
   } catch {
     saveAuthToken('');
@@ -2522,7 +2524,7 @@ authForm.addEventListener('submit', (event) => {
 signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
 notificationToggle.addEventListener('click', () => {
-  const enabled = notificationsEnabled && Notification.permission === 'granted';
+  const enabled = notificationsEnabled && window.Notification.permission === 'granted';
   if (enabled) disableNotifications();
   else enableNotifications();
 });

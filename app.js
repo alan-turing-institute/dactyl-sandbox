@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -87,6 +87,7 @@ const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
 const { premiumHookForSurface } = DactylPremiumHooks;
 const { normaliseRecurrence, recurrenceLabel, nextRecurrenceDate } = DactylRecurrence;
+const { contextualEmptyState, dailyCatchEmptyState } = DactylContextualEmptyStates;
 const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
@@ -125,6 +126,7 @@ const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
+const emptyStateActions = document.querySelector('#empty-state-actions');
 const firstTaskOnboarding = document.querySelector('#first-task-onboarding');
 const firstTaskTemplateButtons = [...document.querySelectorAll('[data-first-task-template]')];
 const dismissFirstTaskOnboarding = document.querySelector('#dismiss-first-task-onboarding');
@@ -251,6 +253,8 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const moreActionsToggle = document.querySelector('#more-actions-toggle');
+const moreActionsPanel = document.querySelector('#more-actions-panel');
 const activityLogToggle = document.querySelector('#activity-log-toggle');
 const activityLogPanel = document.querySelector('#activity-log-panel');
 const activityLogClose = document.querySelector('#activity-log-close');
@@ -856,6 +860,16 @@ function logActivity(action, todoText) {
   renderActivityLog();
 }
 
+function setMoreActionsOpen(open) {
+  moreActionsPanel.hidden = !open;
+  moreActionsToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    moreActionsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else {
+    moreActionsToggle.focus();
+  }
+}
+
 function setActivityLogOpen(open) {
   activityLogPanel.hidden = !open;
   activityLogToggle.setAttribute('aria-expanded', String(open));
@@ -1120,14 +1134,35 @@ function deleteSmartView(viewId) {
   if (view) showPondMessage('Deleted smart view: ' + view.name + '.');
 }
 
-function filteredEmptyHeading() {
-  return normalisedSearchQuery() ? 'No fish match your search or filters' : 'No fish match these filters';
+function runEmptyStateAction(action) {
+  if (action === 'clear-search' || action === 'clear-filter') {
+    clearSearchState();
+    render();
+    taskSearch.focus();
+    return;
+  }
+  if (action === 'show-completed') {
+    setFilter('completed');
+    return;
+  }
+  if (action === 'show-active') {
+    setFilter('active');
+    return;
+  }
+  if (action === 'show-all') {
+    setFilter('all');
+  }
 }
 
-function filteredEmptyDescription() {
-  return normalisedSearchQuery()
-    ? 'Clear the search or quick filter to see more fish in this view.'
-    : 'Clear the quick filter to see more fish in this view.';
+function renderEmptyStateActions(state) {
+  emptyStateActions.replaceChildren();
+  if (!state?.cta) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'secondary-action';
+  button.textContent = state.cta.label;
+  button.addEventListener('click', () => runEmptyStateAction(state.cta.action));
+  emptyStateActions.append(button);
 }
 
 function tideFor(todo) {
@@ -1994,17 +2029,28 @@ function renderDailyCatch() {
   if (dailyCatchPanel.hidden) return;
 
   const catchTodos = dailyCatchTodos();
+  const emptyState = dailyCatchEmptyState();
   const completed = catchTodos.filter((todo) => todo.completed).length;
   const activeCatch = catchTodos.filter((todo) => !todo.completed);
   dailyCatchSummary.textContent = catchTodos.length > 0
     ? `${completed}/${catchTodos.length} fish fed today · ${activeCatch.length} still swimming.`
-    : 'Pin three to five fish for a realistic day’s catch.';
+    : emptyState.heading;
 
   dailyCatchPinned.replaceChildren();
   if (catchTodos.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'daily-catch-empty';
-    empty.textContent = 'No fish pinned yet. Start from the suggestions.';
+    const copy = document.createElement('span');
+    copy.textContent = emptyState.description;
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'secondary-action';
+    action.textContent = emptyState.cta.label;
+    action.addEventListener('click', () => {
+      setDailyCatchOpen(false);
+      runEmptyStateAction(emptyState.cta.action);
+    });
+    empty.append(copy, action);
     dailyCatchPinned.append(empty);
   } else {
     catchTodos.forEach((todo) => dailyCatchPinned.append(createDailyCatchItem(todo, 'unpin')));
@@ -2777,14 +2823,13 @@ function renderWeekAhead() {
   const groups = weekAheadGroups();
 
   if (groups.length === 0) {
+    const state = contextualEmptyState({ filter: 'week', searchQuery, quickFilter });
     const emptyItem = document.createElement('li');
     emptyItem.className = 'week-group week-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Clear waters ahead';
+    heading.textContent = state.heading;
     const description = document.createElement('p');
-    description.textContent = hasActiveSearchFilter()
-      ? filteredEmptyDescription()
-      : 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
+    description.textContent = state.description;
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -2819,14 +2864,13 @@ function renderTideMode() {
     .filter((group) => group.todos.length > 0);
 
   if (populatedGroups.length === 0) {
+    const state = contextualEmptyState({ filter: 'tide', searchQuery, quickFilter });
     const emptyItem = document.createElement('li');
     emptyItem.className = 'tide-group tide-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Still waters (0)';
+    heading.textContent = state.heading;
     const description = document.createElement('p');
-    description.textContent = hasActiveSearchFilter()
-      ? filteredEmptyDescription()
-      : 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
+    description.textContent = state.description;
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -3397,6 +3441,7 @@ function render() {
     liveCount: livePond.length,
     visibleCount,
   });
+  const empty = contextualEmptyState({ filter, searchQuery, quickFilter, showFirstTaskGuide });
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : hasActiveSearchFilter()
@@ -3404,18 +3449,9 @@ function render() {
       : filter === 'archive'
         ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
         : `${pluralise(activeCount, 'task')} left`;
-  emptyState.querySelector('h2').textContent = hasActiveSearchFilter()
-    ? filteredEmptyHeading()
-    : filter === 'archive'
-      ? 'No fish in the reef archive'
-      : 'Nothing here yet';
-  emptyState.querySelector('p').textContent = hasActiveSearchFilter()
-    ? filteredEmptyDescription()
-    : filter === 'archive'
-      ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-      : showFirstTaskGuide
-        ? 'Start with a tiny guided task, or add your own fish in the box above.'
-        : 'Add your first task above, or open Getting started for demo fish and a quick pond tour.';
+  emptyState.querySelector('h2').textContent = empty.heading;
+  emptyState.querySelector('p').textContent = empty.description;
+  renderEmptyStateActions(empty);
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
@@ -3971,12 +4007,13 @@ function renderGhostNet() {
   const ghosts = ghostNetTodos();
 
   if (ghosts.length === 0) {
+    const state = contextualEmptyState({ filter: 'ghost', searchQuery, quickFilter });
     const emptyItem = document.createElement('li');
     emptyItem.className = 'ghost-group ghost-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Clear waters — no ghost tasks';
+    heading.textContent = state.heading;
     const description = document.createElement('p');
-    description.textContent = 'No overdue, stale, or drifting high-priority tasks found. The pond is swimming clean.';
+    description.textContent = state.description;
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -4295,7 +4332,9 @@ function handleGlobalShortcut(event) {
     if (closedPrefs) setPrefsOpen(false);
     const closedActivityLog = !activityLogPanel.hidden;
     if (closedActivityLog) setActivityLogOpen(false);
-    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog) event.preventDefault();
+    const closedMoreActions = !moreActionsPanel.hidden;
+    if (closedMoreActions) setMoreActionsOpen(false);
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog || closedMoreActions) event.preventDefault();
   }
 }
 
@@ -4547,6 +4586,7 @@ prefTextBadges.addEventListener('change', () => {
   applyViewPrefs();
 });
 
+moreActionsToggle.addEventListener('click', () => setMoreActionsOpen(moreActionsPanel.hidden));
 activityLogToggle.addEventListener('click', () => setActivityLogOpen(activityLogPanel.hidden));
 activityLogClose.addEventListener('click', () => setActivityLogOpen(false));
 activityUndoBtn.addEventListener('click', () => {

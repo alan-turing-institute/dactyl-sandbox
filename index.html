@@ -65,11 +65,18 @@
         <label class="sr-only" for="due-date-input">Due date</label>
         <input id="due-date-input" name="due-date" type="date" />
         <label class="sr-only" for="priority-input">Priority</label>
-        <select id="priority-input" name="priority" aria-label="Priority">
-          <option value="low">Low tide</option>
-          <option value="medium" selected>Medium tide</option>
-          <option value="high">High tide</option>
-        </select>
+        <div class="priority-picker">
+          <select id="priority-input" name="priority" aria-label="Priority">
+            <option value="low">Low tide</option>
+            <option value="medium" selected>Medium tide</option>
+            <option value="high">High tide</option>
+          </select>
+          <div class="priority-chips" role="group" aria-label="Quick priority">
+            <button type="button" data-priority="low" aria-pressed="false">Low</button>
+            <button type="button" data-priority="medium" aria-pressed="true">Medium</button>
+            <button type="button" data-priority="high" aria-pressed="false">High</button>
+          </div>
+        </div>
         <button type="submit">Add</button>
       </form>
 

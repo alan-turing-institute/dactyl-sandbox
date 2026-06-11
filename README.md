@@ -13,6 +13,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
 - Add, edit, and delete tasks with optional due dates and low, medium, or high priority
+- Use quick priority chips to mark the next fish as low, medium, or high tide
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
 - Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review

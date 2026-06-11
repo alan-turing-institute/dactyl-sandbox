@@ -28,6 +28,7 @@ const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
 const priorityInput = document.querySelector('#priority-input');
+const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
@@ -645,6 +646,19 @@ function setPastePanelOpen(open) {
 function setShortcutHelpOpen(open) {
   shortcutHelp.hidden = !open;
   shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function syncPriorityChips() {
+  priorityChips.forEach((chip) => {
+    chip.setAttribute('aria-pressed', String(chip.dataset.priority === priorityInput.value));
+  });
+}
+
+function setDraftPriority(priority) {
+  if (!PRIORITIES.includes(priority)) return;
+  priorityInput.value = priority;
+  syncPriorityChips();
+  showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
 }
 
 function toggleShortcutHelp() {
@@ -2419,11 +2433,17 @@ form.addEventListener('submit', (event) => {
   });
   form.reset();
   priorityInput.value = 'medium';
+  syncPriorityChips();
   input.focus();
 });
 
 filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
+});
+
+priorityInput.addEventListener('change', syncPriorityChips);
+priorityChips.forEach((chip) => {
+  chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));
 });
 
 taskSearch.addEventListener('input', () => {
@@ -2504,5 +2524,6 @@ trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hid
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
 
 document.addEventListener('keydown', handleGlobalShortcut);
+syncPriorityChips();
 
 restoreSession();

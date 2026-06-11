@@ -1,3 +1,5 @@
+<!-- AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. -->
+<!-- Prompt: issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions. -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -81,6 +83,7 @@
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
+        <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
@@ -108,6 +111,7 @@
           <div><dt><kbd>?</kbd></dt><dd>Open or close this help card.</dd></div>
           <div><dt><kbd>/</kbd></dt><dd>Focus the task input.</dd></div>
           <div><dt><kbd>T</kbd></dt><dd>Switch to Tide mode.</dd></div>
+          <div><dt><kbd>G</kbd></dt><dd>Switch to Ghost net review.</dd></div>
           <div><dt><kbd>A</kbd></dt><dd>Switch back to All tasks.</dd></div>
           <div><dt><kbd>R</kbd></dt><dd>Copy the pond report.</dd></div>
           <div><dt><kbd>Esc</kbd></dt><dd>Close this help card and leave net mode.</dd></div>
@@ -178,10 +182,37 @@
         </div>
       </section>
 
+      <section id="showcase-panel" class="showcase-panel" aria-labelledby="showcase-title" hidden>
+        <div class="showcase-header">
+          <div>
+            <p class="eyebrow">Presentation mode</p>
+            <h2 id="showcase-title">Aquarium view</h2>
+          </div>
+          <button id="showcase-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <div id="showcase-body" class="showcase-body"></div>
+      </section>
+
       <section id="focus-panel" class="focus-panel" aria-labelledby="focus-title" aria-live="polite" hidden>
         <p class="eyebrow">Feed the fish</p>
         <h2 id="focus-title">No fish selected</h2>
         <p id="focus-meta" class="focus-meta"></p>
+        <div class="focus-sprint" aria-labelledby="focus-sprint-title">
+          <div>
+            <h3 id="focus-sprint-title">Focus sprint</h3>
+            <p id="focus-sprint-status" class="focus-sprint-status" role="timer" aria-live="polite">Ready when you are.</p>
+          </div>
+          <div class="focus-sprint-presets" role="group" aria-label="Focus sprint length">
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="15">15 min</button>
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="25">25 min</button>
+          </div>
+          <div class="focus-sprint-actions">
+            <button id="start-focus-sprint" type="button">Start sprint</button>
+            <button id="pause-focus-sprint" class="secondary-action" type="button">Pause</button>
+            <button id="cancel-focus-sprint" class="secondary-action" type="button">Cancel</button>
+            <button id="complete-focus-sprint" class="secondary-action" type="button">Mark fed after sprint</button>
+          </div>
+        </div>
         <button id="complete-focus" type="button">Mark fed</button>
       </section>
 
@@ -194,6 +225,7 @@
           <button type="button" class="filter" data-filter="archive">Reef archive</button>
           <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
+          <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
         </div>
       </section>
 

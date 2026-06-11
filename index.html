@@ -67,7 +67,7 @@
           required
         />
         <label class="sr-only" for="due-date-input">Due date</label>
-        <input id="due-date-input" name="due-date" type="date" />
+        <input id="due-date-input" name="due-date" type="date" placeholder="Due date (optional)" />
         <label class="sr-only" for="github-url-input">GitHub issue or PR URL</label>
         <input
           id="github-url-input"
@@ -77,6 +77,7 @@
           placeholder="GitHub issue or PR URL"
         />
         <label class="sr-only" for="priority-input">Priority</label>
+        <label for="priority-input" class="form-field-label">Priority</label>
         <div class="priority-picker">
           <select id="priority-input" name="priority" aria-label="Priority">
             <option value="low">Low tide</option>
@@ -361,6 +362,19 @@
         <div id="showcase-body" class="showcase-body"></div>
       </section>
 
+      <section class="toolbar" aria-label="TODO filters">
+        <span id="todo-count" class="count">0 tasks</span>
+        <div class="filters" role="group" aria-label="Filter tasks">
+          <button type="button" class="filter active" data-filter="all" aria-keyshortcuts="A">All</button>
+          <button type="button" class="filter" data-filter="active">Active</button>
+          <button type="button" class="filter" data-filter="completed">Completed</button>
+          <button type="button" class="filter" data-filter="archive">Reef archive</button>
+          <button type="button" class="filter" data-filter="week">Week ahead</button>
+          <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
+          <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
+        </div>
+      </section>
+
       <section class="search-panel" aria-label="Search and quick filters">
         <label class="search-field" for="task-search">
           <span class="sr-only">Search tasks</span>
@@ -380,19 +394,6 @@
             <button id="save-smart-view" class="secondary-action" type="button">Save smart view</button>
           </div>
           <ul id="smart-view-list" class="smart-view-list" aria-live="polite"></ul>
-        </div>
-      </section>
-
-      <section class="toolbar" aria-label="TODO filters">
-        <span id="todo-count" class="count">0 tasks</span>
-        <div class="filters" role="group" aria-label="Filter tasks">
-          <button type="button" class="filter active" data-filter="all" aria-keyshortcuts="A">All</button>
-          <button type="button" class="filter" data-filter="active">Active</button>
-          <button type="button" class="filter" data-filter="completed">Completed</button>
-          <button type="button" class="filter" data-filter="archive">Reef archive</button>
-          <button type="button" class="filter" data-filter="week">Week ahead</button>
-          <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
-          <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
         </div>
       </section>
 

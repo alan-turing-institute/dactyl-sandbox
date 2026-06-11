@@ -183,11 +183,22 @@ h1 {
 .todo-form select {
   min-width: 0;
   padding: .95rem 1rem;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 2px solid rgb(141 212 255 / 28%);
   border-radius: 999px;
   outline: none;
-  background: var(--card-strong);
+  background: rgb(141 212 255 / 6%);
   color: var(--text);
+  font-size: 1.05rem;
+}
+
+.form-field-label {
+  display: block;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 0 .25rem;
 }
 
 .priority-picker {
@@ -587,7 +598,15 @@ kbd {
   background: var(--accent-strong);
 }
 
-.pond-tour,
+.pond-tour {
+  margin-bottom: 1rem;
+  padding: .65rem .85rem;
+  border: 1px solid rgb(141 212 255 / 28%);
+  border-radius: 1rem;
+  background: rgb(141 212 255 / 9%);
+  font-size: .9rem;
+}
+
 .focus-panel {
   margin-bottom: 1rem;
   padding: 1rem;
@@ -596,7 +615,11 @@ kbd {
   background: rgb(141 212 255 / 9%);
 }
 
-.pond-tour h2,
+.pond-tour h2 {
+  margin: 0 0 .2rem;
+  font-size: 1rem;
+}
+
 .focus-panel h2 {
   margin: 0 0 .35rem;
   font-size: 1.25rem;
@@ -650,24 +673,24 @@ kbd {
 .tour-steps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .65rem;
-  margin: 1rem 0;
+  gap: .45rem;
+  margin: .6rem 0;
   padding: 0;
   list-style: none;
 }
 
 .tour-steps li {
   display: grid;
-  gap: .25rem;
-  padding: .8rem;
+  gap: .15rem;
+  padding: .55rem .7rem;
   border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 1rem;
+  border-radius: .75rem;
   background: rgb(255 255 255 / 5%);
 }
 
 .tour-steps span {
   color: var(--muted);
-  font-size: .9rem;
+  font-size: .82rem;
 }
 
 .tour-actions {

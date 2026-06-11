@@ -65,6 +65,7 @@ const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
+const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -150,6 +151,7 @@ let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
+let blockingTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
@@ -284,6 +286,8 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    blocked: Boolean(todo.blocked),
+    blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
   };
 }
 
@@ -1223,6 +1227,46 @@ async function copyPondProgressReport() {
   }
 }
 
+function buildStandupDraft() {
+  const today = todayKey();
+  const live = liveTodos();
+  const active = live.filter((t) => !t.completed);
+  const lines = [];
+  const focused = active.find((t) => t.id === focusedTodoId);
+  if (focused) {
+    lines.push('*Working on now:*');
+    lines.push(`• ${focused.text}${focused.blocked ? ` 🔴 Blocked${focused.blockerReason ? ': ' + focused.blockerReason : ''}` : ''}`);
+    lines.push('');
+  }
+  const dueOrOverdue = sortTodos(active.filter((t) => t.dueDate && t.dueDate <= today));
+  if (dueOrOverdue.length > 0) {
+    lines.push('*Due or overdue:*');
+    dueOrOverdue.forEach((t) => {
+      lines.push(`• ${t.text}${t.blocked ? ` 🔴 Blocked${t.blockerReason ? ': ' + t.blockerReason : ''}` : ''}`);
+    });
+    lines.push('');
+  }
+  const blockers = active.filter((t) => t.blocked && t.id !== focusedTodoId && !(t.dueDate && t.dueDate <= today));
+  if (blockers.length > 0) {
+    lines.push('*Blockers:*');
+    blockers.forEach((t) => {
+      lines.push(`• ${t.text}${t.blockerReason ? ` — ${t.blockerReason}` : ''}`);
+    });
+    lines.push('');
+  }
+  if (lines.length === 0) return 'Stand-up draft: nothing due, overdue, or blocked today.';
+  return lines.join('\n').trim();
+}
+
+async function copyStandupDraft() {
+  try {
+    await copyText(buildStandupDraft());
+    showPondMessage('Copied stand-up draft to clipboard.');
+  } catch {
+    showPondMessage('Could not copy the stand-up draft.');
+  }
+}
+
 async function copyPondSnapshotReport() {
   try {
     await copyText(buildPondSnapshot());
@@ -1643,6 +1687,8 @@ function createTodoItem(todo) {
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
+  const blockButton = item.querySelector('.block-task');
+  const blockerBadge = item.querySelector('.blocker-badge');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -1679,10 +1725,21 @@ function createTodoItem(todo) {
   restoreButton.hidden = !isArchived;
   restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
   deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
+  blockButton.hidden = todo.completed || isArchived;
+  blockButton.textContent = todo.blocked ? 'Unblock' : 'Block';
+  blockerBadge.hidden = !todo.blocked;
+  blockerBadge.textContent = todo.blocked
+    ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
+    : '';
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
     item.append(editForm);
+  }
+
+  if (todo.id === blockingTodoId && !todo.blocked) {
+    const form = createBlockForm(todo);
+    item.append(form);
   }
 
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
@@ -1692,6 +1749,14 @@ function createTodoItem(todo) {
   archiveButton.addEventListener('click', () => archiveTodo(todo.id));
   restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
+  blockButton.addEventListener('click', () => {
+    if (todo.blocked) {
+      setTodoBlocked(todo.id, false, '');
+    } else {
+      blockingTodoId = todo.id;
+      render();
+    }
+  });
 
   return item;
 }
@@ -2045,6 +2110,7 @@ function renderAuth() {
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
+  copyStandupDraftButton.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
@@ -2284,6 +2350,39 @@ function saveEditedTodo(id, updates) {
   saveTodos();
   showPondMessage('Updated this fish in the pond.');
   render();
+}
+
+function createBlockForm(todo) {
+  const form = document.createElement('form');
+  form.className = 'block-form';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'block-reason-input';
+  input.maxLength = 160;
+  input.placeholder = 'Blocker reason (optional)…';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'submit';
+  saveBtn.textContent = 'Save block';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => { blockingTodoId = ''; render(); });
+  form.append(input, saveBtn, cancelBtn);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    setTodoBlocked(todo.id, true, input.value.trim());
+  });
+  return form;
+}
+
+function setTodoBlocked(id, blocked, reason) {
+  todos = todos.map((todo) =>
+    todo.id === id ? normaliseTodo({ ...todo, blocked, blockerReason: reason }) : todo
+  ).filter(Boolean);
+  blockingTodoId = '';
+  saveTodos();
+  render();
+  showPondMessage(blocked ? 'Task flagged as blocked.' : 'Blocker cleared.');
 }
 
 function deleteTodo(id) {
@@ -2812,6 +2911,7 @@ replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
+copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));

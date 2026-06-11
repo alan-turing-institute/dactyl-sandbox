@@ -1,3 +1,5 @@
+/* AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. */
+/* Prompt: issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions. */
 :root {
   color-scheme: light dark;
   --bg: #10131a;
@@ -779,6 +781,90 @@ kbd {
   border: 0;
 }
 
+.ghost-group,
+.ghost-group-empty {
+  display: grid;
+  gap: .65rem;
+  padding: .9rem;
+  border: 1px dashed rgb(174 184 200 / 28%);
+  border-radius: 1.25rem;
+  background: rgb(174 184 200 / 5%);
+  text-align: center;
+}
+
+.ghost-group h3,
+.ghost-group-empty h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.ghost-group p,
+.ghost-group-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.ghost-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem .95rem;
+  border: 1px solid rgb(174 184 200 / 16%);
+  border-left: .35rem solid rgb(174 184 200 / 45%);
+  border-radius: 1rem;
+  background: rgb(174 184 200 / 5%);
+}
+
+.ghost-item[data-priority="high"] { border-left-color: var(--danger); }
+.ghost-item[data-priority="medium"] { border-left-color: var(--warning); }
+.ghost-item[data-priority="low"] { border-left-color: var(--success); }
+
+.ghost-info {
+  display: grid;
+  gap: .4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.ghost-text {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.ghost-meta {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.ghost-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.ghost-release {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 141 141 / 12%);
+  color: var(--danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ghost-release:hover { background: rgb(255 141 141 / 22%); }
+
 @media (max-width: 44rem) {
   body { padding: 1rem; }
   .auth-panel,
@@ -792,4 +878,6 @@ kbd {
   .todo-item { flex-direction: column; }
   .todo-actions { justify-content: flex-end; }
   .edit-task-form { grid-template-columns: 1fr; }
+  .ghost-item { flex-direction: column; }
+  .ghost-actions { justify-content: flex-end; }
 }

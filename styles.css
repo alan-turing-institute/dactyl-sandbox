@@ -371,6 +371,7 @@ h1 {
 .reminder-prefs-panel[hidden],
 .prefs-panel[hidden],
 .activity-log-panel[hidden],
+.more-actions-panel[hidden],
 .paste-panel[hidden],
 .restore-panel[hidden],
 .pond-tour[hidden],
@@ -2144,6 +2145,33 @@ kbd {
   display: flex;
   gap: .5rem;
   align-items: center;
+}
+
+.more-actions-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.25rem;
+  background: var(--card);
+}
+
+.more-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  min-width: 10rem;
+}
+
+.more-actions-label {
+  margin: 0 0 .15rem;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
 }
 
 .pond-wave {

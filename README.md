@@ -13,10 +13,12 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
 - Add, edit, and delete tasks with optional due dates and low, medium, or high priority
+- Use quick priority chips to mark the next fish as low, medium, or high tide
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
 - Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
 - Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
+- Save repeated planning filters as local smart views for quick reuse
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Pick one active task for "feed the fish" focus mode
@@ -25,6 +27,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
+- Copy a read-only pond snapshot for standups and demos without account credentials or edit controls
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
 - Clear completed tasks

@@ -6,6 +6,7 @@ const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const NOTIFICATIONS_KEY = 'dactyl.notificationsEnabled:v1';
 const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
+const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
@@ -30,6 +31,7 @@ const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
 const priorityInput = document.querySelector('#priority-input');
+const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
@@ -39,6 +41,9 @@ const filterButtons = [...document.querySelectorAll('.filter')];
 const taskSearch = document.querySelector('#task-search');
 const clearSearch = document.querySelector('#clear-search');
 const quickFilterButtons = [...document.querySelectorAll('.quick-filter')];
+const smartViewName = document.querySelector('#smart-view-name');
+const saveSmartView = document.querySelector('#save-smart-view');
+const smartViewList = document.querySelector('#smart-view-list');
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
@@ -59,6 +64,7 @@ const mergeRestore = document.querySelector('#merge-restore');
 const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
+const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -122,6 +128,7 @@ let todos = [];
 let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
+let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
@@ -308,6 +315,34 @@ function loadTourDismissed() {
     return localStorage.getItem(TOUR_DISMISSED_KEY) === 'true';
   } catch {
     return false;
+  }
+}
+
+function loadSmartViews() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SMART_VIEWS_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((view) => view && typeof view.name === 'string')
+      .slice(0, 8)
+      .map((view) => ({
+        id: typeof view.id === 'string' ? view.id : crypto.randomUUID(),
+        name: view.name.trim().slice(0, 32),
+        filter: typeof view.filter === 'string' ? view.filter : 'all',
+        quickFilter: typeof view.quickFilter === 'string' ? view.quickFilter : '',
+        searchQuery: typeof view.searchQuery === 'string' ? view.searchQuery : '',
+      }))
+      .filter((view) => view.name);
+  } catch {
+    return [];
+  }
+}
+
+function persistSmartViews() {
+  try {
+    localStorage.setItem(SMART_VIEWS_KEY, JSON.stringify(smartViews));
+  } catch {
+    showPondMessage('Could not save that smart view in this browser.');
   }
 }
 
@@ -549,6 +584,49 @@ function hasActiveSearchFilter() {
   return Boolean(normalisedSearchQuery() || quickFilter);
 }
 
+function currentSmartViewName() {
+  const parts = [];
+  if (filter !== 'all') parts.push(filter.replace('-', ' '));
+  if (quickFilter) parts.push(quickFilter.replace('-', ' '));
+  if (normalisedSearchQuery()) parts.push('search ' + searchQuery.trim());
+  return parts.length > 0 ? parts.join(' + ') : 'All fish';
+}
+
+function saveCurrentSmartView() {
+  const name = (smartViewName.value || currentSmartViewName()).trim().slice(0, 32);
+  if (!name) {
+    showPondMessage('Name this smart view before saving it.');
+    smartViewName.focus();
+    return;
+  }
+
+  const view = { id: crypto.randomUUID(), name, filter, quickFilter, searchQuery: searchQuery.trim() };
+  smartViews = [view, ...smartViews.filter((savedView) => savedView.name.toLowerCase() !== name.toLowerCase())].slice(0, 8);
+  persistSmartViews();
+  smartViewName.value = '';
+  render();
+  showPondMessage('Saved smart view: ' + name + '.');
+}
+
+function applySmartView(viewId) {
+  const view = smartViews.find((savedView) => savedView.id === viewId);
+  if (!view) return;
+  selectedTodoIds.clear();
+  filter = view.filter;
+  quickFilter = view.quickFilter;
+  searchQuery = view.searchQuery;
+  render();
+  showPondMessage('Applied smart view: ' + view.name + '.');
+}
+
+function deleteSmartView(viewId) {
+  const view = smartViews.find((savedView) => savedView.id === viewId);
+  smartViews = smartViews.filter((savedView) => savedView.id !== viewId);
+  persistSmartViews();
+  render();
+  if (view) showPondMessage('Deleted smart view: ' + view.name + '.');
+}
+
 function filteredEmptyHeading() {
   return normalisedSearchQuery() ? 'No fish match your search or filters' : 'No fish match these filters';
 }
@@ -692,6 +770,19 @@ function setPastePanelOpen(open) {
 function setShortcutHelpOpen(open) {
   shortcutHelp.hidden = !open;
   shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function syncPriorityChips() {
+  priorityChips.forEach((chip) => {
+    chip.setAttribute('aria-pressed', String(chip.dataset.priority === priorityInput.value));
+  });
+}
+
+function setDraftPriority(priority) {
+  if (!PRIORITIES.includes(priority)) return;
+  priorityInput.value = priority;
+  syncPriorityChips();
+  showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
 }
 
 function toggleShortcutHelp() {
@@ -938,6 +1029,49 @@ function buildPondReport() {
   return lines.join('\n');
 }
 
+function buildPondSnapshot() {
+  const visiblePond = liveTodos();
+  const activeTodos = visiblePond.filter((todo) => !todo.completed);
+  const completedCount = visiblePond.length - activeTodos.length;
+  const highPriorityTodos = activeTodos.filter((todo) => todo.priority === 'high');
+  const today = todayKey();
+  const overdueTodos = activeTodos.filter((todo) => todo.dueDate && todo.dueDate < today);
+  const upcomingTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate && todo.dueDate >= today)).slice(0, 5);
+  const focusTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
+  const generatedAt = new Date().toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  const lines = [
+    'Read-only pond snapshot',
+    `Generated: ${generatedAt}`,
+    `Tasks: ${visiblePond.length} total · ${activeTodos.length} active · ${completedCount} completed · ${archivedTodos().length} archived`,
+    `Priority: ${highPriorityTodos.length} high tide · ${overdueTodos.length} overdue`,
+  ];
+
+  if (focusTodo) lines.push(`Focus fish: ${focusTodo.text}`);
+  else lines.push('Focus fish: none selected');
+
+  if (overdueTodos.length > 0) {
+    lines.push('Overdue fish:');
+    sortTodos(overdueTodos).slice(0, 5).forEach((todo) => {
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  if (upcomingTodos.length > 0) {
+    lines.push('Upcoming fish:');
+    upcomingTodos.forEach((todo) => {
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  if (activeTodos.length === 0) lines.push('No active fish need attention.');
+
+  lines.push('Snapshot is read-only and excludes account credentials, tokens, and diagnostics.');
+  return lines.join('\n');
+}
+
 function tideCounts() {
   return tideGroups.reduce((counts, group) => ({
     ...counts,
@@ -1070,6 +1204,15 @@ async function copyPondProgressReport() {
     showPondMessage('Copied a Slack-friendly pond report to the clipboard.');
   } catch {
     showPondMessage('Could not copy the pond report. Select the tasks and try again?');
+  }
+}
+
+async function copyPondSnapshotReport() {
+  try {
+    await copyText(buildPondSnapshot());
+    showPondMessage('Copied a read-only pond snapshot for standups and demos.');
+  } catch {
+    showPondMessage('Could not copy the pond snapshot. Try the pond report instead?');
   }
 }
 
@@ -1579,6 +1722,40 @@ function renderSearchControls() {
   });
 }
 
+function renderSmartViews() {
+  saveSmartView.disabled = !currentUser;
+  smartViewName.disabled = !currentUser;
+  smartViewList.replaceChildren();
+
+  if (smartViews.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.className = 'smart-view-empty';
+    emptyItem.textContent = 'No saved smart views yet.';
+    smartViewList.append(emptyItem);
+    return;
+  }
+
+  smartViews.forEach((view) => {
+    const item = document.createElement('li');
+    item.className = 'smart-view-item';
+    const applyButton = document.createElement('button');
+    applyButton.type = 'button';
+    applyButton.className = 'smart-view-apply';
+    applyButton.disabled = !currentUser;
+    applyButton.textContent = view.name;
+    applyButton.addEventListener('click', () => applySmartView(view.id));
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'smart-view-delete';
+    deleteButton.disabled = !currentUser;
+    deleteButton.setAttribute('aria-label', 'Delete smart view ' + view.name);
+    deleteButton.textContent = '×';
+    deleteButton.addEventListener('click', () => deleteSmartView(view.id));
+    item.append(applyButton, deleteButton);
+    smartViewList.append(item);
+  });
+}
+
 function renderNetControls() {
   const selectedCount = selectedTodoIds.size;
   castNet.textContent = netMode ? 'Haul net in' : 'Cast net';
@@ -1841,10 +2018,13 @@ function renderAuth() {
   exportPond.disabled = !signedIn;
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
+  copyPondSnapshot.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
   castNet.disabled = !signedIn;
+  saveSmartView.disabled = !signedIn;
+  smartViewName.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
   updatePastePreview();
   updateRestorePreview();
@@ -1922,6 +2102,7 @@ function render() {
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
   renderSearchControls();
+  renderSmartViews();
   renderTourPanel();
   renderNotificationToggle();
 
@@ -2544,11 +2725,17 @@ form.addEventListener('submit', (event) => {
   });
   form.reset();
   priorityInput.value = 'medium';
+  syncPriorityChips();
   input.focus();
 });
 
 filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
+});
+
+priorityInput.addEventListener('change', syncPriorityChips);
+priorityChips.forEach((chip) => {
+  chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));
 });
 
 taskSearch.addEventListener('input', () => {
@@ -2577,6 +2764,14 @@ quickFilterButtons.forEach((button) => {
   });
 });
 
+saveSmartView.addEventListener('click', saveCurrentSmartView);
+smartViewName.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveCurrentSmartView();
+  }
+});
+
 clearCompleted.addEventListener('click', () => {
   if (filter === 'archive') releaseArchivedTodos();
   else archiveCompletedTodos();
@@ -2596,6 +2791,7 @@ mergeRestore.addEventListener('click', () => applyRestore('merge'));
 replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
+copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
@@ -2629,5 +2825,6 @@ trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hid
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
 
 document.addEventListener('keydown', handleGlobalShortcut);
+syncPriorityChips();
 
 restoreSession();

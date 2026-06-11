@@ -65,11 +65,18 @@
         <label class="sr-only" for="due-date-input">Due date</label>
         <input id="due-date-input" name="due-date" type="date" />
         <label class="sr-only" for="priority-input">Priority</label>
-        <select id="priority-input" name="priority" aria-label="Priority">
-          <option value="low">Low tide</option>
-          <option value="medium" selected>Medium tide</option>
-          <option value="high">High tide</option>
-        </select>
+        <div class="priority-picker">
+          <select id="priority-input" name="priority" aria-label="Priority">
+            <option value="low">Low tide</option>
+            <option value="medium" selected>Medium tide</option>
+            <option value="high">High tide</option>
+          </select>
+          <div class="priority-chips" role="group" aria-label="Quick priority">
+            <button type="button" data-priority="low" aria-pressed="false">Low</button>
+            <button type="button" data-priority="medium" aria-pressed="true">Medium</button>
+            <button type="button" data-priority="high" aria-pressed="false">High</button>
+          </div>
+        </div>
         <button type="submit">Add</button>
       </form>
 
@@ -83,6 +90,7 @@
         <button id="export-pond" class="secondary-action" type="button">Export pond</button>
         <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
+        <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
         <button id="notification-toggle" class="secondary-action" type="button" aria-pressed="false" hidden>Enable notifications</button>
@@ -260,6 +268,14 @@
           <button type="button" class="quick-filter" data-quick-filter="due-soon" aria-pressed="false">Due soon</button>
           <button type="button" class="quick-filter" data-quick-filter="no-due-date" aria-pressed="false">No due date</button>
           <button type="button" class="quick-filter" data-quick-filter="selected-net" aria-pressed="false">Selected net</button>
+        </div>
+        <div class="smart-views" aria-label="Saved smart views">
+          <div class="smart-view-form">
+            <label for="smart-view-name">Save current view</label>
+            <input id="smart-view-name" type="text" maxlength="32" autocomplete="off" placeholder="Planning view name" />
+            <button id="save-smart-view" class="secondary-action" type="button">Save smart view</button>
+          </div>
+          <ul id="smart-view-list" class="smart-view-list" aria-live="polite"></ul>
         </div>
       </section>
 

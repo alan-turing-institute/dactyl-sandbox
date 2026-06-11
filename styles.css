@@ -396,7 +396,8 @@ h1 {
   line-height: 1;
 }
 
-.tide-group {
+.tide-group,
+.week-group {
   display: grid;
   gap: .65rem;
   padding: .9rem;
@@ -411,20 +412,26 @@ h1 {
 .tide-group[data-tide-group="ebbing"] { border-left-color: var(--accent); }
 .tide-group[data-tide-group="incoming"] { border-left-color: var(--success); }
 .tide-group[data-tide-group="completed"] { opacity: .88; }
-.tide-group-empty { text-align: center; }
+.week-group[data-week-group="overdue"] { border-left-color: var(--danger); }
+.week-group[data-week-group="upcoming"] { border-left-color: var(--accent); }
+.tide-group-empty,
+.week-group-empty { text-align: center; }
 
-.tide-group h3 {
+.tide-group h3,
+.week-group h3 {
   margin: 0;
   font-size: 1rem;
 }
 
-.tide-group p {
+.tide-group p,
+.week-group p {
   margin: -.3rem 0 0;
   color: var(--muted);
   font-size: .9rem;
 }
 
-.tide-list { margin-top: .1rem; }
+.tide-list,
+.week-list { margin-top: .1rem; }
 
 .empty-state {
   display: none;

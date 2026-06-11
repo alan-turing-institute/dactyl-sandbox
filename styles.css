@@ -254,6 +254,38 @@ h1 {
   color: var(--success);
 }
 
+.shared-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.shared-task-list {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shared-task,
+.shared-empty {
+  display: grid;
+  gap: .35rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 18%);
+  border-radius: 1rem;
+  background: rgb(141 212 255 / 7%);
+}
+
+.shared-task span,
+.shared-empty {
+  color: var(--muted);
+}
+
+.shared-task a {
+  color: var(--accent);
+}
+
 .undo-action {
   margin-left: .35rem;
   padding: .3rem .65rem;
@@ -271,6 +303,7 @@ h1 {
 .storage-error[hidden],
 .pond-message[hidden],
 .shortcut-help[hidden],
+.triage-panel[hidden],
 .pond-health-panel[hidden],
 .trophies-panel[hidden],
 .starter-shoals-panel[hidden],
@@ -388,6 +421,7 @@ h1 {
 .pond-health-hints:empty { display: none; }
 
 .shortcut-help,
+.triage-panel,
 .paste-panel,
 .restore-panel {
   display: grid;
@@ -404,7 +438,13 @@ h1 {
   background: rgb(141 255 202 / 8%);
 }
 
+.triage-panel {
+  border-color: rgb(255 210 141 / 30%);
+  background: linear-gradient(135deg, rgb(255 210 141 / 10%), rgb(141 212 255 / 7%));
+}
+
 .shortcut-help-header,
+.triage-header,
 .paste-panel-header,
 .restore-panel-header {
   display: flex;
@@ -414,6 +454,7 @@ h1 {
 }
 
 .shortcut-help h2,
+.triage-panel h2,
 .paste-panel h2,
 .restore-panel h2 {
   margin: 0;
@@ -421,6 +462,8 @@ h1 {
 }
 
 .shortcut-help-note,
+.triage-status,
+.triage-task-meta,
 .paste-panel label,
 .paste-preview,
 .restore-panel label,
@@ -453,9 +496,41 @@ h1 {
 }
 
 .shortcut-help-note,
+.triage-status,
+.triage-task-meta,
 .paste-preview,
 .restore-preview {
   margin: 0;
+}
+
+.triage-card {
+  display: grid;
+  gap: .45rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 1rem;
+  background: rgb(5 16 26 / 44%);
+}
+
+.triage-card h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.15rem, 4vw, 1.75rem);
+}
+
+.triage-actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.triage-actions button:first-of-type + button + button {
+  color: #07111a;
+  background: var(--accent);
+}
+
+.triage-actions button:first-of-type + button + button:hover:not(:disabled) {
+  background: var(--accent-strong);
 }
 
 .shortcut-list {

@@ -154,6 +154,72 @@ describe('auth and task API', () => {
     expect(secondTasks.body.todos).toEqual([]);
   });
 
+  test('creates read-only shared pond views without leaking private tasks', async () => {
+    app = makeApp();
+
+    const first = await request(app)
+      .post('/api/signup')
+      .send({ username: 'share-owner', password: 'very-secret' })
+      .expect(201);
+    const second = await request(app)
+      .post('/api/signup')
+      .send({ username: 'share-other', password: 'very-secret' })
+      .expect(201);
+
+    const sharedTask = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${first.body.token}`)
+      .send({ text: 'Shared planning task', priority: 'high', dueDate: '2026-06-13' })
+      .expect(201);
+    const privateTask = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${first.body.token}`)
+      .send({ text: 'Private solo task' })
+      .expect(201);
+    const otherUsersTask = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${second.body.token}`)
+      .send({ text: 'Other user task' })
+      .expect(201);
+
+    await request(app)
+      .get('/api/shared-ponds/not-a-real-token')
+      .expect(404);
+
+    const created = await request(app)
+      .post('/api/shared-ponds')
+      .set('Authorization', `Bearer ${first.body.token}`)
+      .send({
+        title: 'Sprint planning pond',
+        todoIds: [sharedTask.body.todo.id, otherUsersTask.body.todo.id],
+      })
+      .expect(201);
+
+    expect(created.body.share.url).toMatch(/\/share\//);
+    expect(created.body.share.taskCount).toBe(1);
+
+    const shared = await request(app)
+      .get(`/api/shared-ponds/${created.body.share.token}`)
+      .expect(200);
+
+    expect(shared.body.share).toMatchObject({
+      title: 'Sprint planning pond',
+      owner: { username: 'share-owner' },
+    });
+    expect(shared.body.share.tasks).toEqual([
+      expect.objectContaining({ text: 'Shared planning task', priority: 'high', dueDate: '2026-06-13' }),
+    ]);
+    expect(shared.body.share.tasks.map((todo) => todo.text)).not.toContain(privateTask.body.todo.text);
+    expect(shared.body.share.tasks.map((todo) => todo.text)).not.toContain(otherUsersTask.body.todo.text);
+
+    await request(app)
+      .get(`/share/${created.body.share.token}`)
+      .expect(200)
+      .expect('Content-Type', /html/)
+      .expect(/Read-only shared pond/)
+      .expect(/Shared planning task/);
+  });
+
   test('replaces a user task list with PUT /api/tasks', async () => {
     app = makeApp();
 

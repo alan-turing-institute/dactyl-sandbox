@@ -114,7 +114,7 @@ docker build -t dactyl-sandbox .
 Run the container on local port 8080, mounting a volume for SQLite persistence:
 
 ```bash
-docker run --rm -p 8080:8080 -v dactyl-data:/data -e JWT_SECRET=change-me dactyl-sandbox
+docker run --rm --init -p 8080:8080 -v dactyl-data:/data -e JWT_SECRET=change-me dactyl-sandbox
 ```
 
 Then visit <http://localhost:8080>. The container runs an unprivileged Node process that serves the frontend and API on port 8080.

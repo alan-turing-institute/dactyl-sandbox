@@ -13,6 +13,10 @@ const passwordInput = document.querySelector('#password-input');
 const signupButton = document.querySelector('#signup-button');
 const logoutButton = document.querySelector('#logout-button');
 const authStatus = document.querySelector('#auth-status');
+const passwordForm = document.querySelector('#password-form');
+const currentPasswordInput = document.querySelector('#current-password-input');
+const newPasswordInput = document.querySelector('#new-password-input');
+const changePasswordButton = document.querySelector('#change-password-button');
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
@@ -985,6 +989,10 @@ function renderAuth() {
   [...form.elements].forEach((element) => {
     element.disabled = !signedIn;
   });
+  passwordForm.hidden = !signedIn;
+  [...passwordForm.elements].forEach((element) => {
+    element.disabled = !signedIn;
+  });
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
@@ -1324,6 +1332,34 @@ async function authenticate(mode) {
   }
 }
 
+async function changePassword() {
+  if (!currentUser || !passwordForm.reportValidity()) return;
+
+  changePasswordButton.disabled = true;
+  authStatus.textContent = 'Updating password…';
+  try {
+    const body = await apiRequest('/api/account/password', {
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword: currentPasswordInput.value,
+        newPassword: newPasswordInput.value,
+      }),
+    });
+    saveAuthToken(body.token);
+    currentUser = body.user;
+    todos = normaliseTodos(body.todos);
+    passwordForm.reset();
+    clearStorageError();
+    markSyncState('loaded', 'Password changed and this session refreshed.');
+    render();
+    showPondMessage('Password updated. Other old sessions will need to log in again.');
+  } catch (error) {
+    authStatus.textContent = error.message;
+  } finally {
+    changePasswordButton.disabled = false;
+  }
+}
+
 function logout() {
   saveAuthToken('');
   currentUser = null;
@@ -1414,6 +1450,10 @@ authForm.addEventListener('submit', (event) => {
 
 signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
+passwordForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  changePassword();
+});
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();

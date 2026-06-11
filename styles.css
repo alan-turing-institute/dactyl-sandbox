@@ -365,6 +365,7 @@ h1 {
 .upgrade-callout[hidden],
 .triage-panel[hidden],
 .pond-health-panel[hidden],
+.getting-started-panel[hidden],
 .trophies-panel[hidden],
 .starter-shoals-panel[hidden],
 .reminder-prefs-panel[hidden],
@@ -385,6 +386,68 @@ h1 {
   gap: .6rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.getting-started-panel {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 25%);
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at top left, rgb(141 212 255 / 13%), transparent 22rem),
+    rgb(255 255 255 / 6%);
+  box-shadow: 0 14px 35px rgb(5 11 24 / 18%);
+}
+
+.getting-started-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .55rem;
+}
+
+.getting-started-header h2,
+.getting-started-note {
+  margin: 0;
+}
+
+.getting-started-note {
+  color: var(--muted);
+  font-size: .95rem;
+}
+
+.getting-started-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: .5rem;
+  margin: .9rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.getting-started-checklist li {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .6rem .75rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: .85rem;
+  background: rgb(255 255 255 / 6%);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.getting-started-checklist li.complete {
+  border-color: rgb(122 232 185 / 30%);
+  color: var(--text);
+  background: rgb(122 232 185 / 9%);
+}
+
+.getting-started-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
 }
 
 .upgrade-callout {

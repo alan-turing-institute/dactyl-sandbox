@@ -117,8 +117,7 @@
 
       <section class="pond-actions" aria-label="Pond actions">
         <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
-        <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
-        <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
+        <button id="getting-started-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="getting-started-panel">Getting started</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="export-pond" class="secondary-action" type="button">Export pond</button>
         <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
@@ -132,7 +131,6 @@
         <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
         <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
         <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
-        <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
         <a class="secondary-action" href="/docs">Docs</a>
@@ -147,6 +145,27 @@
           <input id="bulk-shoal-input" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" aria-label="Selected task shoal" />
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
+      </section>
+
+      <section id="getting-started-panel" class="getting-started-panel" aria-labelledby="getting-started-title" hidden>
+        <div class="getting-started-header">
+          <div>
+            <p class="eyebrow">New pond keeper checklist</p>
+            <h2 id="getting-started-title">Getting started</h2>
+          </div>
+          <button id="getting-started-collapse" class="secondary-action" type="button" aria-label="Collapse getting started">Collapse</button>
+        </div>
+        <p class="getting-started-note">A small launch dock for first-run and demo actions. Once the tour is dismissed and you have a real task, this folds away from the daily-use controls.</p>
+        <ul class="getting-started-checklist" aria-label="Onboarding checklist">
+          <li id="checklist-add-task"><span aria-hidden="true">○</span> Add your first task</li>
+          <li id="checklist-tide-mode"><span aria-hidden="true">○</span> Try Tide mode</li>
+          <li id="checklist-pond-tour"><span aria-hidden="true">○</span> Explore the pond tour</li>
+        </ul>
+        <div class="getting-started-actions">
+          <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
+          <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
+          <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
+        </div>
       </section>
 
       <section id="button-help-panel" class="button-help-panel" aria-labelledby="button-help-title" hidden>

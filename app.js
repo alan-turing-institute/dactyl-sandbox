@@ -81,6 +81,9 @@ let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
 let netMode = false;
+let editingTodoId = '';
+let pendingEditFocusId = '';
+let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
@@ -695,6 +698,83 @@ function setPondHealthOpen(open) {
   if (open) renderPondHealth();
 }
 
+function createEditField(labelText, control) {
+  const label = document.createElement('label');
+  const labelSpan = document.createElement('span');
+  labelSpan.textContent = labelText;
+  label.append(labelSpan, control);
+  return label;
+}
+
+function createTodoEditForm(todo) {
+  const formElement = document.createElement('form');
+  formElement.className = 'edit-task-form';
+  formElement.noValidate = true;
+
+  const textInput = document.createElement('input');
+  textInput.className = 'edit-task-text';
+  textInput.name = 'text';
+  textInput.type = 'text';
+  textInput.maxLength = MAX_TODO_LENGTH;
+  textInput.required = true;
+  textInput.value = todo.text;
+
+  const dueInput = document.createElement('input');
+  dueInput.name = 'dueDate';
+  dueInput.type = 'date';
+  dueInput.value = todo.dueDate;
+
+  const prioritySelect = document.createElement('select');
+  prioritySelect.name = 'priority';
+  [
+    ['low', 'Low tide'],
+    ['medium', 'Medium tide'],
+    ['high', 'High tide'],
+  ].forEach(([value, label]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    prioritySelect.append(option);
+  });
+  prioritySelect.value = todo.priority;
+
+  const actions = document.createElement('div');
+  actions.className = 'edit-task-actions';
+  const saveButton = document.createElement('button');
+  saveButton.type = 'submit';
+  saveButton.textContent = 'Save';
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.className = 'secondary-action';
+  cancelButton.textContent = 'Cancel';
+  actions.append(saveButton, cancelButton);
+
+  formElement.append(
+    createEditField('Task', textInput),
+    createEditField('Due date', dueInput),
+    createEditField('Priority', prioritySelect),
+    actions,
+  );
+
+  formElement.addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveEditedTodo(todo.id, {
+      text: textInput.value,
+      dueDate: dueInput.value,
+      priority: prioritySelect.value,
+    });
+  });
+  formElement.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditingTodo();
+    }
+  });
+  cancelButton.addEventListener('click', cancelEditingTodo);
+
+  return formElement;
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -704,33 +784,46 @@ function createTodoItem(todo) {
   const dueLabel = item.querySelector('.due-label');
   const priorityLabel = item.querySelector('.priority-label');
   const focusButton = item.querySelector('.focus-task');
+  const editButton = item.querySelector('.edit-task');
   const deleteButton = item.querySelector('.delete');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
 
   item.classList.toggle('completed', todo.completed);
   item.classList.toggle('focused', todo.id === focusedTodoId);
+  item.classList.toggle('editing', todo.id === editingTodoId);
   item.dataset.priority = todo.priority;
   item.dataset.tide = tide;
+  item.dataset.todoId = todo.id;
   item.classList.toggle('net-mode', netMode);
   netSelect.hidden = !netMode;
   netSelect.checked = selectedTodoIds.has(todo.id);
+  netSelect.disabled = todo.id === editingTodoId;
   netSelect.setAttribute('aria-label', `Select ${todo.text}`);
   checkbox.checked = todo.completed;
+  checkbox.disabled = todo.id === editingTodoId;
   text.textContent = todo.text;
   moodBadge.textContent = `${mood.emoji} ${mood.text}`;
   moodBadge.classList.add(mood.className);
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
-  focusButton.disabled = todo.completed;
+  focusButton.disabled = todo.completed || todo.id === editingTodoId;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
   focusButton.setAttribute('aria-label', `Feed ${todo.text}`);
+  editButton.disabled = todo.id === editingTodoId;
+  editButton.setAttribute('aria-label', `Edit ${todo.text}`);
   deleteButton.setAttribute('aria-label', `Delete ${todo.text}`);
+
+  if (todo.id === editingTodoId) {
+    const editForm = createTodoEditForm(todo);
+    item.append(editForm);
+  }
 
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
   checkbox.addEventListener('change', () => toggleTodo(todo.id));
   focusButton.addEventListener('click', () => focusTodo(todo.id));
+  editButton.addEventListener('click', () => startEditingTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
 
   return item;
@@ -920,6 +1013,7 @@ function render() {
   });
 
   renderFocusPanel();
+  focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
 }
@@ -1004,7 +1098,64 @@ function removeTodosWithUndo(predicate, message) {
   return true;
 }
 
+function focusPendingEditField() {
+  if (pendingEditFocusId) {
+    const inputElement = list.querySelector('.todo-item.editing .edit-task-text');
+    if (inputElement) {
+      inputElement.focus();
+      inputElement.select();
+    }
+    pendingEditFocusId = '';
+  }
+
+  if (pendingEditReturnId) {
+    list.querySelector(`[data-todo-id="${pendingEditReturnId}"] .edit-task`)?.focus();
+    pendingEditReturnId = '';
+  }
+}
+
+function startEditingTodo(id) {
+  editingTodoId = id;
+  pendingEditFocusId = id;
+  hidePondMessage();
+  render();
+}
+
+function cancelEditingTodo() {
+  pendingEditReturnId = editingTodoId;
+  editingTodoId = '';
+  pendingEditFocusId = '';
+  render();
+}
+
+function saveEditedTodo(id, updates) {
+  const existingTodo = todos.find((todo) => todo.id === id);
+  if (!existingTodo) return;
+
+  const updatedTodo = normaliseTodo({
+    ...existingTodo,
+    text: updates.text,
+    dueDate: updates.dueDate,
+    priority: updates.priority,
+  });
+
+  if (!updatedTodo) {
+    showPondMessage('Give this fish a task name before saving.');
+    pendingEditFocusId = id;
+    render();
+    return;
+  }
+
+  todos = todos.map((todo) => (todo.id === id ? updatedTodo : todo));
+  editingTodoId = '';
+  pendingEditFocusId = '';
+  saveTodos();
+  showPondMessage('Updated this fish in the pond.');
+  render();
+}
+
 function deleteTodo(id) {
+  if (editingTodoId === id) editingTodoId = '';
   removeTodosWithUndo(
     (todo) => todo.id === id,
     () => 'Released 1 fish from the pond.',
@@ -1012,12 +1163,14 @@ function deleteTodo(id) {
 }
 
 function focusTodo(id) {
+  editingTodoId = '';
   saveFocusedTodoId(id);
   hidePondMessage();
   render();
 }
 
 function toggleNetMode() {
+  editingTodoId = '';
   netMode = !netMode;
   if (!netMode) selectedTodoIds.clear();
   render();
@@ -1041,6 +1194,7 @@ function releaseSelectedTodos() {
 }
 
 function moveSelectedToShoal() {
+  editingTodoId = '';
   const selectedCount = selectedTodoIds.size;
   const priority = normalisePriority(shoalPriority.value);
   todos = todos.map((todo) => (

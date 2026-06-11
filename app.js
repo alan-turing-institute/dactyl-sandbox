@@ -1248,13 +1248,11 @@ function renderCommandList(query) {
     empty.className = 'command-list-empty';
     empty.textContent = 'No matching commands.';
     commandList.appendChild(empty);
-    commandSearch.removeAttribute('aria-activedescendant');
     return;
   }
   if (commandPaletteActiveIndex >= filtered.length) commandPaletteActiveIndex = 0;
   filtered.forEach((cmd, idx) => {
     const li = document.createElement('li');
-    li.role = 'option';
     li.setAttribute('role', 'option');
     li.setAttribute('aria-selected', String(idx === commandPaletteActiveIndex));
     li.id = `command-option-${cmd.id}`;

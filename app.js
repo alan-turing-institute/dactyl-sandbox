@@ -252,6 +252,8 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const moreActionsToggle = document.querySelector('#more-actions-toggle');
+const moreActionsPanel = document.querySelector('#more-actions-panel');
 const activityLogToggle = document.querySelector('#activity-log-toggle');
 const activityLogPanel = document.querySelector('#activity-log-panel');
 const activityLogClose = document.querySelector('#activity-log-close');
@@ -855,6 +857,16 @@ function logActivity(action, todoText) {
   activityLog.unshift({ action, text: trimTo40, at });
   if (activityLog.length > MAX_ACTIVITY_LOG) activityLog = activityLog.slice(0, MAX_ACTIVITY_LOG);
   renderActivityLog();
+}
+
+function setMoreActionsOpen(open) {
+  moreActionsPanel.hidden = !open;
+  moreActionsToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    moreActionsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else {
+    moreActionsToggle.focus();
+  }
 }
 
 function setActivityLogOpen(open) {
@@ -4300,7 +4312,9 @@ function handleGlobalShortcut(event) {
     if (closedPrefs) setPrefsOpen(false);
     const closedActivityLog = !activityLogPanel.hidden;
     if (closedActivityLog) setActivityLogOpen(false);
-    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog) event.preventDefault();
+    const closedMoreActions = !moreActionsPanel.hidden;
+    if (closedMoreActions) setMoreActionsOpen(false);
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog || closedMoreActions) event.preventDefault();
   }
 }
 
@@ -4551,6 +4565,7 @@ prefTextBadges.addEventListener('change', () => {
   applyViewPrefs();
 });
 
+moreActionsToggle.addEventListener('click', () => setMoreActionsOpen(moreActionsPanel.hidden));
 activityLogToggle.addEventListener('click', () => setActivityLogOpen(activityLogPanel.hidden));
 activityLogClose.addEventListener('click', () => setActivityLogOpen(false));
 activityUndoBtn.addEventListener('click', () => {

@@ -117,26 +117,8 @@
 
       <section class="pond-actions" aria-label="Pond actions">
         <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
-        <button id="getting-started-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="getting-started-panel">Getting started</button>
-        <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
-        <button id="export-pond" class="secondary-action" type="button">Export pond</button>
-        <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
-        <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
-        <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
-        <button id="share-pond" class="secondary-action" type="button">Share visible pond</button>
-        <button id="copy-standup-draft" class="secondary-action" type="button">Copy stand-up draft</button>
-        <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel">Daily Catch</button>
-        <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
-        <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
-        <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
-        <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
-        <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
-        <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
-        <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
-        <a class="secondary-action" href="/docs">Docs</a>
-        <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
+        <button id="more-actions-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="more-actions-panel">⋯ More</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U">Triage mode</button>
-        <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel">Activity</button>
         <button id="command-palette-toggle" class="secondary-action" type="button" aria-keyshortcuts="Control+K Meta+K">Command palette</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
@@ -145,6 +127,46 @@
           <input id="bulk-shoal-input" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" aria-label="Selected task shoal" />
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
+      </section>
+
+      <section id="more-actions-panel" class="more-actions-panel" aria-label="More actions" hidden>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Workflow</p>
+          <button id="getting-started-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="getting-started-panel">Getting started</button>
+          <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel">Daily Catch</button>
+        </div>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Import / Export</p>
+          <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
+          <button id="export-pond" class="secondary-action" type="button">Export pond</button>
+          <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
+        </div>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Reports</p>
+          <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
+          <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
+          <button id="share-pond" class="secondary-action" type="button">Share visible pond</button>
+          <button id="copy-standup-draft" class="secondary-action" type="button">Copy stand-up draft</button>
+        </div>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Views</p>
+          <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
+          <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
+          <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
+        </div>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Preferences</p>
+          <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
+          <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
+        </div>
+        <div class="more-actions-group">
+          <p class="more-actions-label">Help &amp; tools</p>
+          <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
+          <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel">Activity</button>
+          <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
+          <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
+          <a class="secondary-action" href="/docs">Docs</a>
+        </div>
       </section>
 
       <section id="getting-started-panel" class="getting-started-panel" aria-labelledby="getting-started-title" hidden>

@@ -387,16 +387,23 @@ function baseVisibleTodos() {
   return live;
 }
 
+function normalisedSearchQuery() {
+  return searchQuery.trim().toLowerCase();
+}
+
 function matchesSearch(todo) {
-  if (!searchQuery) return true;
-  const query = searchQuery.toLowerCase();
+  const query = normalisedSearchQuery();
+  if (!query) return true;
   return todo.text.toLowerCase().includes(query);
 }
 
 function matchesQuickFilter(todo) {
   const today = todayKey();
   if (quickFilter === 'high') return todo.priority === 'high';
-  if (quickFilter === 'due-soon') return !todo.completed && todo.dueDate && todo.dueDate <= today;
+  if (quickFilter === 'due-soon') {
+    const dueSoonEnd = addDays(today, 3);
+    return !todo.completed && todo.dueDate && todo.dueDate >= today && todo.dueDate <= dueSoonEnd;
+  }
   if (quickFilter === 'no-due-date') return !todo.dueDate;
   if (quickFilter === 'selected-net') return netMode && selectedTodoIds.has(todo.id);
   return true;
@@ -439,15 +446,15 @@ function renderedTodoIds() {
 }
 
 function hasActiveSearchFilter() {
-  return Boolean(searchQuery || quickFilter);
+  return Boolean(normalisedSearchQuery() || quickFilter);
 }
 
 function filteredEmptyHeading() {
-  return searchQuery ? 'No fish match your search or filters' : 'No fish match these filters';
+  return normalisedSearchQuery() ? 'No fish match your search or filters' : 'No fish match these filters';
 }
 
 function filteredEmptyDescription() {
-  return searchQuery
+  return normalisedSearchQuery()
     ? 'Clear the search or quick filter to see more fish in this view.'
     : 'Clear the quick filter to see more fish in this view.';
 }
@@ -1207,7 +1214,9 @@ function renderTideMode() {
 }
 
 function renderSearchControls() {
-  taskSearch.value = searchQuery;
+  if (taskSearch.value !== searchQuery) {
+    taskSearch.value = searchQuery;
+  }
   taskSearch.disabled = !currentUser;
   clearSearch.hidden = !searchQuery;
   clearSearch.disabled = !currentUser;
@@ -1928,7 +1937,7 @@ filterButtons.forEach((button) => {
 });
 
 taskSearch.addEventListener('input', () => {
-  searchQuery = taskSearch.value.trim();
+  searchQuery = taskSearch.value;
   render();
 });
 

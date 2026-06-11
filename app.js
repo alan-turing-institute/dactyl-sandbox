@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -14,6 +14,10 @@ const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
 const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
+const dueNudgeUtils = typeof DactylDueNudges !== 'undefined' ? DactylDueNudges : {
+  defaultDueDate: (today) => addDays(today, 1),
+  nextDueDate: (currentDueDate, days, today) => addDays(currentDueDate || today, days),
+};
 const MAX_ACTIVITY_LOG = 50;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
@@ -2700,6 +2704,71 @@ function createTodoDetailsPanel(todo) {
   return panel;
 }
 
+function createDueNudgeButton(todo, label, days, ariaLabel) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'due-nudge-button';
+  button.textContent = label;
+  button.setAttribute('aria-label', ariaLabel);
+  button.disabled = todo.completed || Boolean(todo.archivedAt) || !currentUser;
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    nudgeTodoDueDate(todo.id, days);
+  });
+  return button;
+}
+
+function renderDueChip(todo, dueLabel) {
+  dueLabel.replaceChildren();
+  dueLabel.classList.toggle('due-label-empty', !todo.dueDate);
+
+  const text = document.createElement('span');
+  text.className = 'due-label-text';
+  text.textContent = dueLabelFor(todo);
+  dueLabel.append(text);
+
+  const controls = document.createElement('span');
+  controls.className = 'due-nudge-controls';
+  controls.setAttribute('aria-label', `Due date controls for ${todo.text}`);
+
+  if (todo.dueDate) {
+    controls.append(
+      createDueNudgeButton(todo, '← −1d', -1, `Move ${todo.text} one day earlier`),
+      createDueNudgeButton(todo, '+1d →', 1, `Move ${todo.text} one day later`),
+      createDueNudgeButton(todo, '−1w', -7, `Move ${todo.text} one week earlier`),
+      createDueNudgeButton(todo, '+1w', 7, `Move ${todo.text} one week later`),
+    );
+  } else {
+    const addDueButton = document.createElement('button');
+    addDueButton.type = 'button';
+    addDueButton.className = 'due-nudge-button';
+    addDueButton.textContent = '+ due date';
+    addDueButton.setAttribute('aria-label', `Set ${todo.text} due tomorrow`);
+    addDueButton.disabled = todo.completed || Boolean(todo.archivedAt) || !currentUser;
+    addDueButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setTodoDueDate(todo.id, dueNudgeUtils.defaultDueDate(todayKey()));
+    });
+    controls.append(addDueButton);
+  }
+
+  dueLabel.append(controls);
+  dueLabel.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const buttons = [...dueLabel.querySelectorAll('.due-nudge-button:not(:disabled)')];
+    if (buttons.length === 0) return;
+    event.preventDefault();
+    const currentIndex = buttons.indexOf(document.activeElement);
+    const fallbackIndex = event.key === 'ArrowLeft' ? buttons.length : -1;
+    const nextIndex = event.key === 'ArrowLeft'
+      ? Math.max(0, (currentIndex === -1 ? fallbackIndex : currentIndex) - 1)
+      : Math.min(buttons.length - 1, currentIndex + 1);
+    buttons[nextIndex].focus();
+  });
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -2740,7 +2809,7 @@ function createTodoItem(todo) {
   moodBadge.textContent = `${mood.emoji} ${mood.text}`;
   moodBadge.classList.add(mood.className);
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
-  dueLabel.textContent = dueLabelFor(todo);
+  renderDueChip(todo, dueLabel);
   priorityLabel.textContent = priorityLabelFor(todo);
   const shoalChip = item.querySelector('.shoal-chip');
   if (shoalChip) {
@@ -3428,17 +3497,27 @@ function cycleTriagePriority() {
   render();
 }
 
+function setTodoDueDate(id, dueDate) {
+  const todo = todos.find((item) => item.id === id);
+  if (!todo || todo.dueDate === dueDate) return;
+  const snapshot = prepareUndoSnapshot();
+  todos = todos.map((item) => (
+    item.id === id ? { ...item, dueDate } : item
+  ));
+  applyUndoableTodoChange(snapshot, `Moved ${todo.text} to ${formatDateKey(dueDate)}.`, 'Restored previous due date.');
+}
+
+function nudgeTodoDueDate(id, days) {
+  const todo = todos.find((item) => item.id === id);
+  if (!todo) return;
+  const dueDate = dueNudgeUtils.nextDueDate(todo.dueDate, days, todayKey());
+  setTodoDueDate(id, dueDate);
+}
+
 function nudgeTriageDueDate(days) {
   const todo = currentTriageTodo();
   if (!todo) return;
-  const baseDate = todo.dueDate || todayKey();
-  const dueDate = addDays(baseDate, days);
-  todos = todos.map((item) => (
-    item.id === todo.id ? { ...item, dueDate } : item
-  ));
-  saveTodos();
-  showPondMessage(`Triage moved ${todo.text} to ${formatDateKey(dueDate)}.`);
-  render();
+  nudgeTodoDueDate(todo.id, days);
 }
 
 
@@ -4022,11 +4101,7 @@ function releaseDemoFish() {
 }
 
 function snoozeTodo(id, days) {
-  const today = todayKey();
-  const newDueDate = addDays(today, days);
-  const snapshot = prepareUndoSnapshot();
-  todos = todos.map((todo) => (todo.id === id ? { ...todo, dueDate: newDueDate } : todo));
-  applyUndoableTodoChange(snapshot, `Snoozed 1 task until ${formatDateKey(newDueDate)}.`, 'Restored previous due date.');
+  setTodoDueDate(id, dueNudgeUtils.nextDueDate('', days, todayKey()));
 }
 
 function renderGhostNet() {

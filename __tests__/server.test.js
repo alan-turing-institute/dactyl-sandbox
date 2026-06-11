@@ -85,6 +85,10 @@ describe('auth and task API', () => {
       .expect(200)
       .expect('Content-Type', /javascript/);
     await request(app)
+      .get('/due-nudges.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
       .get('/premium-hooks.js')
       .expect(200)
       .expect('Content-Type', /javascript/);

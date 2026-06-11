@@ -25,6 +25,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`; expand `+ more options` only when you need due date, GitHub URL, recurrence, or priority fields
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
+- Nudge due dates inline from each task chip with keyboard-reachable ±1 day / ±1 week controls, or set no-date tasks to tomorrow
 - See contextual empty-state guidance for filters, search, ghost net, Tide mode, and Daily Catch so an empty view explains what to do next
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app

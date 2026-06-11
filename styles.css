@@ -339,6 +339,7 @@ h1 {
 
 .storage-error[hidden],
 .pond-message[hidden],
+.button-help-panel[hidden],
 .shortcut-help[hidden],
 .daily-catch-panel[hidden],
 .upgrade-callout[hidden],
@@ -486,6 +487,7 @@ h1 {
 
 .pond-health-hints:empty { display: none; }
 
+.button-help-panel,
 .shortcut-help,
 .daily-catch-panel,
 .triage-panel,
@@ -505,6 +507,11 @@ h1 {
   background: rgb(141 255 202 / 8%);
 }
 
+.button-help-panel {
+  border-color: rgb(141 212 255 / 30%);
+  background: linear-gradient(135deg, rgb(141 212 255 / 10%), rgb(255 210 141 / 8%));
+}
+
 .daily-catch-panel {
   border-color: rgb(255 210 141 / 30%);
   background: linear-gradient(135deg, rgb(255 210 141 / 10%), rgb(141 255 202 / 7%));
@@ -515,6 +522,7 @@ h1 {
   background: linear-gradient(135deg, rgb(255 210 141 / 10%), rgb(141 212 255 / 7%));
 }
 
+.button-help-header,
 .shortcut-help-header,
 .daily-catch-header,
 .triage-header,
@@ -526,6 +534,7 @@ h1 {
   gap: 1rem;
 }
 
+.button-help-panel h2,
 .shortcut-help h2,
 .daily-catch-panel h2,
 .triage-panel h2,
@@ -535,6 +544,7 @@ h1 {
   font-size: 1.25rem;
 }
 
+.button-help-note,
 .shortcut-help-note,
 .daily-catch-summary,
 .triage-status,
@@ -570,6 +580,7 @@ h1 {
   box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
 }
 
+.button-help-note,
 .shortcut-help-note,
 .daily-catch-summary,
 .triage-status,
@@ -577,6 +588,33 @@ h1 {
 .paste-preview,
 .restore-preview {
   margin: 0;
+}
+
+.button-help-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin: 0;
+}
+
+.button-help-list div {
+  padding: .75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: .9rem;
+  background: rgb(5 16 26 / 32%);
+}
+
+.button-help-list dt {
+  margin-bottom: .25rem;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.button-help-list dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 700;
 }
 
 .daily-catch-columns {
@@ -1872,6 +1910,7 @@ kbd {
   .tour-steps { grid-template-columns: 1fr; }
   .todo-form button { width: 100%; }
   .upgrade-callout { flex-direction: column; align-items: stretch; }
+  .button-help-list { grid-template-columns: 1fr; }
   .shortcut-list div { grid-template-columns: 1fr; }
   .todo-item,
   .todo-actions { align-items: stretch; }

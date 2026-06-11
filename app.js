@@ -9,6 +9,7 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 
 const authPanel = document.querySelector('#auth-panel');
+const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
 const usernameInput = document.querySelector('#username-input');
 const passwordInput = document.querySelector('#password-input');
@@ -1021,6 +1022,7 @@ function renderFocusPanel() {
 function renderAuth() {
   const signedIn = Boolean(currentUser);
   authPanel.classList.toggle('signed-in', signedIn);
+  authTitle.textContent = signedIn ? 'Account' : 'Sign in to sync tasks';
   authStatus.textContent = signedIn
     ? `Signed in as ${currentUser.username}. Your tasks sync to the backend.`
     : 'Create an account or log in to load your TODO pond.';

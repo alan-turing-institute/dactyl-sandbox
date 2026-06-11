@@ -216,6 +216,20 @@
         <button id="complete-focus" type="button">Mark fed</button>
       </section>
 
+      <section class="search-panel" aria-label="Search and quick filters">
+        <label class="search-field" for="task-search">
+          <span class="sr-only">Search tasks</span>
+          <input id="task-search" type="search" autocomplete="off" placeholder="Search tasks…" />
+        </label>
+        <button id="clear-search" class="secondary-action" type="button" hidden>Clear search</button>
+        <div class="quick-filters" role="group" aria-label="Quick task filters">
+          <button type="button" class="quick-filter" data-quick-filter="high" aria-pressed="false">High tide</button>
+          <button type="button" class="quick-filter" data-quick-filter="due-soon" aria-pressed="false">Due soon</button>
+          <button type="button" class="quick-filter" data-quick-filter="no-due-date" aria-pressed="false">No due date</button>
+          <button type="button" class="quick-filter" data-quick-filter="selected-net" aria-pressed="false">Selected net</button>
+        </div>
+      </section>
+
       <section class="toolbar" aria-label="TODO filters">
         <span id="todo-count" class="count">0 tasks</span>
         <div class="filters" role="group" aria-label="Filter tasks">

@@ -33,6 +33,9 @@ const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
+const taskSearch = document.querySelector('#task-search');
+const clearSearch = document.querySelector('#clear-search');
+const quickFilterButtons = [...document.querySelectorAll('.quick-filter')];
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
@@ -100,6 +103,8 @@ let authToken = loadAuthToken();
 let currentUser = null;
 let todos = [];
 let filter = 'all';
+let searchQuery = '';
+let quickFilter = '';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
@@ -407,17 +412,52 @@ function archivedTodos() {
   return sortArchivedTodos(todos.filter((todo) => todo.archivedAt));
 }
 
-function visibleTodos() {
+function baseVisibleTodos() {
   const live = liveTodos();
-  if (filter === 'archive') return archivedTodos();
-  if (filter === 'active') return sortTodos(live.filter((todo) => !todo.completed));
-  if (filter === 'completed') return sortTodos(live.filter((todo) => todo.completed));
+  if (filter === 'archive') return todos.filter((todo) => todo.archivedAt);
+  if (filter === 'active') return live.filter((todo) => !todo.completed);
+  if (filter === 'completed') return live.filter((todo) => todo.completed);
   if (filter === 'week') {
     const today = todayKey();
     const weekEnd = addDays(today, 6);
-    return sortTodos(live.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
+    return live.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd);
   }
-  return sortTodos(live);
+  return live;
+}
+
+function normalisedSearchQuery() {
+  return searchQuery.trim().toLowerCase();
+}
+
+function matchesSearch(todo) {
+  const query = normalisedSearchQuery();
+  if (!query) return true;
+  return todo.text.toLowerCase().includes(query);
+}
+
+function matchesQuickFilter(todo) {
+  const today = todayKey();
+  if (quickFilter === 'high') return todo.priority === 'high';
+  if (quickFilter === 'due-soon') {
+    const dueSoonEnd = addDays(today, 3);
+    return !todo.completed && todo.dueDate && todo.dueDate >= today && todo.dueDate <= dueSoonEnd;
+  }
+  if (quickFilter === 'no-due-date') return !todo.dueDate;
+  if (quickFilter === 'selected-net') return netMode && selectedTodoIds.has(todo.id);
+  return true;
+}
+
+function filterTodos(items) {
+  return items.filter((todo) => matchesSearch(todo) && matchesQuickFilter(todo));
+}
+
+function filteredTodos(items) {
+  return sortTodos(filterTodos(items));
+}
+
+function visibleTodos() {
+  const filtered = filterTodos(baseVisibleTodos());
+  return filter === 'archive' ? sortArchivedTodos(filtered) : sortTodos(filtered);
 }
 
 function ghostNetTodos() {
@@ -437,10 +477,24 @@ function ghostNetTodos() {
 }
 
 function renderedTodoIds() {
-  // tide renders all todos across groups (including completed); other filters match visibleTodos().
-  if (filter === 'tide') return new Set(todos.map((todo) => todo.id));
+  // Tide renders filtered live todos across groups; Ghost net uses its own review set.
+  if (filter === 'tide') return new Set(filteredTodos(liveTodos()).map((todo) => todo.id));
   if (filter === 'ghost') return new Set(ghostNetTodos().map((todo) => todo.id));
   return new Set(visibleTodos().map((todo) => todo.id));
+}
+
+function hasActiveSearchFilter() {
+  return Boolean(normalisedSearchQuery() || quickFilter);
+}
+
+function filteredEmptyHeading() {
+  return normalisedSearchQuery() ? 'No fish match your search or filters' : 'No fish match these filters';
+}
+
+function filteredEmptyDescription() {
+  return normalisedSearchQuery()
+    ? 'Clear the search or quick filter to see more fish in this view.'
+    : 'Clear the quick filter to see more fish in this view.';
 }
 
 function tideFor(todo) {
@@ -1095,7 +1149,7 @@ function createTodoItem(todo) {
 
 function weekAheadGroups() {
   const today = todayKey();
-  const activeDueTodos = sortTodos(liveTodos().filter((todo) => !todo.completed && todo.dueDate));
+  const activeDueTodos = visibleTodos();
   const groups = [
     {
       key: 'overdue',
@@ -1123,9 +1177,11 @@ function renderWeekAhead() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'week-group week-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Clear waters ahead';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Clear waters ahead';
     const description = document.createElement('p');
-    description.textContent = 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
+    description.textContent = hasActiveSearchFilter()
+      ? filteredEmptyDescription()
+      : 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -1154,7 +1210,7 @@ function renderWeekAhead() {
 }
 
 function renderTideMode() {
-  const sortedTodos = sortTodos(todos);
+  const sortedTodos = filteredTodos(liveTodos());
   const populatedGroups = tideGroups
     .map((group) => ({ ...group, todos: sortedTodos.filter((todo) => tideFor(todo) === group.key) }))
     .filter((group) => group.todos.length > 0);
@@ -1163,9 +1219,11 @@ function renderTideMode() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'tide-group tide-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Still waters (0)';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Still waters (0)';
     const description = document.createElement('p');
-    description.textContent = 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
+    description.textContent = hasActiveSearchFilter()
+      ? filteredEmptyDescription()
+      : 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -1191,6 +1249,21 @@ function renderTideMode() {
 
     list.append(groupItem);
   }
+}
+
+function renderSearchControls() {
+  if (taskSearch.value !== searchQuery) {
+    taskSearch.value = searchQuery;
+  }
+  taskSearch.disabled = !currentUser;
+  clearSearch.hidden = !searchQuery;
+  clearSearch.disabled = !currentUser;
+  quickFilterButtons.forEach((button) => {
+    const isSelectedNet = button.dataset.quickFilter === 'selected-net';
+    button.disabled = !currentUser || (isSelectedNet && !netMode);
+    button.classList.toggle('active', button.dataset.quickFilter === quickFilter);
+    button.setAttribute('aria-pressed', String(button.dataset.quickFilter === quickFilter));
+  });
 }
 
 function renderNetControls() {
@@ -1425,6 +1498,7 @@ function dismissTour() {
 function render() {
   const renderStarted = diagnosticNow();
   renderAuth();
+  if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
 
   if (filter === 'tide') {
@@ -1440,21 +1514,31 @@ function render() {
   }
 
   const activeCount = liveTodos().filter((todo) => !todo.completed).length;
-  count.textContent = filter === 'archive'
-    ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
-    : filter === 'ghost'
+  const visibleCount = filter === 'tide' ? filteredTodos(liveTodos()).length : visibleTodos().length;
+  count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
-    : `${pluralise(activeCount, 'task')} left`;
-  emptyState.querySelector('h2').textContent = filter === 'archive' ? 'No fish in the reef archive' : 'Nothing here yet';
-  emptyState.querySelector('p').textContent = filter === 'archive'
-    ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-    : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+    : hasActiveSearchFilter()
+      ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
+      : filter === 'archive'
+        ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+        : `${pluralise(activeCount, 'task')} left`;
+  emptyState.querySelector('h2').textContent = hasActiveSearchFilter()
+    ? filteredEmptyHeading()
+    : filter === 'archive'
+      ? 'No fish in the reef archive'
+      : 'Nothing here yet';
+  emptyState.querySelector('p').textContent = hasActiveSearchFilter()
+    ? filteredEmptyDescription()
+    : filter === 'archive'
+      ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
+      : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
+  renderSearchControls();
   renderTourPanel();
 
   filterButtons.forEach((button) => {
@@ -1912,6 +1996,11 @@ async function authenticate(mode) {
   }
 }
 
+function clearSearchState() {
+  searchQuery = '';
+  quickFilter = '';
+}
+
 async function changePassword() {
   if (!currentUser || !passwordForm.reportValidity()) return;
 
@@ -1945,6 +2034,7 @@ function logout() {
   currentUser = null;
   todos = [];
   selectedTodoIds.clear();
+  clearSearchState();
   netMode = false;
   tourForcedVisible = false;
   resetFocusSprint('');
@@ -2060,6 +2150,32 @@ form.addEventListener('submit', (event) => {
 
 filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
+});
+
+taskSearch.addEventListener('input', () => {
+  searchQuery = taskSearch.value;
+  render();
+});
+
+taskSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && searchQuery) {
+    event.preventDefault();
+    searchQuery = '';
+    render();
+  }
+});
+
+clearSearch.addEventListener('click', () => {
+  searchQuery = '';
+  render();
+  taskSearch.focus();
+});
+
+quickFilterButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
+    render();
+  });
 });
 
 clearCompleted.addEventListener('click', () => {

@@ -166,7 +166,7 @@ h1 {
 
 .todo-form {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(9rem, auto) auto;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(12rem, auto) auto;
   gap: .75rem;
   margin-bottom: 1rem;
 }
@@ -182,6 +182,31 @@ h1 {
   outline: none;
   background: var(--card-strong);
   color: var(--text);
+}
+
+.priority-picker {
+  display: grid;
+  gap: .45rem;
+}
+
+.priority-chips {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+
+.priority-chips button {
+  padding: .35rem .65rem;
+  border: 1px solid rgb(141 212 255 / 28%);
+  background: rgb(141 212 255 / 9%);
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.priority-chips button[aria-pressed="true"] {
+  border-color: rgb(141 255 202 / 46%);
+  background: rgb(141 255 202 / 18%);
+  color: var(--success);
 }
 
 .auth-form input:focus,
@@ -624,6 +649,83 @@ kbd {
   background: rgb(141 212 255 / 16%);
   color: var(--text);
 }
+
+.smart-views {
+  display: grid;
+  gap: .65rem;
+  padding: .75rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 5%);
+}
+
+.smart-view-form {
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 1fr) auto;
+  gap: .5rem;
+  align-items: center;
+}
+
+.smart-view-form label {
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.smart-view-form input {
+  min-width: 0;
+  padding: .65rem .85rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+}
+
+.smart-view-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
+}
+
+.smart-view-list {
+  display: flex;
+  gap: .45rem;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smart-view-empty {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.smart-view-item {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid rgb(141 212 255 / 24%);
+  border-radius: 999px;
+  background: rgb(141 212 255 / 10%);
+}
+
+.smart-view-apply,
+.smart-view-delete {
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.smart-view-apply { padding: .45rem .7rem; }
+
+.smart-view-delete {
+  padding: .45rem .6rem;
+  border-left: 1px solid rgb(141 212 255 / 20%);
+  color: var(--muted);
+}
+
+.smart-view-apply:hover,
+.smart-view-delete:hover { background: rgb(255 255 255 / 8%); }
 
 .toolbar {
   display: flex;

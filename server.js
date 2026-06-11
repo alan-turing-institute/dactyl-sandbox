@@ -6,6 +6,8 @@ const express = require('express');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -54,6 +56,10 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseTimestamp(value) {
+  return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -73,6 +79,7 @@ function normaliseTodo(todo) {
     createdAt,
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
+    archivedAt: normaliseTimestamp(todo.archivedAt),
   };
 }
 
@@ -82,6 +89,13 @@ function toPublicUser(row) {
 
 function userTokenVersion(row) {
   return Number.isInteger(row?.token_version) ? row.token_version : 0;
+}
+
+function passwordLengthError(password, label = 'Password') {
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    return `${label} must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters.`;
+  }
+  return '';
 }
 
 function createPasswordHash(password) {
@@ -126,6 +140,11 @@ function createApp(options = {}) {
     );
   `);
 
+  const todoColumns = db.prepare('PRAGMA table_info(todos)').all().map((column) => column.name);
+  if (!todoColumns.includes('archived_at')) {
+    db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
+  }
+
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
     db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
@@ -166,7 +185,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -177,13 +196,14 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
+        archived_at = excluded.archived_at,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -193,6 +213,7 @@ function createApp(options = {}) {
       normalised.createdAt,
       normalised.dueDate,
       normalised.priority,
+      normalised.archivedAt,
       new Date().toISOString(),
     );
     return normalised;
@@ -204,7 +225,8 @@ function createApp(options = {}) {
     if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
       return res.status(400).json({ error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.' });
     }
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
 
     const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
     try {
@@ -220,6 +242,9 @@ function createApp(options = {}) {
   app.post('/api/login', (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
+
     const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid username or password.' });
@@ -234,7 +259,10 @@ function createApp(options = {}) {
   app.post('/api/account/password', requireAuth, (req, res) => {
     const currentPassword = String(req.body?.currentPassword || '');
     const newPassword = String(req.body?.newPassword || '');
-    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    const currentPasswordError = passwordLengthError(currentPassword, 'Current password');
+    if (currentPasswordError) return res.status(400).json({ error: currentPasswordError });
+    const newPasswordError = passwordLengthError(newPassword, 'New password');
+    if (newPasswordError) return res.status(400).json({ error: newPasswordError });
 
     const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE id = ?').get(req.user.id);
     if (!user || !verifyPassword(currentPassword, user.password_hash)) {
@@ -281,7 +309,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority FROM todos WHERE user_id = ? AND id = ?')
+    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt FROM todos WHERE user_id = ? AND id = ?')
       .get(req.user.id, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });

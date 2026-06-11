@@ -27,7 +27,7 @@
           </label>
           <label>
             <span>Password</span>
-            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" required />
+            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />
           </label>
           <div class="auth-actions">
             <button id="login-button" type="submit">Log in</button>
@@ -40,11 +40,11 @@
           <h3>Change password</h3>
           <label>
             <span>Current password</span>
-            <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" required />
+            <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />
           </label>
           <label>
             <span>New password</span>
-            <input id="new-password-input" name="new-password" type="password" autocomplete="new-password" minlength="8" required />
+            <input id="new-password-input" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required />
           </label>
           <button id="change-password-button" class="secondary-action" type="submit">Update password</button>
         </form>
@@ -205,6 +205,7 @@
           <button type="button" class="filter active" data-filter="all" aria-keyshortcuts="A">All</button>
           <button type="button" class="filter" data-filter="active">Active</button>
           <button type="button" class="filter" data-filter="completed">Completed</button>
+          <button type="button" class="filter" data-filter="archive">Reef archive</button>
           <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
         </div>
@@ -237,6 +238,8 @@
         <div class="todo-actions">
           <button class="focus-task" type="button">Feed</button>
           <button class="edit-task" type="button">Edit</button>
+          <button class="archive-task secondary-action" type="button" hidden>Archive</button>
+          <button class="restore-task secondary-action" type="button" hidden>Restore</button>
           <button class="delete" type="button" aria-label="Delete task">×</button>
         </div>
       </li>

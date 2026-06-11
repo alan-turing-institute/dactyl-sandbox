@@ -121,6 +121,47 @@ describe('auth and task API', () => {
     expect(tasks.body.todos.map((todo) => todo.text)).not.toContain('Old task');
   });
 
+  test('persists archived task markers through patch and replace', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'archive-user', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Archive me', completed: true, archivedAt: '2026-06-11T08:00:00.000Z' })
+      .expect(201);
+
+    expect(created.body.todo).toMatchObject({ text: 'Archive me', completed: true, archivedAt: '2026-06-11T08:00:00.000Z' });
+
+    const restored = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ archivedAt: '' })
+      .expect(200);
+
+    expect(restored.body.todo.archivedAt).toBe('');
+
+    const replacement = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        todos: [
+          { id: 'archived-1', text: 'Old shell', completed: true, archivedAt: '2026-06-11T09:00:00.000Z' },
+          { id: 'bad-archive', text: 'Bad archive date', completed: true, archivedAt: 'not-a-date' },
+        ],
+      })
+      .expect(200);
+
+    expect(replacement.body.todos).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'archived-1', archivedAt: '2026-06-11T09:00:00.000Z' }),
+      expect.objectContaining({ id: 'bad-archive', archivedAt: '' }),
+    ]));
+  });
+
   test('rejects invalid task patches with 400', async () => {
     app = makeApp();
 
@@ -193,6 +234,41 @@ describe('auth and task API', () => {
       .post('/api/login')
       .send({ username: 'rotate-user', password: 'new-secret' })
       .expect(200);
+  });
+
+  test('rejects passwords longer than the bounded scrypt input length', async () => {
+    app = makeApp();
+    const longPassword = 'p'.repeat(129);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'long-signup', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'bounded-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'bounded-user', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ currentPassword: 'very-secret', newPassword: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('New password must be 8-128 characters.');
+      });
   });
 
   test('malformed password hashes fail login without crashing', async () => {

@@ -114,6 +114,12 @@
 
       <p id="storage-error" class="storage-error" role="status" aria-live="polite" hidden></p>
       <p id="pond-message" class="pond-message" role="status" aria-live="polite" hidden></p>
+      <div id="undo-toast" class="undo-toast" role="status" aria-live="polite" tabindex="-1" hidden>
+        <span id="undo-toast-message"></span>
+        <button id="undo-toast-action" type="button">Undo</button>
+        <button id="undo-toast-dismiss" class="undo-toast-dismiss" type="button" aria-label="Dismiss undo message">×</button>
+        <span id="undo-toast-progress" class="undo-toast-progress" aria-hidden="true"></span>
+      </div>
 
       <section class="pond-actions" aria-label="Pond actions">
         <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
@@ -392,9 +398,6 @@
         </div>
         <p class="activity-log-note">Local actions from this session. Reloading the page clears this log.</p>
         <ul id="activity-log-list" class="activity-log-list" aria-live="polite" aria-label="Recent task actions"></ul>
-        <div id="activity-log-undo" class="activity-log-undo" hidden>
-          <button id="activity-undo-btn" class="secondary-action" type="button">Undo last action</button>
-        </div>
       </section>
 
       <section id="daily-catch-panel" class="daily-catch-panel" aria-labelledby="daily-catch-title" aria-live="polite" hidden>

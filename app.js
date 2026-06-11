@@ -67,6 +67,10 @@ const focusPanel = document.querySelector('#focus-panel');
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const completeFocus = document.querySelector('#complete-focus');
+const showcaseToggle = document.querySelector('#showcase-toggle');
+const showcasePanel = document.querySelector('#showcase-panel');
+const showcaseClose = document.querySelector('#showcase-close');
+const showcaseBody = document.querySelector('#showcase-body');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -744,6 +748,150 @@ function setPondHealthOpen(open) {
   if (open) renderPondHealth();
 }
 
+function makeShowcaseSection(title) {
+  const section = document.createElement('div');
+  section.className = 'showcase-section';
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  section.append(heading);
+  return section;
+}
+
+function renderShowcase() {
+  if (showcasePanel.hidden) return;
+
+  const today = todayKey();
+  const live = liveTodos();
+  const activeTodos = live.filter((t) => !t.completed);
+  const completedCount = live.filter((t) => t.completed).length;
+  const completionPct = live.length > 0 ? Math.round((completedCount / live.length) * 100) : 0;
+  const focusedTodo = activeTodos.find((t) => t.id === focusedTodoId);
+
+  const urgentAll = sortTodos(activeTodos.filter((t) =>
+    t.priority === 'high' || (t.dueDate && t.dueDate <= today)));
+  const urgentShown = urgentAll.slice(0, 5);
+
+  showcaseBody.replaceChildren();
+
+  const feedSection = makeShowcaseSection('Now feeding');
+  if (focusedTodo) {
+    const mood = moodFor(focusedTodo);
+    const card = document.createElement('div');
+    card.className = 'showcase-card';
+    const moodEl = document.createElement('p');
+    moodEl.className = `showcase-mood ${mood.className}`;
+    moodEl.textContent = `${mood.emoji} ${mood.text}`;
+    const textEl = document.createElement('p');
+    textEl.className = 'showcase-task-text';
+    textEl.textContent = focusedTodo.text;
+    const metaEl = document.createElement('p');
+    metaEl.className = 'showcase-task-meta';
+    metaEl.textContent = `${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
+    card.append(moodEl, textEl, metaEl);
+    feedSection.append(card);
+  } else {
+    const hint = document.createElement('p');
+    hint.className = 'showcase-hint';
+    hint.textContent = currentUser
+      ? 'No focus fish selected. Use Feed on any task to pick one.'
+      : 'Sign in to see your focus fish here.';
+    feedSection.append(hint);
+  }
+  showcaseBody.append(feedSection);
+
+  const urgentSection = makeShowcaseSection('High tide');
+  if (urgentShown.length > 0) {
+    const taskList = document.createElement('ul');
+    taskList.className = 'showcase-task-list';
+    urgentShown.forEach((t) => {
+      const item = document.createElement('li');
+      item.className = 'showcase-task-item';
+      const mood = moodFor(t);
+      const textEl = document.createElement('span');
+      textEl.className = 'showcase-task-text';
+      textEl.textContent = t.text;
+      const metaEl = document.createElement('span');
+      metaEl.className = 'showcase-task-meta';
+      metaEl.textContent = `${mood.emoji} ${dueLabelFor(t)} · ${priorityLabelFor(t)}`;
+      item.append(textEl, metaEl);
+      taskList.append(item);
+    });
+    urgentSection.append(taskList);
+    if (urgentAll.length > 5) {
+      const hint = document.createElement('p');
+      hint.className = 'showcase-hint';
+      hint.textContent = `+${urgentAll.length - 5} more high-tide tasks`;
+      urgentSection.append(hint);
+    }
+  } else {
+    const hint = document.createElement('p');
+    hint.className = 'showcase-hint';
+    hint.textContent = 'No urgent or overdue fish. Clear waters!';
+    urgentSection.append(hint);
+  }
+  showcaseBody.append(urgentSection);
+
+  const lanesSection = makeShowcaseSection('Shoal snapshot');
+  const lanesEl = document.createElement('div');
+  lanesEl.className = 'showcase-lanes';
+  tideGroups.forEach((group) => {
+    const cnt = live.filter((t) => tideFor(t) === group.key).length;
+    if (cnt === 0) return;
+    const lane = document.createElement('div');
+    lane.className = 'showcase-lane';
+    lane.dataset.tideGroup = group.key;
+    const cntEl = document.createElement('span');
+    cntEl.className = 'showcase-lane-count';
+    cntEl.textContent = cnt;
+    const lblEl = document.createElement('span');
+    lblEl.className = 'showcase-lane-label';
+    lblEl.textContent = group.label;
+    lane.append(cntEl, lblEl);
+    lanesEl.append(lane);
+  });
+  if (!lanesEl.children.length) {
+    const hint = document.createElement('p');
+    hint.className = 'showcase-hint';
+    hint.textContent = 'The pond is empty. Add tasks to see tide lanes.';
+    lanesSection.append(hint);
+  } else {
+    lanesSection.append(lanesEl);
+  }
+  showcaseBody.append(lanesSection);
+
+  const statsSection = makeShowcaseSection('Clear waters');
+  const statsEl = document.createElement('div');
+  statsEl.className = 'showcase-stats';
+  [
+    { value: String(live.length), label: 'tasks' },
+    { value: String(activeTodos.length), label: 'active' },
+    { value: String(completedCount), label: 'completed' },
+    { value: `${completionPct}%`, label: 'done' },
+  ].forEach(({ value, label }) => {
+    const stat = document.createElement('div');
+    stat.className = 'showcase-stat';
+    const valEl = document.createElement('span');
+    valEl.className = 'showcase-stat-value';
+    valEl.textContent = value;
+    const lblEl = document.createElement('span');
+    lblEl.className = 'showcase-stat-label';
+    lblEl.textContent = label;
+    stat.append(valEl, lblEl);
+    statsEl.append(stat);
+  });
+  statsSection.append(statsEl);
+  showcaseBody.append(statsSection);
+}
+
+function setShowcaseOpen(open) {
+  showcasePanel.hidden = !open;
+  showcaseToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderShowcase();
+    showcasePanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 function createEditField(labelText, control) {
   const label = document.createElement('label');
   const labelSpan = document.createElement('span');
@@ -1092,6 +1240,7 @@ function render() {
   focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
+  renderShowcase();
 }
 
 function addTodo(text, options = {}) {
@@ -1539,7 +1688,9 @@ function handleGlobalShortcut(event) {
     const helpWasOpen = !shortcutHelp.hidden;
     setShortcutHelpOpen(false);
     const leftNetMode = leaveNetMode();
-    if (helpWasOpen || leftNetMode) event.preventDefault();
+    const closedShowcase = !showcasePanel.hidden;
+    if (closedShowcase) setShowcaseOpen(false);
+    if (helpWasOpen || leftNetMode || closedShowcase) event.preventDefault();
   }
 }
 
@@ -1617,6 +1768,8 @@ dismissPondTour.addEventListener('click', () => {
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
 });
 completeFocus.addEventListener('click', completeFocusedTodo);
+showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
+showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 
 document.addEventListener('keydown', handleGlobalShortcut);
 

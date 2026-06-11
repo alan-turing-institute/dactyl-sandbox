@@ -81,6 +81,7 @@
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
+        <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
@@ -176,6 +177,17 @@
           <button id="tour-copy-report" class="secondary-action" type="button">Copy report</button>
           <button id="dismiss-pond-tour" class="secondary-action" type="button">Dismiss tour</button>
         </div>
+      </section>
+
+      <section id="showcase-panel" class="showcase-panel" aria-labelledby="showcase-title" hidden>
+        <div class="showcase-header">
+          <div>
+            <p class="eyebrow">Presentation mode</p>
+            <h2 id="showcase-title">Aquarium view</h2>
+          </div>
+          <button id="showcase-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <div id="showcase-body" class="showcase-body"></div>
       </section>
 
       <section id="focus-panel" class="focus-panel" aria-live="polite" hidden>

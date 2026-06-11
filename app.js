@@ -1243,6 +1243,7 @@ function renderCommandList(query) {
   const filtered = q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
   commandList.replaceChildren();
   if (filtered.length === 0) {
+    commandSearch.removeAttribute('aria-activedescendant');
     const empty = document.createElement('li');
     empty.className = 'command-list-empty';
     empty.textContent = 'No matching commands.';
@@ -4197,6 +4198,9 @@ commandSearch.addEventListener('keydown', (event) => {
   } else if (event.key === 'Escape') {
     event.preventDefault();
     closeCommandPalette();
+  } else if (event.key === 'Tab') {
+    event.preventDefault();
+    commandSearch.focus();
   }
 });
 commandPaletteEl.addEventListener('keydown', trapCommandPaletteFocus);

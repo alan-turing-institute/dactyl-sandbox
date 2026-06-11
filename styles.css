@@ -303,6 +303,7 @@ h1 {
 .storage-error[hidden],
 .pond-message[hidden],
 .shortcut-help[hidden],
+.upgrade-callout[hidden],
 .triage-panel[hidden],
 .pond-health-panel[hidden],
 .trophies-panel[hidden],
@@ -323,6 +324,33 @@ h1 {
   gap: .6rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.upgrade-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 210 141 / 28%);
+  border-radius: 1.1rem;
+  background: linear-gradient(135deg, rgb(255 210 141 / 10%), rgb(141 212 255 / 7%));
+}
+
+.upgrade-callout h2,
+.upgrade-callout p {
+  margin: 0;
+}
+
+.upgrade-callout h2 {
+  font-size: 1.05rem;
+}
+
+.upgrade-callout p:last-child {
+  color: var(--muted);
+  font-size: .92rem;
+  font-weight: 700;
 }
 
 .secondary-action,
@@ -1729,6 +1757,7 @@ kbd {
   .todo-form,
   .tour-steps { grid-template-columns: 1fr; }
   .todo-form button { width: 100%; }
+  .upgrade-callout { flex-direction: column; align-items: stretch; }
   .shortcut-list div { grid-template-columns: 1fr; }
   .todo-item,
   .todo-actions { align-items: stretch; }

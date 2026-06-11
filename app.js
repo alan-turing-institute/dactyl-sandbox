@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -9,6 +9,7 @@ const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed
 const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
+const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
@@ -77,6 +78,7 @@ const {
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
+const { premiumHookForSurface } = DactylPremiumHooks;
 const { parseQuickAdd } = DactylQuickAdd;
 const analytics = DactylAnalytics.createAnalytics();
 const {
@@ -148,6 +150,10 @@ const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
 const sharePond = document.querySelector('#share-pond');
 const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
+const upgradeCallout = document.querySelector('#upgrade-callout');
+const upgradeCalloutTitle = document.querySelector('#upgrade-callout-title');
+const upgradeCalloutBody = document.querySelector('#upgrade-callout-body');
+const upgradeCalloutDismiss = document.querySelector('#upgrade-callout-dismiss');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -242,6 +248,7 @@ let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
 let smartViews = loadSmartViews();
+let premiumCalloutDismissed = loadPremiumCalloutDismissed();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
@@ -574,6 +581,24 @@ function loadSmartViews() {
   } catch {
     return [];
   }
+}
+
+function loadPremiumCalloutDismissed() {
+  try {
+    return localStorage.getItem(PREMIUM_CALLOUT_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function dismissPremiumCallout() {
+  premiumCalloutDismissed = true;
+  try {
+    localStorage.setItem(PREMIUM_CALLOUT_DISMISSED_KEY, 'true');
+  } catch {
+    showPondMessage('Upgrade note dismissed, but this browser could not remember it.');
+  }
+  renderUpgradeCallout();
 }
 
 function persistSmartViews() {
@@ -1043,6 +1068,15 @@ function setPastePanelOpen(open) {
 function setShortcutHelpOpen(open) {
   shortcutHelp.hidden = !open;
   shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function renderUpgradeCallout() {
+  const hook = premiumHookForSurface('sharing');
+  const shouldShow = Boolean(currentUser) && !premiumCalloutDismissed && Boolean(hook);
+  upgradeCallout.hidden = !shouldShow;
+  if (!shouldShow || !hook) return;
+  upgradeCalloutTitle.textContent = hook.title;
+  upgradeCalloutBody.textContent = hook.body;
 }
 
 function syncPriorityChips() {
@@ -2792,6 +2826,7 @@ function render() {
   renderSearchControls();
   renderSmartViews();
   renderTourPanel();
+  renderUpgradeCallout();
 
   filterButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.filter === filter);
@@ -3700,6 +3735,7 @@ copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
 sharePond.addEventListener('click', shareVisiblePond);
 copyStandupDraftButton.addEventListener('click', copyStandupDraft);
+upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));

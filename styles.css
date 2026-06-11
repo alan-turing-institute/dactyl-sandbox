@@ -239,6 +239,7 @@ h1 {
 .pond-message[hidden],
 .shortcut-help[hidden],
 .pond-health-panel[hidden],
+.prefs-panel[hidden],
 .paste-panel[hidden],
 .pond-tour[hidden],
 .focus-panel[hidden],
@@ -778,6 +779,127 @@ kbd {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Calm Water preferences panel ─────────────────────────────────────── */
+
+.prefs-panel {
+  display: grid;
+  gap: .85rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 255 202 / 24%);
+  border-radius: 1.25rem;
+  background: rgb(141 255 202 / 7%);
+}
+
+.prefs-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.prefs-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.prefs-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.prefs-options {
+  display: grid;
+  gap: .6rem;
+}
+
+.pref-option {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.pref-option input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: .2rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pref-option > span {
+  display: grid;
+  gap: .18rem;
+}
+
+.pref-option strong {
+  font-size: .95rem;
+  color: var(--text);
+}
+
+.pref-option > span > span {
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body { background: linear-gradient(135deg, #0c0f15, var(--bg)); }
+  .app { backdrop-filter: none; }
+}
+
+:root[data-motion="reduced"] body { background: linear-gradient(135deg, #0c0f15, var(--bg)); }
+:root[data-motion="reduced"] .app { backdrop-filter: none; }
+
+/* ── High contrast ─────────────────────────────────────────────────────── */
+
+:root[data-contrast="high"] {
+  --text: #ffffff;
+  --muted: #d4dfec;
+  --bg: #06080d;
+  --card-strong: #101420;
+}
+
+:root[data-contrast="high"] .todo-item {
+  border-color: rgb(255 255 255 / 20%);
+  border-left-width: .45rem;
+}
+
+:root[data-contrast="high"] .metadata span { color: var(--text); }
+
+:root[data-contrast="high"] button:focus-visible,
+:root[data-contrast="high"] input:focus-visible,
+:root[data-contrast="high"] select:focus-visible,
+:root[data-contrast="high"] textarea:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── Compact cards ─────────────────────────────────────────────────────── */
+
+:root[data-density="compact"] .todo-item { padding: .5rem .75rem; }
+:root[data-density="compact"] .todo-list { gap: .35rem; }
+:root[data-density="compact"] .app { padding: clamp(.75rem, 2.5vw, 1.25rem); }
+
+/* ── Text-first badges ─────────────────────────────────────────────────── */
+
+:root[data-badges="text-first"] .metadata span {
+  padding: .2rem .45rem;
+  background: rgb(255 255 255 / 12%);
+  color: var(--text);
+  font-size: .85rem;
+}
+
+:root[data-badges="text-first"] .mood-badge.mood-emergency { background: rgb(255 141 141 / 20%); }
+:root[data-badges="text-first"] .mood-badge.mood-high { background: rgb(255 210 141 / 20%); }
+:root[data-badges="text-first"] .mood-badge.mood-normal,
+:root[data-badges="text-first"] .mood-badge.mood-resting { background: rgb(141 255 202 / 20%); }
 
 @media (max-width: 44rem) {
   body { padding: 1rem; }

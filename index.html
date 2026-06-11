@@ -81,6 +81,7 @@
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
+        <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
@@ -125,6 +126,47 @@
         <p id="pond-health-summary" class="pond-health-summary">Open pond health to review lightweight diagnostics.</p>
         <dl id="pond-health-metrics" class="pond-health-metrics"></dl>
         <ul id="pond-health-hints" class="pond-health-hints"></ul>
+      </section>
+
+      <section id="prefs-panel" class="prefs-panel" aria-labelledby="prefs-title" hidden>
+        <div class="prefs-header">
+          <div>
+            <p class="eyebrow">Calm Water</p>
+            <h2 id="prefs-title">Accessibility preferences</h2>
+          </div>
+          <button id="prefs-close" class="secondary-action" type="button">Close</button>
+        </div>
+        <p class="prefs-note">Preferences are saved locally in this browser and do not sync.</p>
+        <div class="prefs-options">
+          <label class="pref-option">
+            <input id="pref-reduced-motion" type="checkbox" />
+            <span>
+              <strong>Reduced motion</strong>
+              <span>Remove decorative background effects. On by default when your OS requests it.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-high-contrast" type="checkbox" />
+            <span>
+              <strong>High contrast</strong>
+              <span>Stronger text and border colours for task cards, badges, and buttons.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-compact" type="checkbox" />
+            <span>
+              <strong>Compact cards</strong>
+              <span>Reduce card spacing for a denser task list.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-text-badges" type="checkbox" />
+            <span>
+              <strong>Text-first badges</strong>
+              <span>Show priority and mood labels as clear text, not just colour or emoji cues.</span>
+            </span>
+          </label>
+        </div>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>

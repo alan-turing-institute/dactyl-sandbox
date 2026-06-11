@@ -19,12 +19,16 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
 - Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Save repeated planning filters as local smart views for quick reuse
+- Open fish-themed button help to decode key controls and pond-specific UI language
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
+- Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app
+- Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
+- Mark tasks as daily, weekly, or monthly recurring; completing one schedules the next active occurrence
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal

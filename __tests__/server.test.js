@@ -72,10 +72,58 @@ describe('auth and task API', () => {
       .expect(200)
       .expect('Content-Type', /javascript/);
     await request(app)
+      .get('/daily-catch.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/premium-hooks.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/recurrence.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
       .get('/analytics-config.js')
       .expect(200)
       .expect('Content-Type', /javascript/)
       .expect(/DACTYL_ANALYTICS_CONFIG/);
+  });
+
+  test('persists and normalises recurrence values', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'repeat-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+    const weeklyTask = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Weekly pond review', dueDate: '2026-06-11', recurrence: 'weekly' })
+      .expect(201);
+
+    expect(weeklyTask.body.todo).toMatchObject({ recurrence: 'weekly' });
+
+    const invalidTask = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Mystery repeat', recurrence: 'yearly' })
+      .expect(201);
+
+    expect(invalidTask.body.todo).toMatchObject({ recurrence: 'none' });
+
+    const list = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body.todos).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'Weekly pond review', recurrence: 'weekly' }),
+      expect.objectContaining({ text: 'Mystery repeat', recurrence: 'none' }),
+    ]));
   });
 
   test('rate limits auth routes', async () => {

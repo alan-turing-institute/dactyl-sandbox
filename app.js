@@ -1,4 +1,4 @@
-/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -75,12 +75,17 @@ const {
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
+const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
   nextPriority: nextTriagePriority,
   nextTriageIndex,
   triageCandidates: getTriageCandidates,
 } = DactylTriageMode;
+
+function trackProductEvent(name, payload = {}) {
+  analytics.track(name, payload);
+}
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -1074,6 +1079,7 @@ function exportPondBackup() {
   if (!currentUser) return;
   const backup = buildPondBackup();
   downloadJsonFile(backupFileName(), backup);
+  trackProductEvent('export_created', { taskCount: backup.tasks.length });
   showPondMessage(`Exported ${pluralise(backup.tasks.length, 'fish', 'fish')} as a JSON pond backup.`);
 }
 
@@ -1222,6 +1228,7 @@ function importPastedTodos() {
 
   todos = [...imported, ...todos].slice(0, MAX_TODOS);
   pasteInput.value = '';
+  trackProductEvent('task_created', { taskCount: imported.length, source: 'paste' });
   saveTodos();
   showPondMessage(`Added ${pluralise(imported.length, 'pasted fish', 'pasted fish')} to the pond.`);
   setPastePanelOpen(false);
@@ -2221,7 +2228,10 @@ function renderTourPanel() {
     .forEach((button) => {
       button.disabled = !currentUser;
     });
-  if (shouldAutoShow) saveTourDismissed(true);
+  if (shouldAutoShow) {
+    saveTourDismissed(true);
+    trackProductEvent('tour_opened', { source: 'auto' });
+  }
 }
 
 function formatSprintTime(ms) {
@@ -2310,6 +2320,10 @@ function startOrResumeFocusSprint() {
   focusSprint.endsAt = Date.now() + focusSprint.remainingMs;
   setFocusSprintTimer(true);
   renderFocusSprint();
+  trackProductEvent('focus_started', {
+    priority: focusedTodo.priority,
+    sprintMinutes: focusSprint.minutes,
+  });
   showPondMessage('Focus sprint started for ' + focusedTodo.text + '.');
 }
 
@@ -2355,7 +2369,14 @@ function tickFocusSprint() {
 
 function completeSprintFocusedTodo() {
   if (focusSprint.status !== 'finished') return;
-  completeFocusedTodo();
+  const focusedTodo = selectedFocusTodo();
+  if (focusedTodo) {
+    trackProductEvent('focus_completed', {
+      priority: focusedTodo.priority,
+      sprintMinutes: focusSprint.minutes,
+    });
+  }
+  completeFocusedTodo('focus');
 }
 
 function renderFocusPanel() {
@@ -2634,6 +2655,12 @@ function addTodo(text, options = {}) {
   if (!todo) return;
   if (liveTodos().length === 0) saveFirstTaskOnboardingDismissed(true);
   todos.unshift(todo);
+  trackProductEvent('task_created', {
+    priority: todo.priority,
+    hasDueDate: Boolean(todo.dueDate),
+    hasGithubLink: Boolean(todo.githubUrl),
+    source: options.source || 'form',
+  });
   saveTodos();
   render();
 }
@@ -2642,7 +2669,7 @@ function addStarterTask(templateId) {
   const templateTodo = templateForId(templateId);
   if (!templateTodo) return;
 
-  addTodo(templateTodo.text, { priority: templateTodo.priority });
+  addTodo(templateTodo.text, { priority: templateTodo.priority, source: 'starter_template' });
   showPondMessage(`Starter fish added: ${templateTodo.text}.`);
   input.focus();
 }
@@ -2695,7 +2722,7 @@ function applyStarterShoal(shoal) {
     showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
     return;
   }
-  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority }));
+  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority, source: 'starter_shoal' }));
   setStarterShoalsOpen(false);
   const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
   showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
@@ -2728,6 +2755,10 @@ function toggleTodo(id) {
   }
   saveTodos();
   render();
+  const toggledTodo = todos.find((todo) => todo.id === id);
+  if (toggledTodo?.completed) {
+    trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
+  }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
 
@@ -2995,7 +3026,7 @@ function moveSelectedToShoal() {
   render();
 }
 
-function completeFocusedTodo() {
+function completeFocusedTodo(source = 'focus_button') {
   if (!focusedTodoId) return;
   const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
@@ -3007,6 +3038,7 @@ function completeFocusedTodo() {
   saveTodos();
   render();
   if (completedTask) {
+    trackProductEvent('task_completed', { priority: completedTask.priority, source });
     if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
@@ -3056,6 +3088,7 @@ function stockDemoPond() {
 
   todos = [...newTodos, ...todos].slice(0, MAX_TODOS);
   if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
+  trackProductEvent('task_created', { taskCount: newTodos.length, source: 'demo' });
   saveTodos();
   showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
   render();
@@ -3184,6 +3217,7 @@ async function authenticate(mode) {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
+    trackProductEvent(mode === 'signup' ? 'signup' : 'login', { taskCount: body.todos?.length ?? 0 });
     saveAuthToken(body.token);
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
@@ -3414,6 +3448,7 @@ form.addEventListener('submit', (event) => {
     dueDate,
     priority,
     githubUrl: githubUrlInput.value,
+    source: parsed.dueDate || parsed.priority ? 'quick_add' : 'form',
   });
   if (parsed.dueDate || parsed.priority) {
     const hints = [parsed.dueDate ? `due ${formatDateKey(parsed.dueDate)}` : '', parsed.priority ? `${parsed.priority} priority` : ''].filter(Boolean).join(' · ');
@@ -3512,6 +3547,7 @@ releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
 showPondTour.addEventListener('click', () => {
   tourForcedVisible = true;
+  trackProductEvent('tour_opened', { source: 'manual' });
   render();
   pondTour.focus({ preventScroll: true });
   pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -3529,7 +3565,7 @@ startFocusSprint.addEventListener('click', startOrResumeFocusSprint);
 pauseFocusSprint.addEventListener('click', pauseCurrentFocusSprint);
 cancelFocusSprint.addEventListener('click', () => cancelCurrentFocusSprint());
 completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
-completeFocus.addEventListener('click', completeFocusedTodo);
+completeFocus.addEventListener('click', () => completeFocusedTodo());
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));

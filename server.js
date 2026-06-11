@@ -4,6 +4,7 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 const express = require('express');
+const { sanitizeAnalyticsEvent } = require('./analytics');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
@@ -204,6 +205,8 @@ function createApp(options = {}) {
   const app = express();
   const dbPath = options.dbPath || process.env.DATABASE_PATH || path.join(__dirname, 'data', 'todos.sqlite');
   const jwtSecret = options.jwtSecret || process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+  const analyticsEnabled = options.analyticsEnabled ?? process.env.DACTYL_ANALYTICS_ENABLED === 'true';
+  const analyticsSink = options.analyticsSink || (() => {});
   if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
 
@@ -545,6 +548,13 @@ function createApp(options = {}) {
     return res.status(204).send();
   });
 
+  app.post('/api/analytics', (req, res) => {
+    const event = sanitizeAnalyticsEvent(req.body?.event, req.body?.payload);
+    if (!event) return res.status(400).json({ error: 'Unsupported analytics event.' });
+    if (analyticsEnabled) analyticsSink({ ...event, receivedAt: new Date().toISOString() });
+    return res.status(204).send();
+  });
+
   app.post('/api/shared-ponds', requireAuth, (req, res) => {
     const share = createSharedPond(req.user, req.body);
     return res.status(201).json({
@@ -572,6 +582,10 @@ function createApp(options = {}) {
 
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.get('/styles.css', (req, res) => res.type('text/css').sendFile(path.join(__dirname, 'styles.css')));
+  app.get('/analytics-config.js', (req, res) => {
+    res.type('application/javascript').send(`window.DACTYL_ANALYTICS_CONFIG = ${JSON.stringify({ enabled: analyticsEnabled, endpoint: '/api/analytics' })};\n`);
+  });
+  app.get('/analytics.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'analytics.js')));
   app.get('/screen-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'screen-state.js')));
   app.get('/fish-emoji.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'fish-emoji.js')));
   app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));

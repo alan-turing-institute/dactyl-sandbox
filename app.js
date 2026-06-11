@@ -81,6 +81,11 @@ const showcaseToggle = document.querySelector('#showcase-toggle');
 const showcasePanel = document.querySelector('#showcase-panel');
 const showcaseClose = document.querySelector('#showcase-close');
 const showcaseBody = document.querySelector('#showcase-body');
+const trophiesToggle = document.querySelector('#trophies-toggle');
+const trophiesPanel = document.querySelector('#trophies-panel');
+const trophiesClose = document.querySelector('#trophies-close');
+const trophiesList = document.querySelector('#trophies-list');
+const trophiesSummary = document.querySelector('#trophies-summary');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -950,6 +955,91 @@ function setShowcaseOpen(open) {
   }
 }
 
+const TROPHY_DEFS = [
+  {
+    id: 'first-catch',
+    emoji: '🎣',
+    name: 'First catch',
+    description: 'Added the first task to your pond.',
+    earned: () => todos.length > 0,
+  },
+  {
+    id: 'fed-fish',
+    emoji: '🐟',
+    name: 'Fed the fish',
+    description: 'Completed at least one task.',
+    earned: () => todos.some((t) => t.completed),
+  },
+  {
+    id: 'clear-waters',
+    emoji: '💧',
+    name: 'Clear waters',
+    description: 'Active tasks exist with none overdue.',
+    earned: () => {
+      const active = liveTodos().filter((t) => !t.completed);
+      return active.length > 0 && active.every((t) => tideFor(t) !== 'washed');
+    },
+  },
+  {
+    id: 'tide-rider',
+    emoji: '🌊',
+    name: 'Tide rider',
+    description: 'Active tasks spread across two or more tide lanes.',
+    earned: () => new Set(liveTodos().filter((t) => !t.completed).map((t) => tideFor(t))).size >= 2,
+  },
+  {
+    id: 'shoal-wrangler',
+    emoji: '🐙',
+    name: 'Shoal wrangler',
+    description: 'Active tasks organised across multiple priorities.',
+    earned: () => new Set(liveTodos().filter((t) => !t.completed).map((t) => t.priority)).size >= 2,
+  },
+];
+
+function renderTrophies() {
+  if (trophiesPanel.hidden) return;
+
+  const results = TROPHY_DEFS.map((def) => ({ def, isEarned: def.earned() }));
+  const earnedCount = results.filter((r) => r.isEarned).length;
+
+  trophiesSummary.textContent = `${earnedCount} of ${TROPHY_DEFS.length} earned`;
+
+  trophiesList.replaceChildren();
+  results.forEach(({ def, isEarned }) => {
+    const item = document.createElement('li');
+    item.className = `trophy-item ${isEarned ? 'earned' : 'locked'}`;
+
+    const emoji = document.createElement('span');
+    emoji.className = 'trophy-emoji';
+    emoji.setAttribute('aria-hidden', 'true');
+    emoji.textContent = def.emoji;
+
+    const name = document.createElement('p');
+    name.className = 'trophy-name';
+    name.textContent = def.name;
+
+    const desc = document.createElement('p');
+    desc.className = 'trophy-desc';
+    desc.textContent = def.description;
+
+    const status = document.createElement('p');
+    status.className = `trophy-status ${isEarned ? 'earned' : 'locked'}`;
+    status.textContent = isEarned ? 'Earned' : 'Locked';
+
+    item.append(emoji, name, desc, status);
+    trophiesList.append(item);
+  });
+}
+
+function setTrophiesOpen(open) {
+  trophiesPanel.hidden = !open;
+  trophiesToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderTrophies();
+    trophiesPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 function createEditField(labelText, control) {
   const label = document.createElement('label');
   const labelSpan = document.createElement('span');
@@ -1466,6 +1556,7 @@ function render() {
   recordRenderDuration(renderStarted);
   renderPondHealth();
   renderShowcase();
+  renderTrophies();
 }
 
 function addTodo(text, options = {}) {
@@ -2028,7 +2119,9 @@ function handleGlobalShortcut(event) {
     const leftNetMode = leaveNetMode();
     const closedShowcase = !showcasePanel.hidden;
     if (closedShowcase) setShowcaseOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase) event.preventDefault();
+    const closedTrophies = !trophiesPanel.hidden;
+    if (closedTrophies) setTrophiesOpen(false);
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies) event.preventDefault();
   }
 }
 
@@ -2104,6 +2197,8 @@ completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
 completeFocus.addEventListener('click', completeFocusedTodo);
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
+trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
+trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
 
 document.addEventListener('keydown', handleGlobalShortcut);
 

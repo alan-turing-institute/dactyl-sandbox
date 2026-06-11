@@ -82,6 +82,7 @@
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
+        <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
@@ -129,6 +130,18 @@
         <p id="pond-health-summary" class="pond-health-summary">Open pond health to review lightweight diagnostics.</p>
         <dl id="pond-health-metrics" class="pond-health-metrics"></dl>
         <ul id="pond-health-hints" class="pond-health-hints"></ul>
+      </section>
+
+      <section id="trophies-panel" class="trophies-panel" aria-labelledby="trophies-title" hidden>
+        <div class="trophies-header">
+          <div>
+            <p class="eyebrow">Progress</p>
+            <h2 id="trophies-title">Tide trophies</h2>
+            <p id="trophies-summary" class="trophies-summary">0 of 5 earned</p>
+          </div>
+          <button id="trophies-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <ul id="trophies-list" class="trophies-list" aria-label="Trophy progress"></ul>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>

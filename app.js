@@ -1,3 +1,4 @@
+/* global DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -14,7 +15,10 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
+const { normaliseScreenKey, screenKeyFromHash, desiredScreenKey: chooseScreenKey } = DactylScreenState;
 
+const authScreen = document.querySelector('#auth-screen');
+const pondScreen = document.querySelector('#pond-screen');
 const authPanel = document.querySelector('#auth-panel');
 const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
@@ -88,6 +92,7 @@ const tourTideMode = document.querySelector('#tour-tide-mode');
 const tourCopyReport = document.querySelector('#tour-copy-report');
 const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
+const screenRoots = { auth: authScreen, pond: pondScreen, focus: focusPanel };
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const focusSprintStatus = document.querySelector('#focus-sprint-status');
@@ -157,6 +162,8 @@ let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
 let pendingRestore = null;
+let currentScreen = '';
+let suppressScreenHistory = false;
 let lastSync = {
   state: 'never synced',
   at: '',
@@ -164,6 +171,52 @@ let lastSync = {
 };
 let lastRenderDuration = 0;
 let renderDurations = [];
+
+
+function requestedScreenKey() {
+  return screenKeyFromHash();
+}
+
+function desiredScreenKey() {
+  return chooseScreenKey({
+    signedIn: Boolean(currentUser),
+    requestedScreen: requestedScreenKey(),
+    hasFocusedTodo: Boolean(selectedFocusTodo()),
+  });
+}
+
+function focusScreenEntry(screenKey) {
+  const target = screenKey === 'auth'
+    ? usernameInput
+    : screenKey === 'focus'
+      ? focusPanel
+      : input;
+  if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+}
+
+function setScreen(nextScreen, options = {}) {
+  const screenKey = normaliseScreenKey(nextScreen) || 'auth';
+  const changed = currentScreen !== screenKey;
+  const updateUrl = options.updateUrl !== false;
+  const hash = `#${screenKey}`;
+
+  currentScreen = screenKey;
+  Object.entries(screenRoots).forEach(([key, root]) => {
+    if (root) root.hidden = key !== screenKey;
+  });
+  document.body.dataset.screen = screenKey;
+
+  if (updateUrl && window.location.hash !== hash) {
+    const method = options.replace ? 'replaceState' : 'pushState';
+    window.history[method]({ screen: screenKey }, '', hash);
+  }
+
+  if (changed || options.focus) focusScreenEntry(screenKey);
+}
+
+function syncScreen(options = {}) {
+  setScreen(desiredScreenKey(), options);
+}
 
 function diagnosticNow() {
   return window.performance?.now ? window.performance.now() : Date.now();
@@ -2010,12 +2063,10 @@ function renderFocusPanel() {
   syncFocusSprintWithSelection();
   if (!focusedTodo) {
     saveFocusedTodoId('');
-    focusPanel.hidden = true;
     renderFocusSprint();
     return;
   }
 
-  focusPanel.hidden = false;
   focusTitle.textContent = focusedTodo.text;
   focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
   renderFocusSprint();
@@ -2136,6 +2187,7 @@ function render() {
   });
 
   renderFocusPanel();
+  syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
@@ -2351,6 +2403,7 @@ function focusTodo(id) {
   if (id !== focusedTodoId) resetFocusSprint(id);
   saveFocusedTodoId(id);
   hidePondMessage();
+  setScreen('focus');
   render();
 }
 
@@ -2893,6 +2946,13 @@ prefTextBadges.addEventListener('change', () => {
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);
+function renderFromHistory() {
+  suppressScreenHistory = true;
+  render();
+  suppressScreenHistory = false;
+}
+window.addEventListener('popstate', renderFromHistory);
+window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
 
 applyViewPrefs();

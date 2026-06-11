@@ -10,6 +10,7 @@
   </head>
   <body>
     <main class="app" aria-labelledby="app-title">
+      <section id="auth-screen" class="screen auth-screen" aria-labelledby="app-title" tabindex="-1">
       <section class="hero">
         <p class="eyebrow">Dactyl Sandbox</p>
         <h1 id="app-title">TODO List</h1>
@@ -34,7 +35,6 @@
           <div class="auth-actions">
             <button id="login-button" type="submit">Log in</button>
             <button id="signup-button" class="secondary-action" type="button">Sign up</button>
-            <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
           </div>
         </form>
         <form id="password-form" class="password-form" autocomplete="on" hidden>
@@ -51,7 +51,10 @@
           <button id="change-password-button" class="secondary-action" type="submit">Update password</button>
         </form>
       </section>
+      </section>
 
+      <section id="pond-screen" class="screen pond-screen" aria-labelledby="pond-title" tabindex="-1" hidden>
+        <h2 id="pond-title" class="sr-only">Your TODO pond</h2>
       <form id="todo-form" class="todo-form" autocomplete="off">
         <label class="sr-only" for="todo-input">New TODO</label>
         <input
@@ -84,6 +87,7 @@
       <p id="pond-message" class="pond-message" role="status" aria-live="polite" hidden></p>
 
       <section class="pond-actions" aria-label="Pond actions">
+        <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
@@ -304,29 +308,6 @@
         <div id="showcase-body" class="showcase-body"></div>
       </section>
 
-      <section id="focus-panel" class="focus-panel" aria-labelledby="focus-title" aria-live="polite" hidden>
-        <p class="eyebrow">Feed the fish</p>
-        <h2 id="focus-title">No fish selected</h2>
-        <p id="focus-meta" class="focus-meta"></p>
-        <div class="focus-sprint" aria-labelledby="focus-sprint-title">
-          <div>
-            <h3 id="focus-sprint-title">Focus sprint</h3>
-            <p id="focus-sprint-status" class="focus-sprint-status" role="timer" aria-live="polite">Ready when you are.</p>
-          </div>
-          <div class="focus-sprint-presets" role="group" aria-label="Focus sprint length">
-            <button class="focus-sprint-preset" type="button" data-sprint-minutes="15">15 min</button>
-            <button class="focus-sprint-preset" type="button" data-sprint-minutes="25">25 min</button>
-          </div>
-          <div class="focus-sprint-actions">
-            <button id="start-focus-sprint" type="button">Start sprint</button>
-            <button id="pause-focus-sprint" class="secondary-action" type="button">Pause</button>
-            <button id="cancel-focus-sprint" class="secondary-action" type="button">Cancel</button>
-            <button id="complete-focus-sprint" class="secondary-action" type="button">Mark fed after sprint</button>
-          </div>
-        </div>
-        <button id="complete-focus" type="button">Mark fed</button>
-      </section>
-
       <section class="search-panel" aria-label="Search and quick filters">
         <label class="search-field" for="task-search">
           <span class="sr-only">Search tasks</span>
@@ -370,6 +351,31 @@
       </section>
 
       <button id="clear-completed" class="clear-completed" type="button">Release completed</button>
+      </section>
+
+      <section id="focus-panel" class="focus-panel screen" aria-labelledby="focus-title" aria-live="polite" tabindex="-1" hidden>
+        <p class="eyebrow">Feed the fish</p>
+        <h2 id="focus-title">No fish selected</h2>
+        <p id="focus-meta" class="focus-meta"></p>
+        <div class="focus-sprint" aria-labelledby="focus-sprint-title">
+          <div>
+            <h3 id="focus-sprint-title">Focus sprint</h3>
+            <p id="focus-sprint-status" class="focus-sprint-status" role="timer" aria-live="polite">Ready when you are.</p>
+          </div>
+          <div class="focus-sprint-presets" role="group" aria-label="Focus sprint length">
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="15">15 min</button>
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="25">25 min</button>
+          </div>
+          <div class="focus-sprint-actions">
+            <button id="start-focus-sprint" type="button">Start sprint</button>
+            <button id="pause-focus-sprint" class="secondary-action" type="button">Pause</button>
+            <button id="cancel-focus-sprint" class="secondary-action" type="button">Cancel</button>
+            <button id="complete-focus-sprint" class="secondary-action" type="button">Mark fed after sprint</button>
+          </div>
+        </div>
+        <button id="complete-focus" type="button">Mark fed</button>
+      </section>
+
     </main>
 
     <template id="todo-template">
@@ -396,6 +402,7 @@
       </li>
     </template>
 
+    <script src="screen-state.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

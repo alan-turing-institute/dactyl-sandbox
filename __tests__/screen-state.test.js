@@ -2,6 +2,7 @@ const {
   desiredScreenKey,
   normaliseScreenKey,
   screenKeyFromHash,
+  screenKeyFromLocation,
 } = require('../screen-state');
 
 describe('screen state transitions', () => {
@@ -18,6 +19,14 @@ describe('screen state transitions', () => {
     expect(screenKeyFromHash('#focus')).toBe('focus');
     expect(screenKeyFromHash('')).toBe('');
     expect(screenKeyFromHash('#unknown')).toBe('');
+  });
+
+  test('reads requested screen keys from the active location hash', () => {
+    expect(screenKeyFromLocation({ hash: '#auth' })).toBe('auth');
+    expect(screenKeyFromLocation({ hash: '#pond' })).toBe('pond');
+    expect(screenKeyFromLocation({ hash: '#focus' })).toBe('focus');
+    expect(screenKeyFromLocation({ hash: '#unknown' })).toBe('');
+    expect(screenKeyFromLocation({})).toBe('');
   });
 
   test('keeps signed-out visitors on the auth screen', () => {

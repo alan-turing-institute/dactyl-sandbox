@@ -15,7 +15,11 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
-const { normaliseScreenKey, screenKeyFromHash, desiredScreenKey: chooseScreenKey } = DactylScreenState;
+const {
+  normaliseScreenKey,
+  screenKeyFromLocation,
+  desiredScreenKey: chooseScreenKey,
+} = DactylScreenState;
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -174,7 +178,7 @@ let renderDurations = [];
 
 
 function requestedScreenKey() {
-  return screenKeyFromHash();
+  return screenKeyFromLocation(window.location);
 }
 
 function desiredScreenKey() {

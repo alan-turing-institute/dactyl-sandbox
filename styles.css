@@ -631,7 +631,9 @@ kbd {
 
 .mood-badge.mood-emergency,
 .todo-item[data-tide="washed"] .due-label { color: var(--danger); }
-.mood-badge.mood-high { color: var(--warning); }
+.mood-badge.mood-high,
+.mood-badge.mood-medium { color: var(--warning); }
+.mood-badge.mood-mythical { color: var(--accent); }
 .mood-badge.mood-normal,
 .mood-badge.mood-resting { color: var(--success); }
 

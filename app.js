@@ -200,6 +200,10 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseTimestamp(value) {
+  return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -219,6 +223,7 @@ function normaliseTodo(todo) {
     createdAt,
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
+    archivedAt: normaliseTimestamp(todo.archivedAt),
   };
 }
 
@@ -347,15 +352,29 @@ function sortTodos(items) {
   });
 }
 
+function sortArchivedTodos(items) {
+  return [...items].sort((a, b) => Date.parse(b.archivedAt || 0) - Date.parse(a.archivedAt || 0));
+}
+
+function liveTodos() {
+  return todos.filter((todo) => !todo.archivedAt);
+}
+
+function archivedTodos() {
+  return sortArchivedTodos(todos.filter((todo) => todo.archivedAt));
+}
+
 function visibleTodos() {
-  if (filter === 'active') return sortTodos(todos.filter((todo) => !todo.completed));
-  if (filter === 'completed') return sortTodos(todos.filter((todo) => todo.completed));
+  const live = liveTodos();
+  if (filter === 'archive') return archivedTodos();
+  if (filter === 'active') return sortTodos(live.filter((todo) => !todo.completed));
+  if (filter === 'completed') return sortTodos(live.filter((todo) => todo.completed));
   if (filter === 'week') {
     const today = todayKey();
     const weekEnd = addDays(today, 6);
-    return sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
+    return sortTodos(live.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
   }
-  return sortTodos(todos);
+  return sortTodos(live);
 }
 
 function renderedTodoIds() {
@@ -403,7 +422,7 @@ function pluralise(countValue, singular, plural = `${singular}s`) {
 
 function dueSummary() {
   const today = todayKey();
-  const activeTodos = todos.filter((todo) => !todo.completed);
+  const activeTodos = liveTodos().filter((todo) => !todo.completed);
   const overdueCount = activeTodos.filter((todo) => todo.dueDate && todo.dueDate < today).length;
   const todayCount = activeTodos.filter((todo) => todo.dueDate === today).length;
   return [`${overdueCount} overdue`, `${todayCount} due today`];
@@ -537,9 +556,10 @@ function importPastedTodos() {
 }
 
 function buildPondReport() {
-  const totalCount = todos.length;
-  const activeTodos = todos.filter((todo) => !todo.completed);
-  const completedCount = todos.filter((todo) => todo.completed).length;
+  const visiblePond = liveTodos();
+  const totalCount = visiblePond.length;
+  const activeTodos = visiblePond.filter((todo) => !todo.completed);
+  const completedCount = visiblePond.filter((todo) => todo.completed).length;
   const lines = [];
 
   if (totalCount === 0) {
@@ -579,29 +599,30 @@ function buildPondReport() {
 function tideCounts() {
   return tideGroups.reduce((counts, group) => ({
     ...counts,
-    [group.key]: todos.filter((todo) => tideFor(todo) === group.key).length,
+    [group.key]: liveTodos().filter((todo) => tideFor(todo) === group.key).length,
   }), {});
 }
 
 function visibleTodoCount() {
-  return filter === 'tide' ? todos.length : visibleTodos().length;
+  return filter === 'tide' ? liveTodos().length : visibleTodos().length;
 }
 
 function pondDiagnostics() {
-  const activeCount = todos.filter((todo) => !todo.completed).length;
-  const completedCount = todos.length - activeCount;
+  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
+  const completedCount = liveTodos().length - activeCount;
   const tides = tideCounts();
   const averageRender = averageRenderDuration();
 
   return {
-    totalCount: todos.length,
+    totalCount: liveTodos().length,
     activeCount,
     completedCount,
+    archivedCount: archivedTodos().length,
     visibleCount: visibleTodoCount(),
     selectedCount: selectedTodoIds.size,
     filter,
     netMode,
-    focusedTaskPresent: todos.some((todo) => todo.id === focusedTodoId && !todo.completed),
+    focusedTaskPresent: liveTodos().some((todo) => todo.id === focusedTodoId && !todo.completed),
     tides,
     sync: lastSync,
     lastRenderDuration,
@@ -647,6 +668,7 @@ function renderPondHealth() {
 
   pondHealthMetrics.replaceChildren();
   renderMetric('Tasks', `${diagnostics.totalCount} total · ${diagnostics.activeCount} active · ${diagnostics.completedCount} completed`);
+  renderMetric('Archive', `${diagnostics.archivedCount} reefed fish`);
   renderMetric('Current view', `${diagnostics.filter} · ${diagnostics.visibleCount} visible`);
   renderMetric('Net', diagnostics.netMode ? `${diagnostics.selectedCount} selected` : 'not cast');
   renderMetric('Focus', diagnostics.focusedTaskPresent ? 'active focus fish' : 'none');
@@ -668,7 +690,7 @@ function buildPondDiagnostics() {
   return [
     'Pond health diagnostics',
     `Timestamp: ${diagnostics.timestamp}`,
-    `Tasks: ${diagnostics.totalCount} total, ${diagnostics.activeCount} active, ${diagnostics.completedCount} completed, ${diagnostics.visibleCount} visible`,
+    `Tasks: ${diagnostics.totalCount} total, ${diagnostics.activeCount} active, ${diagnostics.completedCount} completed, ${diagnostics.visibleCount} visible, ${diagnostics.archivedCount} archived`,
     `View: filter=${diagnostics.filter}, net=${diagnostics.netMode ? 'cast' : 'not cast'}, selected=${diagnostics.selectedCount}, focus=${diagnostics.focusedTaskPresent ? 'present' : 'none'}`,
     `Tide lanes: washed=${diagnostics.tides.washed}, high=${diagnostics.tides.high}, ebbing=${diagnostics.tides.ebbing}, incoming=${diagnostics.tides.incoming}, resting=${diagnostics.tides.completed}`,
     `Sync: ${diagnostics.sync.state}; ${diagnostics.sync.message}; at=${diagnostics.sync.at || 'not recorded'}`,
@@ -809,35 +831,45 @@ function createTodoItem(todo) {
   const priorityLabel = item.querySelector('.priority-label');
   const focusButton = item.querySelector('.focus-task');
   const editButton = item.querySelector('.edit-task');
+  const archiveButton = item.querySelector('.archive-task');
+  const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
+  const isArchived = Boolean(todo.archivedAt);
 
   item.classList.toggle('completed', todo.completed);
+  item.classList.toggle('archived', isArchived);
   item.classList.toggle('focused', todo.id === focusedTodoId);
   item.classList.toggle('editing', todo.id === editingTodoId);
   item.dataset.priority = todo.priority;
   item.dataset.tide = tide;
   item.dataset.todoId = todo.id;
   item.classList.toggle('net-mode', netMode);
-  netSelect.hidden = !netMode;
+  netSelect.hidden = !netMode || isArchived;
   netSelect.checked = selectedTodoIds.has(todo.id);
-  netSelect.disabled = todo.id === editingTodoId;
+  netSelect.disabled = todo.id === editingTodoId || isArchived;
   netSelect.setAttribute('aria-label', `Select ${todo.text}`);
   checkbox.checked = todo.completed;
-  checkbox.disabled = todo.id === editingTodoId;
+  checkbox.disabled = todo.id === editingTodoId || isArchived;
   text.textContent = todo.text;
   moodBadge.textContent = `${mood.emoji} ${mood.text}`;
   moodBadge.classList.add(mood.className);
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
-  focusButton.disabled = todo.completed || todo.id === editingTodoId;
+  focusButton.hidden = isArchived;
+  focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
   focusButton.setAttribute('aria-label', `Feed ${todo.text}`);
+  editButton.hidden = isArchived;
   editButton.disabled = todo.id === editingTodoId;
   editButton.setAttribute('aria-label', `Edit ${todo.text}`);
-  deleteButton.setAttribute('aria-label', `Delete ${todo.text}`);
+  archiveButton.hidden = isArchived || !todo.completed;
+  archiveButton.setAttribute('aria-label', `Archive ${todo.text}`);
+  restoreButton.hidden = !isArchived;
+  restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
+  deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
@@ -848,6 +880,8 @@ function createTodoItem(todo) {
   checkbox.addEventListener('change', () => toggleTodo(todo.id));
   focusButton.addEventListener('click', () => focusTodo(todo.id));
   editButton.addEventListener('click', () => startEditingTodo(todo.id));
+  archiveButton.addEventListener('click', () => archiveTodo(todo.id));
+  restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
 
   return item;
@@ -855,7 +889,7 @@ function createTodoItem(todo) {
 
 function weekAheadGroups() {
   const today = todayKey();
-  const activeDueTodos = sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate));
+  const activeDueTodos = sortTodos(liveTodos().filter((todo) => !todo.completed && todo.dueDate));
   const groups = [
     {
       key: 'overdue',
@@ -1034,11 +1068,18 @@ function render() {
     }
   }
 
-  const activeCount = todos.filter((todo) => !todo.completed).length;
-  count.textContent = `${pluralise(activeCount, 'task')} left`;
+  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
+  count.textContent = filter === 'archive'
+    ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+    : `${pluralise(activeCount, 'task')} left`;
+  emptyState.querySelector('h2').textContent = filter === 'archive' ? 'No fish in the reef archive' : 'Nothing here yet';
+  emptyState.querySelector('p').textContent = filter === 'archive'
+    ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
+    : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
-  clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
-  releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
+  clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
+  clearCompleted.classList.toggle('visible', filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed));
+  releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
   renderTourPanel();
@@ -1190,10 +1231,56 @@ function saveEditedTodo(id, updates) {
 }
 
 function deleteTodo(id) {
+  const isArchivedDelete = todos.some((todo) => todo.id === id && todo.archivedAt);
   if (editingTodoId === id) editingTodoId = '';
   removeTodosWithUndo(
     (todo) => todo.id === id,
-    () => 'Released 1 fish from the pond.',
+    () => (isArchivedDelete
+      ? 'Permanently released 1 archived fish from the reef.'
+      : 'Released 1 fish from the pond.'),
+  );
+}
+
+function archiveTodo(id) {
+  const archivedAt = new Date().toISOString();
+  todos = todos.map((todo) => (
+    todo.id === id ? { ...todo, completed: true, archivedAt } : todo
+  ));
+  if (id === focusedTodoId) saveFocusedTodoId('');
+  selectedTodoIds.delete(id);
+  saveTodos();
+  showPondMessage('Moved 1 completed fish to the reef archive.');
+  render();
+}
+
+function archiveCompletedTodos() {
+  const completedIds = liveTodos().filter((todo) => todo.completed).map((todo) => todo.id);
+  if (completedIds.length === 0) return;
+  const archivedAt = new Date().toISOString();
+  const completedIdSet = new Set(completedIds);
+  todos = todos.map((todo) => (
+    completedIdSet.has(todo.id) ? { ...todo, completed: true, archivedAt } : todo
+  ));
+  if (completedIdSet.has(focusedTodoId)) saveFocusedTodoId('');
+  selectedTodoIds = new Set([...selectedTodoIds].filter((id) => !completedIdSet.has(id)));
+  saveTodos();
+  showPondMessage(`Moved ${pluralise(completedIds.length, 'completed fish', 'completed fish')} to the reef archive.`);
+  render();
+}
+
+function restoreArchivedTodo(id) {
+  todos = todos.map((todo) => (
+    todo.id === id ? { ...todo, archivedAt: '' } : todo
+  ));
+  saveTodos();
+  showPondMessage('Restored 1 fish from the reef archive.');
+  render();
+}
+
+function releaseArchivedTodos() {
+  removeTodosWithUndo(
+    (todo) => Boolean(todo.archivedAt),
+    (count) => `Permanently released ${pluralise(count, 'archived fish', 'archived fish')} from the reef.`,
   );
 }
 
@@ -1487,10 +1574,8 @@ filterButtons.forEach((button) => {
 });
 
 clearCompleted.addEventListener('click', () => {
-  removeTodosWithUndo(
-    (todo) => todo.completed,
-    (count) => `Released ${pluralise(count, 'completed fish', 'completed fish')} from the pond.`,
-  );
+  if (filter === 'archive') releaseArchivedTodos();
+  else archiveCompletedTodos();
 });
 
 stockPond.addEventListener('click', stockDemoPond);

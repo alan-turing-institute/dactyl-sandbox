@@ -14,7 +14,8 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - REST API for creating, reading, updating, replacing, and deleting tasks
 - Add, edit, and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
-- Filter all, active, completed, Tide mode grouped urgency lanes, and a Week ahead agenda
+- Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
+- Filter all, active, completed, archived, Tide mode grouped urgency lanes, and a Week ahead agenda
 - Show deterministic fishy mood badges with accessible text
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data

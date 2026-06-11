@@ -56,6 +56,10 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseTimestamp(value) {
+  return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -75,6 +79,7 @@ function normaliseTodo(todo) {
     createdAt,
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
+    archivedAt: normaliseTimestamp(todo.archivedAt),
   };
 }
 
@@ -135,6 +140,11 @@ function createApp(options = {}) {
     );
   `);
 
+  const todoColumns = db.prepare('PRAGMA table_info(todos)').all().map((column) => column.name);
+  if (!todoColumns.includes('archived_at')) {
+    db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
+  }
+
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
     db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
@@ -175,7 +185,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -186,13 +196,14 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
+        archived_at = excluded.archived_at,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -202,6 +213,7 @@ function createApp(options = {}) {
       normalised.createdAt,
       normalised.dueDate,
       normalised.priority,
+      normalised.archivedAt,
       new Date().toISOString(),
     );
     return normalised;
@@ -297,7 +309,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority FROM todos WHERE user_id = ? AND id = ?')
+    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt FROM todos WHERE user_id = ? AND id = ?')
       .get(req.user.id, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });

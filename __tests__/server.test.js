@@ -67,6 +67,15 @@ describe('auth and task API', () => {
       .get('/first-task-onboarding.js')
       .expect(200)
       .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/analytics.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/analytics-config.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/)
+      .expect(/DACTYL_ANALYTICS_CONFIG/);
   });
 
   test('rate limits auth routes', async () => {
@@ -124,6 +133,31 @@ describe('auth and task API', () => {
           code: 'invalid_username',
         });
       });
+  });
+
+  test('accepts analytics events only through sanitised allow-list', async () => {
+    const analyticsSink = jest.fn();
+    app = createApp({
+      dbPath: ':memory:',
+      jwtSecret: 'test-secret',
+      analyticsEnabled: true,
+      analyticsSink,
+    });
+
+    await request(app)
+      .post('/api/analytics')
+      .send({ event: 'task_created', payload: { priority: 'high', taskText: 'Private task' } })
+      .expect(204);
+
+    expect(analyticsSink).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'task_created',
+      payload: { priority: 'high' },
+    }));
+
+    await request(app)
+      .post('/api/analytics')
+      .send({ event: 'task_title_leaked', payload: { priority: 'high' } })
+      .expect(400);
   });
 
   test('requires a valid token and keeps users isolated', async () => {
@@ -300,6 +334,68 @@ describe('auth and task API', () => {
       expect.objectContaining({ id: 'archived-1', archivedAt: '2026-06-11T09:00:00.000Z' }),
       expect.objectContaining({ id: 'bad-archive', archivedAt: '' }),
     ]));
+  });
+
+  test('persists task notes and checklist details through create, patch, and replace', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'details-user', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        text: 'Detailed fish',
+        notes: ` ${'n'.repeat(1100)} `,
+        checklist: [
+          { id: 'one', text: 'Write test', completed: true },
+          { id: 'two', text: ' '.repeat(4), completed: false },
+          { id: 'three', text: 'Run smoke check', completed: false },
+        ],
+      })
+      .expect(201);
+
+    expect(created.body.todo.notes).toHaveLength(1000);
+    expect(created.body.todo.checklist).toEqual([
+      { id: 'one', text: 'Write test', completed: true },
+      { id: 'three', text: 'Run smoke check', completed: false },
+    ]);
+
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        notes: 'Short context',
+        checklist: [{ id: 'one', text: 'Write test', completed: false }],
+      })
+      .expect(200);
+
+    expect(patched.body.todo).toMatchObject({
+      notes: 'Short context',
+      checklist: [{ id: 'one', text: 'Write test', completed: false }],
+    });
+
+    const replacement = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        todos: [{
+          id: 'bulk-details',
+          text: 'Bulk detail task',
+          notes: 'Acceptance notes stay private',
+          checklist: Array.from({ length: 12 }, (_, index) => ({ id: `item-${index}`, text: `Step ${index}`, completed: index === 0 })),
+        }],
+      })
+      .expect(200);
+
+    expect(replacement.body.todos[0]).toMatchObject({
+      id: 'bulk-details',
+      notes: 'Acceptance notes stay private',
+    });
+    expect(replacement.body.todos[0].checklist).toHaveLength(10);
   });
 
   test('rejects invalid task patches with 400', async () => {

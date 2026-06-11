@@ -1,4 +1,4 @@
-/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -15,6 +15,9 @@ const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
+const MAX_NOTES_LENGTH = 1000;
+const MAX_CHECKLIST_ITEMS = 10;
+const MAX_CHECKLIST_TEXT_LENGTH = 80;
 const USERNAME_PATTERN = /^[a-z0-9_.-]{3,32}$/i;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
@@ -77,12 +80,17 @@ const {
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
+const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
   nextPriority: nextTriagePriority,
   nextTriageIndex,
   triageCandidates: getTriageCandidates,
 } = DactylTriageMode;
+
+function trackProductEvent(name, payload = {}) {
+  analytics.track(name, payload);
+}
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -253,6 +261,7 @@ let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
 let blockingTodoId = '';
+let detailsTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
@@ -432,6 +441,31 @@ function normaliseGithubUrl(value) {
   return `https://github.com/${owner}/${repo}/${type}/${number}`;
 }
 
+function normaliseChecklist(value) {
+  if (!Array.isArray(value)) return [];
+  const checklist = [];
+  const seenIds = new Set();
+
+  value.forEach((item) => {
+    if (!item || typeof item !== 'object' || checklist.length >= MAX_CHECKLIST_ITEMS) return;
+    const text = typeof item.text === 'string' ? item.text.trim().slice(0, MAX_CHECKLIST_TEXT_LENGTH) : '';
+    if (!text) return;
+    const candidateId = typeof item.id === 'string' ? item.id.trim().slice(0, 80) : '';
+    const id = candidateId && !seenIds.has(candidateId) ? candidateId : crypto.randomUUID();
+    seenIds.add(id);
+    checklist.push({ id, text, completed: Boolean(item.completed) });
+  });
+
+  return checklist;
+}
+
+function checklistProgress(todo) {
+  const checklist = normaliseChecklist(todo.checklist);
+  if (checklist.length === 0) return '';
+  const completed = checklist.filter((item) => item.completed).length;
+  return `${completed}/${checklist.length} checklist`;
+}
+
 function githubLinkInfo(url) {
   const normalised = normaliseGithubUrl(url);
   if (!normalised) return null;
@@ -465,6 +499,8 @@ function normaliseTodo(todo) {
     blocked: Boolean(todo.blocked),
     blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
     githubUrl: normaliseGithubUrl(todo.githubUrl),
+    notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
+    checklist: normaliseChecklist(todo.checklist),
   };
 }
 
@@ -1089,6 +1125,8 @@ function exportedTodo(todo) {
     priority: todo.priority,
     githubUrl: todo.githubUrl,
     archivedAt: todo.archivedAt,
+    notes: todo.notes,
+    checklist: todo.checklist,
   };
 }
 
@@ -1121,6 +1159,7 @@ function exportPondBackup() {
   if (!currentUser) return;
   const backup = buildPondBackup();
   downloadJsonFile(backupFileName(), backup);
+  trackProductEvent('export_created', { taskCount: backup.tasks.length });
   showPondMessage(`Exported ${pluralise(backup.tasks.length, 'fish', 'fish')} as a JSON pond backup.`);
 }
 
@@ -1147,6 +1186,8 @@ function normaliseBackupTask(task, seenIds) {
     priority: task.priority,
     archivedAt: task.archivedAt,
     githubUrl: task.githubUrl,
+    notes: task.notes,
+    checklist: task.checklist,
   });
 }
 
@@ -1269,6 +1310,7 @@ function importPastedTodos() {
 
   todos = [...imported, ...todos].slice(0, MAX_TODOS);
   pasteInput.value = '';
+  trackProductEvent('task_created', { taskCount: imported.length, source: 'paste' });
   saveTodos();
   showPondMessage(`Added ${pluralise(imported.length, 'pasted fish', 'pasted fish')} to the pond.`);
   setPastePanelOpen(false);
@@ -1317,7 +1359,8 @@ function buildPondReport() {
 }
 
 function reportTodoText(todo) {
-  return todo.githubUrl ? `${todo.text} (${todo.githubUrl})` : todo.text;
+  const details = [checklistProgress(todo), todo.githubUrl].filter(Boolean);
+  return details.length > 0 ? `${todo.text} (${details.join(' · ')})` : todo.text;
 }
 
 function buildPondSnapshot() {
@@ -2006,6 +2049,115 @@ function createGithubChip(todo) {
   return chip;
 }
 
+function updateTodoDetails(id, updates, message = 'Updated task details.') {
+  const existingTodo = todos.find((todo) => todo.id === id);
+  if (!existingTodo) return;
+  const updatedTodo = normaliseTodo({ ...existingTodo, ...updates });
+  if (!updatedTodo) return;
+  todos = todos.map((todo) => (todo.id === id ? updatedTodo : todo));
+  saveTodos();
+  showPondMessage(message);
+  render();
+}
+
+function createTodoDetailsPanel(todo) {
+  const panel = document.createElement('form');
+  panel.className = 'task-details-panel';
+  panel.setAttribute('aria-label', `Details for ${todo.text}`);
+
+  const notes = document.createElement('textarea');
+  notes.name = 'notes';
+  notes.maxLength = MAX_NOTES_LENGTH;
+  notes.rows = 4;
+  notes.placeholder = 'Private notes, repro steps, links, or acceptance notes…';
+  notes.value = todo.notes;
+
+  const checklist = normaliseChecklist(todo.checklist);
+  const checklistWrap = document.createElement('div');
+  checklistWrap.className = 'task-checklist';
+  const checklistTitle = document.createElement('p');
+  checklistTitle.className = 'task-details-heading';
+  checklistTitle.textContent = checklist.length > 0 ? checklistProgress(todo) : 'Checklist';
+  const checklistList = document.createElement('ul');
+  checklistList.className = 'task-checklist-items';
+
+  checklist.forEach((check) => {
+    const item = document.createElement('li');
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = check.completed;
+    checkbox.addEventListener('change', () => updateTodoDetails(todo.id, {
+      checklist: checklist.map((entry) => (entry.id === check.id ? { ...entry, completed: checkbox.checked } : entry)),
+    }, checkbox.checked ? 'Checklist item marked done.' : 'Checklist item reopened.'));
+    const text = document.createElement('span');
+    text.textContent = check.text;
+    label.append(checkbox, text);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'delete checklist-delete';
+    remove.textContent = '×';
+    remove.setAttribute('aria-label', `Remove checklist item: ${check.text}`);
+    remove.addEventListener('click', () => updateTodoDetails(todo.id, {
+      checklist: checklist.filter((entry) => entry.id !== check.id),
+    }, 'Removed checklist item.'));
+    item.append(label, remove);
+    checklistList.append(item);
+  });
+
+  const addRow = document.createElement('div');
+  addRow.className = 'checklist-add-row';
+  const addInput = document.createElement('input');
+  addInput.type = 'text';
+  addInput.maxLength = MAX_CHECKLIST_TEXT_LENGTH;
+  addInput.placeholder = checklist.length >= MAX_CHECKLIST_ITEMS ? 'Checklist limit reached' : 'Add checklist item';
+  addInput.disabled = checklist.length >= MAX_CHECKLIST_ITEMS;
+  const addButton = document.createElement('button');
+  addButton.type = 'button';
+  addButton.className = 'secondary-action';
+  addButton.textContent = 'Add item';
+  addButton.disabled = checklist.length >= MAX_CHECKLIST_ITEMS;
+  addButton.addEventListener('click', () => {
+    const text = addInput.value.trim();
+    if (!text) return;
+    updateTodoDetails(todo.id, {
+      checklist: [...checklist, { id: crypto.randomUUID(), text, completed: false }],
+    }, 'Added checklist item.');
+  });
+  addRow.append(addInput, addButton);
+  checklistWrap.append(checklistTitle, checklistList, addRow);
+
+  const actions = document.createElement('div');
+  actions.className = 'task-details-actions';
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.textContent = 'Save details';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'secondary-action';
+  close.textContent = 'Close';
+  actions.append(save, close);
+
+  panel.append(createEditField('Notes', notes), checklistWrap, actions);
+  panel.addEventListener('submit', (event) => {
+    event.preventDefault();
+    updateTodoDetails(todo.id, { notes: notes.value }, 'Saved task notes.');
+  });
+  panel.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      detailsTodoId = '';
+      render();
+    }
+  });
+  close.addEventListener('click', () => {
+    detailsTodoId = '';
+    render();
+  });
+
+  return panel;
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -2017,6 +2169,7 @@ function createTodoItem(todo) {
   const metadata = item.querySelector('.metadata');
   const focusButton = item.querySelector('.focus-task');
   const editButton = item.querySelector('.edit-task');
+  const detailsButton = item.querySelector('.details-task');
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
@@ -2030,6 +2183,7 @@ function createTodoItem(todo) {
   item.classList.toggle('archived', isArchived);
   item.classList.toggle('focused', todo.id === focusedTodoId);
   item.classList.toggle('editing', todo.id === editingTodoId);
+  item.classList.toggle('details-open', todo.id === detailsTodoId);
   item.dataset.priority = todo.priority;
   item.dataset.tide = tide;
   item.dataset.todoId = todo.id;
@@ -2048,6 +2202,13 @@ function createTodoItem(todo) {
   priorityLabel.textContent = priorityLabelFor(todo);
   const githubChip = createGithubChip(todo);
   if (githubChip) metadata.append(githubChip);
+  const progressText = checklistProgress(todo);
+  if (progressText) {
+    const progressBadge = document.createElement('span');
+    progressBadge.className = 'checklist-badge';
+    progressBadge.textContent = progressText;
+    metadata.append(progressBadge);
+  }
   focusButton.hidden = isArchived;
   focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
@@ -2055,6 +2216,10 @@ function createTodoItem(todo) {
   editButton.hidden = isArchived;
   editButton.disabled = todo.id === editingTodoId;
   editButton.setAttribute('aria-label', `Edit ${todo.text}`);
+  detailsButton.hidden = isArchived;
+  detailsButton.disabled = todo.id === editingTodoId;
+  detailsButton.setAttribute('aria-expanded', String(detailsTodoId === todo.id));
+  detailsButton.setAttribute('aria-label', `Edit notes and checklist for ${todo.text}`);
   archiveButton.hidden = isArchived || !todo.completed;
   archiveButton.setAttribute('aria-label', `Archive ${todo.text}`);
   restoreButton.hidden = !isArchived;
@@ -2077,10 +2242,18 @@ function createTodoItem(todo) {
     item.append(form);
   }
 
+  if (todo.id === detailsTodoId && !isArchived) {
+    item.append(createTodoDetailsPanel(todo));
+  }
+
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
   checkbox.addEventListener('change', () => toggleTodo(todo.id));
   focusButton.addEventListener('click', () => focusTodo(todo.id));
   editButton.addEventListener('click', () => startEditingTodo(todo.id));
+  detailsButton.addEventListener('click', () => {
+    detailsTodoId = detailsTodoId === todo.id ? '' : todo.id;
+    render();
+  });
   archiveButton.addEventListener('click', () => archiveTodo(todo.id));
   restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
@@ -2268,7 +2441,10 @@ function renderTourPanel() {
     .forEach((button) => {
       button.disabled = !currentUser;
     });
-  if (shouldAutoShow) saveTourDismissed(true);
+  if (shouldAutoShow) {
+    saveTourDismissed(true);
+    trackProductEvent('tour_opened', { source: 'auto' });
+  }
 }
 
 function formatSprintTime(ms) {
@@ -2357,6 +2533,10 @@ function startOrResumeFocusSprint() {
   focusSprint.endsAt = Date.now() + focusSprint.remainingMs;
   setFocusSprintTimer(true);
   renderFocusSprint();
+  trackProductEvent('focus_started', {
+    priority: focusedTodo.priority,
+    sprintMinutes: focusSprint.minutes,
+  });
   showPondMessage('Focus sprint started for ' + focusedTodo.text + '.');
 }
 
@@ -2402,7 +2582,14 @@ function tickFocusSprint() {
 
 function completeSprintFocusedTodo() {
   if (focusSprint.status !== 'finished') return;
-  completeFocusedTodo();
+  const focusedTodo = selectedFocusTodo();
+  if (focusedTodo) {
+    trackProductEvent('focus_completed', {
+      priority: focusedTodo.priority,
+      sprintMinutes: focusSprint.minutes,
+    });
+  }
+  completeFocusedTodo('focus');
 }
 
 function renderFocusPanel() {
@@ -2420,6 +2607,7 @@ function renderFocusPanel() {
     dueLabelFor(focusedTodo),
     priorityLabelFor(focusedTodo),
     githubLinkInfo(focusedTodo.githubUrl)?.label,
+    checklistProgress(focusedTodo),
   ].filter(Boolean).join(' · ');
   renderFocusSprint();
 }
@@ -2756,11 +2944,19 @@ function addTodo(text, options = {}) {
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
     githubUrl: options.githubUrl ?? '',
+    notes: options.notes ?? '',
+    checklist: options.checklist ?? [],
   });
 
   if (!todo) return;
   if (liveTodos().length === 0) saveFirstTaskOnboardingDismissed(true);
   todos.unshift(todo);
+  trackProductEvent('task_created', {
+    priority: todo.priority,
+    hasDueDate: Boolean(todo.dueDate),
+    hasGithubLink: Boolean(todo.githubUrl),
+    source: options.source || 'form',
+  });
   saveTodos();
   render();
 }
@@ -2769,7 +2965,7 @@ function addStarterTask(templateId) {
   const templateTodo = templateForId(templateId);
   if (!templateTodo) return;
 
-  addTodo(templateTodo.text, { priority: templateTodo.priority });
+  addTodo(templateTodo.text, { priority: templateTodo.priority, source: 'starter_template' });
   showPondMessage(`Starter fish added: ${templateTodo.text}.`);
   input.focus();
 }
@@ -2822,7 +3018,7 @@ function applyStarterShoal(shoal) {
     showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
     return;
   }
-  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority }));
+  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority, source: 'starter_shoal' }));
   setStarterShoalsOpen(false);
   const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
   showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
@@ -2855,6 +3051,10 @@ function toggleTodo(id) {
   }
   saveTodos();
   render();
+  const toggledTodo = todos.find((todo) => todo.id === id);
+  if (toggledTodo?.completed) {
+    trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
+  }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
 
@@ -2934,6 +3134,7 @@ function focusPendingEditField() {
 
 function startEditingTodo(id) {
   editingTodoId = id;
+  detailsTodoId = '';
   pendingEditFocusId = id;
   hidePondMessage();
   render();
@@ -3122,7 +3323,7 @@ function moveSelectedToShoal() {
   render();
 }
 
-function completeFocusedTodo() {
+function completeFocusedTodo(source = 'focus_button') {
   if (!focusedTodoId) return;
   const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
@@ -3134,6 +3335,7 @@ function completeFocusedTodo() {
   saveTodos();
   render();
   if (completedTask) {
+    trackProductEvent('task_completed', { priority: completedTask.priority, source });
     if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
@@ -3183,6 +3385,7 @@ function stockDemoPond() {
 
   todos = [...newTodos, ...todos].slice(0, MAX_TODOS);
   if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
+  trackProductEvent('task_created', { taskCount: newTodos.length, source: 'demo' });
   saveTodos();
   showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
   render();
@@ -3311,6 +3514,7 @@ async function authenticate(mode) {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
+    trackProductEvent(mode === 'signup' ? 'signup' : 'login', { taskCount: body.todos?.length ?? 0 });
     saveAuthToken(body.token);
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
@@ -3373,6 +3577,7 @@ function logout() {
   resetFocusSprint('');
   saveFocusedTodoId('');
   clearRestoreSelection();
+  detailsTodoId = '';
   setRestorePanelOpen(false);
   markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
@@ -3550,6 +3755,7 @@ form.addEventListener('submit', (event) => {
     dueDate,
     priority,
     githubUrl: githubUrlInput.value,
+    source: parsed.dueDate || parsed.priority ? 'quick_add' : 'form',
   });
   if (parsed.dueDate || parsed.priority) {
     const hints = [parsed.dueDate ? `due ${formatDateKey(parsed.dueDate)}` : '', parsed.priority ? `${parsed.priority} priority` : ''].filter(Boolean).join(' · ');
@@ -3648,6 +3854,7 @@ releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
 showPondTour.addEventListener('click', () => {
   tourForcedVisible = true;
+  trackProductEvent('tour_opened', { source: 'manual' });
   render();
   pondTour.focus({ preventScroll: true });
   pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -3665,7 +3872,7 @@ startFocusSprint.addEventListener('click', startOrResumeFocusSprint);
 pauseFocusSprint.addEventListener('click', pauseCurrentFocusSprint);
 cancelFocusSprint.addEventListener('click', () => cancelCurrentFocusSprint());
 completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
-completeFocus.addEventListener('click', completeFocusedTodo);
+completeFocus.addEventListener('click', () => completeFocusedTodo());
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));

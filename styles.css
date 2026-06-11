@@ -267,6 +267,7 @@ h1 {
 .shortcut-help[hidden],
 .pond-health-panel[hidden],
 .trophies-panel[hidden],
+.reminder-prefs-panel[hidden],
 .prefs-panel[hidden],
 .paste-panel[hidden],
 .restore-panel[hidden],
@@ -1319,6 +1320,59 @@ kbd {
 
 .trophy-status.earned { color: var(--warning); }
 .trophy-status.locked { color: var(--muted); }
+
+.reminder-prefs-panel {
+  border: 1px solid var(--accent);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reminder-prefs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reminder-prefs-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.reminder-prefs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reminder-enable-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.reminder-hours {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.reminder-hours label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.reminder-prefs-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
 
 .prefs-panel {
   display: grid;

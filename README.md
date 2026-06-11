@@ -52,6 +52,27 @@ Open the in-app **Pond shortcuts** card with the visible button or press `?`. Sh
 - `R` copies the pond report
 - `Esc` closes the shortcuts card and leaves net mode
 
+### Deploy
+
+Run the app in the cloud without a local install.
+
+#### Render
+
+Click the button below to deploy to [Render](https://render.com). A free-tier web service will be created with a randomly generated `JWT_SECRET`.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/alan-turing-institute/dactyl-sandbox)
+
+The app will be available at the URL Render assigns (e.g. `https://dactyl-sandbox.onrender.com`). Free-tier instances spin down after inactivity and may take a few seconds to wake on first request.
+
+#### Railway
+
+1. Install the [Railway CLI](https://docs.railway.app/develop/cli) and run `railway login`.
+2. Clone this repository and navigate to its root directory.
+3. Run `railway up` to deploy. Railway detects the `railway.toml` config automatically.
+4. Set `JWT_SECRET` in the Railway dashboard under **Variables** for a stable signing secret across redeploys.
+
+Data is stored in an ephemeral SQLite file on the container filesystem. For persistent storage, mount a [Railway volume](https://docs.railway.app/reference/volumes) at `/data` and set `DATABASE_PATH=/data/todos.sqlite`.
+
 ### Run locally
 
 Install dependencies and start the app:

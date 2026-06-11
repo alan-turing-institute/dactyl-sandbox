@@ -4,6 +4,7 @@ const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
+const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
@@ -38,6 +39,9 @@ const filterButtons = [...document.querySelectorAll('.filter')];
 const taskSearch = document.querySelector('#task-search');
 const clearSearch = document.querySelector('#clear-search');
 const quickFilterButtons = [...document.querySelectorAll('.quick-filter')];
+const smartViewName = document.querySelector('#smart-view-name');
+const saveSmartView = document.querySelector('#save-smart-view');
+const smartViewList = document.querySelector('#smart-view-list');
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
@@ -120,6 +124,7 @@ let todos = [];
 let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
+let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
@@ -303,6 +308,34 @@ function loadTourDismissed() {
     return localStorage.getItem(TOUR_DISMISSED_KEY) === 'true';
   } catch {
     return false;
+  }
+}
+
+function loadSmartViews() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SMART_VIEWS_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((view) => view && typeof view.name === 'string')
+      .slice(0, 8)
+      .map((view) => ({
+        id: typeof view.id === 'string' ? view.id : crypto.randomUUID(),
+        name: view.name.trim().slice(0, 32),
+        filter: typeof view.filter === 'string' ? view.filter : 'all',
+        quickFilter: typeof view.quickFilter === 'string' ? view.quickFilter : '',
+        searchQuery: typeof view.searchQuery === 'string' ? view.searchQuery : '',
+      }))
+      .filter((view) => view.name);
+  } catch {
+    return [];
+  }
+}
+
+function persistSmartViews() {
+  try {
+    localStorage.setItem(SMART_VIEWS_KEY, JSON.stringify(smartViews));
+  } catch {
+    showPondMessage('Could not save that smart view in this browser.');
   }
 }
 
@@ -501,6 +534,49 @@ function renderedTodoIds() {
 
 function hasActiveSearchFilter() {
   return Boolean(normalisedSearchQuery() || quickFilter);
+}
+
+function currentSmartViewName() {
+  const parts = [];
+  if (filter !== 'all') parts.push(filter.replace('-', ' '));
+  if (quickFilter) parts.push(quickFilter.replace('-', ' '));
+  if (normalisedSearchQuery()) parts.push('search ' + searchQuery.trim());
+  return parts.length > 0 ? parts.join(' + ') : 'All fish';
+}
+
+function saveCurrentSmartView() {
+  const name = (smartViewName.value || currentSmartViewName()).trim().slice(0, 32);
+  if (!name) {
+    showPondMessage('Name this smart view before saving it.');
+    smartViewName.focus();
+    return;
+  }
+
+  const view = { id: crypto.randomUUID(), name, filter, quickFilter, searchQuery: searchQuery.trim() };
+  smartViews = [view, ...smartViews.filter((savedView) => savedView.name.toLowerCase() !== name.toLowerCase())].slice(0, 8);
+  persistSmartViews();
+  smartViewName.value = '';
+  render();
+  showPondMessage('Saved smart view: ' + name + '.');
+}
+
+function applySmartView(viewId) {
+  const view = smartViews.find((savedView) => savedView.id === viewId);
+  if (!view) return;
+  selectedTodoIds.clear();
+  filter = view.filter;
+  quickFilter = view.quickFilter;
+  searchQuery = view.searchQuery;
+  render();
+  showPondMessage('Applied smart view: ' + view.name + '.');
+}
+
+function deleteSmartView(viewId) {
+  const view = smartViews.find((savedView) => savedView.id === viewId);
+  smartViews = smartViews.filter((savedView) => savedView.id !== viewId);
+  persistSmartViews();
+  render();
+  if (view) showPondMessage('Deleted smart view: ' + view.name + '.');
 }
 
 function filteredEmptyHeading() {
@@ -1546,6 +1622,40 @@ function renderSearchControls() {
   });
 }
 
+function renderSmartViews() {
+  saveSmartView.disabled = !currentUser;
+  smartViewName.disabled = !currentUser;
+  smartViewList.replaceChildren();
+
+  if (smartViews.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.className = 'smart-view-empty';
+    emptyItem.textContent = 'No saved smart views yet.';
+    smartViewList.append(emptyItem);
+    return;
+  }
+
+  smartViews.forEach((view) => {
+    const item = document.createElement('li');
+    item.className = 'smart-view-item';
+    const applyButton = document.createElement('button');
+    applyButton.type = 'button';
+    applyButton.className = 'smart-view-apply';
+    applyButton.disabled = !currentUser;
+    applyButton.textContent = view.name;
+    applyButton.addEventListener('click', () => applySmartView(view.id));
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'smart-view-delete';
+    deleteButton.disabled = !currentUser;
+    deleteButton.setAttribute('aria-label', 'Delete smart view ' + view.name);
+    deleteButton.textContent = '×';
+    deleteButton.addEventListener('click', () => deleteSmartView(view.id));
+    item.append(applyButton, deleteButton);
+    smartViewList.append(item);
+  });
+}
+
 function renderNetControls() {
   const selectedCount = selectedTodoIds.size;
   castNet.textContent = netMode ? 'Haul net in' : 'Cast net';
@@ -1745,6 +1855,8 @@ function renderAuth() {
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
   castNet.disabled = !signedIn;
+  saveSmartView.disabled = !signedIn;
+  smartViewName.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
   updatePastePreview();
   updateRestorePreview();
@@ -1822,6 +1934,7 @@ function render() {
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
   renderSearchControls();
+  renderSmartViews();
   renderTourPanel();
 
   filterButtons.forEach((button) => {
@@ -2470,6 +2583,14 @@ quickFilterButtons.forEach((button) => {
     quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
     render();
   });
+});
+
+saveSmartView.addEventListener('click', saveCurrentSmartView);
+smartViewName.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveCurrentSmartView();
+  }
 });
 
 clearCompleted.addEventListener('click', () => {

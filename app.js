@@ -735,9 +735,10 @@ function releaseDemoFish() {
 }
 
 async function authenticate(mode) {
+  if (!authForm.reportValidity()) return;
+
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
-  if (!username || !password) return;
 
   authStatus.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
   try {

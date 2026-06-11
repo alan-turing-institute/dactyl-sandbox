@@ -380,6 +380,16 @@ function hasActiveSearchFilter() {
   return Boolean(searchQuery || quickFilter);
 }
 
+function filteredEmptyHeading() {
+  return searchQuery ? 'No fish match your search or filters' : 'No fish match these filters';
+}
+
+function filteredEmptyDescription() {
+  return searchQuery
+    ? 'Clear the search or quick filter to see the whole pond.'
+    : 'Clear the quick filter to see the whole pond.';
+}
+
 function tideFor(todo) {
   if (todo.completed) return 'completed';
   const today = todayKey();
@@ -781,7 +791,7 @@ function createTodoItem(todo) {
 
 function weekAheadGroups() {
   const today = todayKey();
-  const activeDueTodos = sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate));
+  const activeDueTodos = visibleTodos();
   const groups = [
     {
       key: 'overdue',
@@ -811,7 +821,9 @@ function renderWeekAhead() {
     const heading = document.createElement('h3');
     heading.textContent = 'Clear waters ahead';
     const description = document.createElement('p');
-    description.textContent = 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
+    description.textContent = hasActiveSearchFilter()
+      ? filteredEmptyDescription()
+      : 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -852,7 +864,7 @@ function renderTideMode() {
     heading.textContent = 'Still waters (0)';
     const description = document.createElement('p');
     description.textContent = hasActiveSearchFilter()
-      ? 'No fish match this search. Clear the search or quick filter to see the whole pond.'
+      ? filteredEmptyDescription()
       : 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
@@ -975,9 +987,9 @@ function render() {
   count.textContent = hasActiveSearchFilter()
     ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
     : `${pluralise(activeCount, 'task')} left`;
-  emptyState.querySelector('h2').textContent = hasActiveSearchFilter() ? 'No fish match this search' : 'Nothing here yet';
+  emptyState.querySelector('h2').textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Nothing here yet';
   emptyState.querySelector('p').textContent = hasActiveSearchFilter()
-    ? 'Clear the search or quick filter to see the whole pond.'
+    ? filteredEmptyDescription()
     : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));

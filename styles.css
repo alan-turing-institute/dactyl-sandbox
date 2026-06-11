@@ -100,6 +100,12 @@ h1 {
   color: var(--muted);
 }
 
+.auth-help {
+  margin: .4rem 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
 .auth-form {
   display: grid;
   gap: .65rem;

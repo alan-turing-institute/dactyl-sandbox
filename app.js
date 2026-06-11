@@ -11,6 +11,9 @@ const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
+const USERNAME_PATTERN = /^[a-z0-9_.-]{3,32}$/i;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
@@ -548,7 +551,12 @@ async function apiRequest(path, options = {}) {
   });
   if (response.status === 204) return null;
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'The server could not complete that request.');
+  if (!response.ok) {
+    const error = new Error(body.error || 'The server could not complete that request.');
+    error.field = body.field || '';
+    error.code = body.code || '';
+    throw error;
+  }
   return body;
 }
 
@@ -2700,6 +2708,18 @@ async function authenticate(mode) {
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
 
+  if (!USERNAME_PATTERN.test(username)) {
+    authStatus.textContent = 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.';
+    usernameInput.focus();
+    return;
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    authStatus.textContent = 'Password must be 8-128 characters.';
+    passwordInput.focus();
+    return;
+  }
+
   authStatus.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
   try {
     const body = await apiRequest(`/api/${mode}`, {
@@ -2716,6 +2736,8 @@ async function authenticate(mode) {
     render();
   } catch (error) {
     authStatus.textContent = error.message;
+    if (error.field === 'username') usernameInput.focus();
+    if (error.field === 'password') passwordInput.focus();
   }
 }
 

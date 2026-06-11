@@ -22,15 +22,16 @@
           <p class="eyebrow">Account</p>
           <h2 id="auth-title">Sign in to sync tasks</h2>
           <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your TODO pond.</p>
+          <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
         </div>
         <form id="auth-form" class="auth-form" autocomplete="on">
           <label>
             <span>Username</span>
-            <input id="username-input" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required />
+            <input id="username-input" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" aria-describedby="auth-help" title="Use 3–32 letters, numbers, dots, underscores, or hyphens." required />
           </label>
           <label>
             <span>Password</span>
-            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />
+            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
           </label>
           <div class="auth-actions">
             <button id="login-button" type="submit">Log in</button>

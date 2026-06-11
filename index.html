@@ -34,8 +34,8 @@
             <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
           </label>
           <div class="auth-actions">
-            <button id="login-button" type="submit">Log in</button>
-            <button id="signup-button" class="secondary-action" type="button">Sign up</button>
+            <button id="login-button" type="submit" name="auth-mode" value="login">Log in</button>
+            <button id="signup-button" class="secondary-action" type="submit" name="auth-mode" value="signup">Sign up</button>
           </div>
         </form>
         <form id="password-form" class="password-form" autocomplete="on" hidden>

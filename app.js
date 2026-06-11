@@ -102,7 +102,6 @@ const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
 const usernameInput = document.querySelector('#username-input');
 const passwordInput = document.querySelector('#password-input');
-const signupButton = document.querySelector('#signup-button');
 const logoutButton = document.querySelector('#logout-button');
 const authStatus = document.querySelector('#auth-status');
 const passwordForm = document.querySelector('#password-form');
@@ -3830,10 +3829,10 @@ function handleGlobalShortcut(event) {
 
 authForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  authenticate('login');
+  const mode = event.submitter?.value === 'signup' ? 'signup' : 'login';
+  authenticate(mode);
 });
 
-signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
 passwordForm.addEventListener('submit', (event) => {
   event.preventDefault();

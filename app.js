@@ -303,6 +303,11 @@ function sortTodos(items) {
 function baseVisibleTodos() {
   if (filter === 'active') return sortTodos(todos.filter((todo) => !todo.completed));
   if (filter === 'completed') return sortTodos(todos.filter((todo) => todo.completed));
+  if (filter === 'week') {
+    const today = todayKey();
+    const weekEnd = addDays(today, 6);
+    return sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
+  }
   return sortTodos(todos);
 }
 
@@ -606,6 +611,66 @@ function createTodoItem(todo) {
   return item;
 }
 
+function weekAheadGroups() {
+  const today = todayKey();
+  const activeDueTodos = sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate));
+  const groups = [
+    {
+      key: 'overdue',
+      label: 'Overdue',
+      description: 'Fish already washed ashore and needing attention.',
+      todos: activeDueTodos.filter((todo) => todo.dueDate < today),
+    },
+    ...Array.from({ length: 7 }, (_, index) => {
+      const dateKey = addDays(today, index);
+      return {
+        key: dateKey,
+        label: index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : formatDateKey(dateKey),
+        description: index === 0 ? 'Tasks due before the tide turns tonight.' : `Tasks due ${formatDateKey(dateKey)}.`,
+        todos: activeDueTodos.filter((todo) => todo.dueDate === dateKey),
+      };
+    }),
+  ];
+  return groups.filter((group) => group.todos.length > 0);
+}
+
+function renderWeekAhead() {
+  const groups = weekAheadGroups();
+
+  if (groups.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.className = 'week-group week-group-empty';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Clear waters ahead';
+    const description = document.createElement('p');
+    description.textContent = 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
+    emptyItem.append(heading, description);
+    list.append(emptyItem);
+    return;
+  }
+
+  for (const group of groups) {
+    const groupItem = document.createElement('li');
+    groupItem.className = 'week-group';
+    groupItem.dataset.weekGroup = group.key === 'overdue' ? 'overdue' : 'upcoming';
+
+    const heading = document.createElement('h3');
+    heading.textContent = `${group.label} (${group.todos.length})`;
+    groupItem.append(heading);
+
+    const description = document.createElement('p');
+    description.textContent = group.description;
+    groupItem.append(description);
+
+    const nestedList = document.createElement('ul');
+    nestedList.className = 'todo-list week-list';
+    group.todos.forEach((todo) => nestedList.append(createTodoItem(todo)));
+    groupItem.append(nestedList);
+
+    list.append(groupItem);
+  }
+}
+
 function renderTideMode() {
   const sortedTodos = filteredTodos(todos);
   const populatedGroups = tideGroups
@@ -721,6 +786,8 @@ function render() {
 
   if (filter === 'tide') {
     renderTideMode();
+  } else if (filter === 'week') {
+    renderWeekAhead();
   } else {
     for (const todo of visibleTodos()) {
       list.append(createTodoItem(todo));
@@ -736,7 +803,7 @@ function render() {
   emptyState.querySelector('p').textContent = hasActiveSearchFilter()
     ? 'Clear the search or quick filter to see the whole pond.'
     : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
-  emptyState.classList.toggle('visible', filter !== 'tide' && visibleTodos().length === 0);
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
   releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));

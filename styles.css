@@ -311,6 +311,50 @@ h1 {
   color: var(--success);
 }
 
+.undo-toast {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  z-index: 1100;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: .65rem;
+  align-items: center;
+  width: min(32rem, calc(100vw - 2rem));
+  overflow: hidden;
+  padding: .85rem 1rem;
+  border: 1px solid rgb(255 210 141 / 36%);
+  border-radius: 1rem;
+  background: rgb(7 19 31 / 96%);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 35%);
+  color: var(--text);
+}
+
+.undo-toast button {
+  padding: .4rem .7rem;
+}
+
+.undo-toast-dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.undo-toast-progress {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: .2rem;
+  background: linear-gradient(90deg, var(--accent), var(--color-primary));
+  transform-origin: left;
+}
+
+.undo-toast.paused .undo-toast-progress { animation-play-state: paused; }
+
+@keyframes undo-toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 .shared-view {
   display: grid;
   gap: 1rem;
@@ -359,6 +403,7 @@ h1 {
 
 .storage-error[hidden],
 .pond-message[hidden],
+.undo-toast[hidden],
 .button-help-panel[hidden],
 .shortcut-help[hidden],
 .daily-catch-panel[hidden],
@@ -371,6 +416,7 @@ h1 {
 .reminder-prefs-panel[hidden],
 .prefs-panel[hidden],
 .activity-log-panel[hidden],
+.more-actions-panel[hidden],
 .paste-panel[hidden],
 .restore-panel[hidden],
 .pond-tour[hidden],
@@ -1597,6 +1643,14 @@ kbd {
 .empty-state h2 { margin: 0 0 .4rem; color: var(--text); }
 .empty-state p { margin: 0; }
 
+.empty-state-actions {
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  margin-top: .85rem;
+  flex-wrap: wrap;
+}
+
 .clear-completed {
   display: none;
   margin-top: 1rem;
@@ -2153,6 +2207,33 @@ kbd {
   display: flex;
   gap: .5rem;
   align-items: center;
+}
+
+.more-actions-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.25rem;
+  background: var(--card);
+}
+
+.more-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  min-width: 10rem;
+}
+
+.more-actions-label {
+  margin: 0 0 .15rem;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
 }
 
 .pond-wave {

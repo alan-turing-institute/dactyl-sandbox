@@ -25,6 +25,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`; expand `+ more options` only when you need due date, GitHub URL, recurrence, or priority fields
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
+- See contextual empty-state guidance for filters, search, ghost net, Tide mode, and Daily Catch so an empty view explains what to do next
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app
 - Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
@@ -35,6 +36,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - **Custom shoals** — group tasks into named shoals (project, workstream, demo, etc.) and filter by shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
+- Export a calendar snapshot (`.ics`) of active tasks with due dates and projected recurring-task occurrences over the next 60 days; open in any calendar app — the file is a user-controlled snapshot, not a live-sync feed
 - Attach validated GitHub issue or PR URLs to tasks and show compact link chips plus report links
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Copy a read-only pond snapshot for standups and demos without account credentials or edit controls

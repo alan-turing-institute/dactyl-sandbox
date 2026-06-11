@@ -110,6 +110,7 @@ const dueDateInput = document.querySelector('#due-date-input');
 const githubUrlInput = document.querySelector('#github-url-input');
 const priorityInput = document.querySelector('#priority-input');
 const priorityChips = [...document.querySelectorAll('.priority-chips button')];
+const recurrenceInput = document.querySelector('#recurrence-input');
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
@@ -395,6 +396,20 @@ function addDays(dateKey, days) {
   return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
 }
 
+function nextRecurrenceDueDate(todo) {
+  const base = (todo.dueDate && isValidDateKey(todo.dueDate)) ? todo.dueDate : todayKey();
+  const [year, month, day] = base.split('-').map(Number);
+  let next;
+  if (todo.recurrence === 'daily') {
+    next = new Date(year, month - 1, day + 1);
+  } else if (todo.recurrence === 'weekly') {
+    next = new Date(year, month - 1, day + 7);
+  } else {
+    next = new Date(year, month, day);
+  }
+  return next.toISOString().slice(0, 10);
+}
+
 function isValidDateKey(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);
@@ -495,6 +510,7 @@ function normaliseTodo(todo) {
     githubUrl: normaliseGithubUrl(todo.githubUrl),
     notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
     checklist: normaliseChecklist(todo.checklist),
+    recurrence: ['daily', 'weekly', 'monthly'].includes(todo.recurrence) ? todo.recurrence : 'none',
   };
 }
 
@@ -1306,6 +1322,11 @@ function buildPondReport() {
     nextDueTodos.forEach((todo) => {
       lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
+  }
+
+  const recurringTodos = activeTodos.filter((todo) => todo.recurrence !== 'none');
+  if (recurringTodos.length > 0) {
+    lines.push(`Recurring: ${recurringTodos.length} task${recurringTodos.length === 1 ? '' : 's'} (${recurringTodos.map((t) => `${t.text} [${t.recurrence}]`).join(', ')}).`);
   }
 
   return lines.join('\n');
@@ -2128,6 +2149,7 @@ function createTodoItem(todo) {
   const deleteButton = item.querySelector('.delete');
   const blockButton = item.querySelector('.block-task');
   const blockerBadge = item.querySelector('.blocker-badge');
+  const recurrenceBadge = item.querySelector('.recurrence-badge');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -2184,6 +2206,8 @@ function createTodoItem(todo) {
   blockerBadge.textContent = todo.blocked
     ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
     : '';
+  recurrenceBadge.hidden = todo.recurrence === 'none';
+  recurrenceBadge.textContent = todo.recurrence !== 'none' ? `Repeats ${todo.recurrence}` : '';
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
@@ -2819,6 +2843,7 @@ function addTodo(text, options = {}) {
     githubUrl: options.githubUrl ?? '',
     notes: options.notes ?? '',
     checklist: options.checklist ?? [],
+    recurrence: options.recurrence ?? 'none',
   });
 
   if (!todo) return;
@@ -2915,6 +2940,7 @@ function renderStarterShoalsList() {
 
 function toggleTodo(id) {
   const previousCompletedCount = completedTodoCount();
+  const originalTodo = todos.find((todo) => todo.id === id);
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: !todo.completed } : todo
   ));
@@ -2927,6 +2953,13 @@ function toggleTodo(id) {
   const toggledTodo = todos.find((todo) => todo.id === id);
   if (toggledTodo?.completed) {
     trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
+    if (originalTodo && originalTodo.recurrence !== 'none') {
+      addTodo(originalTodo.text, {
+        priority: originalTodo.priority,
+        dueDate: nextRecurrenceDueDate(originalTodo),
+        recurrence: originalTodo.recurrence,
+      });
+    }
   }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
@@ -3619,6 +3652,7 @@ form.addEventListener('submit', (event) => {
     dueDate,
     priority,
     githubUrl: githubUrlInput.value,
+    recurrence: recurrenceInput.value,
     source: parsed.dueDate || parsed.priority ? 'quick_add' : 'form',
   });
   if (parsed.dueDate || parsed.priority) {
@@ -3627,6 +3661,7 @@ form.addEventListener('submit', (event) => {
   }
   form.reset();
   priorityInput.value = 'medium';
+  recurrenceInput.value = 'none';
   syncPriorityChips();
   input.focus();
 });

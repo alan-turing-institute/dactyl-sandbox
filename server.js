@@ -130,6 +130,7 @@ function normaliseTodo(todo) {
     githubUrl: normaliseGithubUrl(todo.githubUrl),
     notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
     checklist: normaliseChecklist(todo.checklist),
+    recurrence: ['daily', 'weekly', 'monthly'].includes(todo.recurrence) ? todo.recurrence : 'none',
   };
 }
 
@@ -289,6 +290,9 @@ function createApp(options = {}) {
   if (!todoColumns.includes('checklist_json')) {
     db.exec("ALTER TABLE todos ADD COLUMN checklist_json TEXT NOT NULL DEFAULT '[]'");
   }
+  if (!todoColumns.includes('recurrence')) {
+    db.exec("ALTER TABLE todos ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -337,7 +341,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson, recurrence
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -361,8 +365,8 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, notes, checklist_json, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, notes, checklist_json, recurrence, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
@@ -374,6 +378,7 @@ function createApp(options = {}) {
         github_url = excluded.github_url,
         notes = excluded.notes,
         checklist_json = excluded.checklist_json,
+        recurrence = excluded.recurrence,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -389,6 +394,7 @@ function createApp(options = {}) {
       normalised.githubUrl,
       normalised.notes,
       JSON.stringify(normalised.checklist),
+      normalised.recurrence,
       new Date().toISOString(),
     );
     return normalised;

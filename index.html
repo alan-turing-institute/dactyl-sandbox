@@ -89,6 +89,13 @@
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
+        <label class="sr-only" for="recurrence-input">Recurrence</label>
+        <select id="recurrence-input" name="recurrence" aria-label="Recurrence">
+          <option value="none" selected>No repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
         <button type="submit">Add</button>
       </form>
 
@@ -452,6 +459,7 @@
               <span class="due-label"></span>
               <span class="priority-label"></span>
               <span class="blocker-badge"></span>
+              <span class="recurrence-badge" hidden></span>
             </span>
           </span>
         </label>

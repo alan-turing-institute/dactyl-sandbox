@@ -1141,6 +1141,9 @@ kbd {
 
 .checklist-badge { border: 1px solid rgb(141 255 202 / 22%); }
 
+.recurrence-badge { border: 1px solid rgb(255 220 100 / 28%); color: rgb(255 220 100 / 90%); }
+.recurrence-badge[hidden] { display: none; }
+
 .edit-task {
   padding: .5rem .75rem;
   background: rgb(255 255 255 / 8%);

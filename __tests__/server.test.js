@@ -647,4 +647,58 @@ describe('auth and task API', () => {
 
     expect(created.body.todo.blockerReason).toHaveLength(160);
   });
+
+  test('persists recurrence field through create, list, and patch', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'recurrence-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create a task with weekly recurrence
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Weekly standup', recurrence: 'weekly' })
+      .expect(201);
+
+    expect(created.body.todo.recurrence).toBe('weekly');
+
+    // Verify it comes back in list
+    const list = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body.todos[0].recurrence).toBe('weekly');
+
+    // Patch recurrence to daily
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ recurrence: 'daily' })
+      .expect(200);
+
+    expect(patched.body.todo.recurrence).toBe('daily');
+
+    // Verify persisted after patch
+    const afterPatch = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(afterPatch.body.todos[0].recurrence).toBe('daily');
+
+    // Invalid recurrence falls back to 'none'
+    const invalid = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'No repeat', recurrence: 'yearly' })
+      .expect(201);
+
+    expect(invalid.body.todo.recurrence).toBe('none');
+  });
 });

@@ -220,6 +220,10 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const commandPaletteEl = document.querySelector('#command-palette');
+const commandSearch = document.querySelector('#command-search');
+const commandList = document.querySelector('#command-list');
+const commandPaletteToggle = document.querySelector('#command-palette-toggle');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -272,6 +276,9 @@ let lastSync = {
 };
 let lastRenderDuration = 0;
 let renderDurations = [];
+let commandPaletteOpen = false;
+let commandPalettePriorFocus = null;
+let commandPaletteActiveIndex = 0;
 
 
 function requestedScreenKey() {
@@ -1060,6 +1067,96 @@ function setDraftPriority(priority) {
 
 function toggleShortcutHelp() {
   setShortcutHelpOpen(shortcutHelp.hidden);
+}
+
+const COMMANDS = [
+  { id: 'filter-all', label: 'Show all tasks', action: () => setFilter('all') },
+  { id: 'filter-active', label: 'Show active tasks', action: () => setFilter('active') },
+  { id: 'filter-completed', label: 'Show completed tasks', action: () => setFilter('completed') },
+  { id: 'filter-tide', label: 'Switch to Tide mode', action: () => setFilter('tide') },
+  { id: 'filter-ghost', label: 'Switch to Ghost net review', action: () => setFilter('ghost') },
+  { id: 'copy-pond-report', label: 'Copy pond report', action: () => copyPondProgressReport() },
+  { id: 'pond-health', label: 'Open pond health', action: () => setPondHealthOpen(true) },
+  { id: 'keyboard-shortcuts', label: 'Show keyboard shortcuts', action: () => setShortcutHelpOpen(true) },
+  { id: 'triage-mode', label: 'Open triage mode', action: () => setTriageOpen(true) },
+  { id: 'add-task', label: 'Add a task', action: () => { input.focus(); input.select(); } },
+  { id: 'search-tasks', label: 'Search tasks', action: () => { taskSearch.focus(); taskSearch.select(); } },
+  { id: 'log-out', label: 'Log out', action: () => logout() },
+];
+
+function openCommandPalette() {
+  commandPalettePriorFocus = document.activeElement;
+  commandPaletteOpen = true;
+  commandPaletteEl.hidden = false;
+  commandPaletteActiveIndex = 0;
+  renderCommandList('');
+  commandSearch.value = '';
+  commandSearch.focus();
+}
+
+function closeCommandPalette() {
+  commandPaletteOpen = false;
+  commandPaletteEl.hidden = true;
+  commandPaletteActiveIndex = 0;
+  if (commandPalettePriorFocus && typeof commandPalettePriorFocus.focus === 'function') {
+    commandPalettePriorFocus.focus();
+  }
+  commandPalettePriorFocus = null;
+}
+
+function renderCommandList(query) {
+  const q = query.toLowerCase().trim();
+  const filtered = q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
+  commandList.replaceChildren();
+  if (filtered.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'command-list-empty';
+    empty.textContent = 'No matching commands.';
+    commandList.appendChild(empty);
+    return;
+  }
+  if (commandPaletteActiveIndex >= filtered.length) commandPaletteActiveIndex = 0;
+  filtered.forEach((cmd, idx) => {
+    const li = document.createElement('li');
+    li.role = 'option';
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', String(idx === commandPaletteActiveIndex));
+    li.id = `command-option-${cmd.id}`;
+    li.textContent = cmd.label;
+    if (idx === commandPaletteActiveIndex) li.classList.add('command-list-active');
+    li.addEventListener('click', () => {
+      closeCommandPalette();
+      cmd.action();
+    });
+    commandList.appendChild(li);
+  });
+  commandSearch.setAttribute('aria-activedescendant', `command-option-${filtered[commandPaletteActiveIndex].id}`);
+}
+
+function navigateCommandList(direction) {
+  const items = [...commandList.querySelectorAll('li[role="option"]')];
+  if (items.length === 0) return;
+  commandPaletteActiveIndex = (commandPaletteActiveIndex + direction + items.length) % items.length;
+  items.forEach((li, idx) => {
+    li.setAttribute('aria-selected', String(idx === commandPaletteActiveIndex));
+    li.classList.toggle('command-list-active', idx === commandPaletteActiveIndex);
+  });
+  if (items[commandPaletteActiveIndex]) {
+    items[commandPaletteActiveIndex].scrollIntoView({ block: 'nearest' });
+    commandSearch.setAttribute('aria-activedescendant', items[commandPaletteActiveIndex].id);
+  }
+}
+
+function executeActiveCommand() {
+  const q = commandSearch.value.toLowerCase().trim();
+  const filtered = q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
+  if (filtered.length === 0) return;
+  const idx = Math.min(commandPaletteActiveIndex, filtered.length - 1);
+  const cmd = filtered[idx];
+  if (cmd) {
+    closeCommandPalette();
+    cmd.action();
+  }
 }
 
 function clearPasteInput() {
@@ -3481,6 +3578,12 @@ function isInteractiveShortcutTarget(target) {
 }
 
 function handleGlobalShortcut(event) {
+  if (!event.defaultPrevented && (event.ctrlKey || event.metaKey) && event.key === 'k') {
+    event.preventDefault();
+    if (commandPaletteOpen) { closeCommandPalette(); } else { openCommandPalette(); }
+    return;
+  }
+
   const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
   if (event.defaultPrevented || hasModifier || isInteractiveShortcutTarget(event.target)) {
     return;
@@ -3573,6 +3676,11 @@ function handleGlobalShortcut(event) {
   }
 
   if (event.key === 'Escape') {
+    if (commandPaletteOpen) {
+      closeCommandPalette();
+      event.preventDefault();
+      return;
+    }
     const helpWasOpen = !shortcutHelp.hidden;
     setShortcutHelpOpen(false);
     const leftNetMode = leaveNetMode();
@@ -3704,6 +3812,31 @@ shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));
 triageClose.addEventListener('click', () => setTriageOpen(false));
+commandPaletteToggle.addEventListener('click', () => {
+  if (commandPaletteOpen) { closeCommandPalette(); } else { openCommandPalette(); }
+});
+commandSearch.addEventListener('input', () => {
+  commandPaletteActiveIndex = 0;
+  renderCommandList(commandSearch.value);
+});
+commandSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    navigateCommandList(1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    navigateCommandList(-1);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    executeActiveCommand();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeCommandPalette();
+  }
+});
+commandPaletteEl.addEventListener('click', (event) => {
+  if (event.target === commandPaletteEl) closeCommandPalette();
+});
 triagePrev.addEventListener('click', () => moveTriage(-1));
 triageNext.addEventListener('click', () => moveTriage(1));
 triageComplete.addEventListener('click', completeTriageTodo);

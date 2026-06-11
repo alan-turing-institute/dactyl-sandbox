@@ -67,6 +67,15 @@ describe('auth and task API', () => {
       .get('/first-task-onboarding.js')
       .expect(200)
       .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/analytics.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/analytics-config.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/)
+      .expect(/DACTYL_ANALYTICS_CONFIG/);
   });
 
   test('rate limits auth routes', async () => {
@@ -124,6 +133,31 @@ describe('auth and task API', () => {
           code: 'invalid_username',
         });
       });
+  });
+
+  test('accepts analytics events only through sanitised allow-list', async () => {
+    const analyticsSink = jest.fn();
+    app = createApp({
+      dbPath: ':memory:',
+      jwtSecret: 'test-secret',
+      analyticsEnabled: true,
+      analyticsSink,
+    });
+
+    await request(app)
+      .post('/api/analytics')
+      .send({ event: 'task_created', payload: { priority: 'high', taskText: 'Private task' } })
+      .expect(204);
+
+    expect(analyticsSink).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'task_created',
+      payload: { priority: 'high' },
+    }));
+
+    await request(app)
+      .post('/api/analytics')
+      .send({ event: 'task_title_leaked', payload: { priority: 'high' } })
+      .expect(400);
   });
 
   test('requires a valid token and keeps users isolated', async () => {

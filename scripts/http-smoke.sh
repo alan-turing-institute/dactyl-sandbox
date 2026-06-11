@@ -45,6 +45,21 @@ case "$(header_value "Content-Type")" in
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 
+fetch /analytics.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /analytics.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+
+fetch /analytics-config.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /analytics-config.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+grep -q 'DACTYL_ANALYTICS_CONFIG' "$TMP_DIR/body"
+
 fetch /first-task-onboarding.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;

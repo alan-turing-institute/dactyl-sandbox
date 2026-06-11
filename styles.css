@@ -385,6 +385,48 @@ h1 {
   color: var(--muted);
 }
 
+.search-panel {
+  display: grid;
+  gap: .75rem;
+  margin: 1rem 0;
+}
+
+.search-field input {
+  width: 100%;
+  min-width: 0;
+  padding: .85rem 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+}
+
+.search-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
+}
+
+.quick-filters {
+  display: flex;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
+
+.quick-filter {
+  padding: .5rem .75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 8%);
+  color: var(--muted);
+}
+
+.quick-filter.active,
+.quick-filter[aria-pressed="true"] {
+  border-color: rgb(141 212 255 / 35%);
+  background: rgb(141 212 255 / 16%);
+  color: var(--text);
+}
+
 .toolbar {
   display: flex;
   align-items: center;

@@ -14,6 +14,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Add and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
 - Filter all, active, completed, and Tide mode grouped urgency lanes
+- Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Show deterministic fishy mood badges with accessible text
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data

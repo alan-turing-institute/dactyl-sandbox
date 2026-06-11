@@ -23,6 +23,9 @@ const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
+const taskSearch = document.querySelector('#task-search');
+const clearSearch = document.querySelector('#clear-search');
+const quickFilterButtons = [...document.querySelectorAll('.quick-filter')];
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
@@ -71,6 +74,8 @@ let authToken = loadAuthToken();
 let currentUser = null;
 let todos = [];
 let filter = 'all';
+let searchQuery = '';
+let quickFilter = '';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
@@ -295,10 +300,36 @@ function sortTodos(items) {
   });
 }
 
-function visibleTodos() {
+function baseVisibleTodos() {
   if (filter === 'active') return sortTodos(todos.filter((todo) => !todo.completed));
   if (filter === 'completed') return sortTodos(todos.filter((todo) => todo.completed));
   return sortTodos(todos);
+}
+
+function matchesSearch(todo) {
+  if (!searchQuery) return true;
+  return todo.text.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase());
+}
+
+function matchesQuickFilter(todo) {
+  const today = todayKey();
+  if (quickFilter === 'high') return todo.priority === 'high';
+  if (quickFilter === 'due-soon') return !todo.completed && todo.dueDate && todo.dueDate <= today;
+  if (quickFilter === 'no-due-date') return !todo.dueDate;
+  if (quickFilter === 'selected-net') return netMode && selectedTodoIds.has(todo.id);
+  return true;
+}
+
+function filteredTodos(items) {
+  return sortTodos(items.filter((todo) => matchesSearch(todo) && matchesQuickFilter(todo)));
+}
+
+function visibleTodos() {
+  return filteredTodos(baseVisibleTodos());
+}
+
+function hasActiveSearchFilter() {
+  return Boolean(searchQuery || quickFilter);
 }
 
 function tideFor(todo) {
@@ -576,7 +607,7 @@ function createTodoItem(todo) {
 }
 
 function renderTideMode() {
-  const sortedTodos = sortTodos(todos);
+  const sortedTodos = filteredTodos(todos);
   const populatedGroups = tideGroups
     .map((group) => ({ ...group, todos: sortedTodos.filter((todo) => tideFor(todo) === group.key) }))
     .filter((group) => group.todos.length > 0);
@@ -587,7 +618,9 @@ function renderTideMode() {
     const heading = document.createElement('h3');
     heading.textContent = 'Still waters (0)';
     const description = document.createElement('p');
-    description.textContent = 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
+    description.textContent = hasActiveSearchFilter()
+      ? 'No fish match this search. Clear the search or quick filter to see the whole pond.'
+      : 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -613,6 +646,19 @@ function renderTideMode() {
 
     list.append(groupItem);
   }
+}
+
+function renderSearchControls() {
+  taskSearch.value = searchQuery;
+  taskSearch.disabled = !currentUser;
+  clearSearch.hidden = !searchQuery;
+  clearSearch.disabled = !currentUser;
+  quickFilterButtons.forEach((button) => {
+    const isSelectedNet = button.dataset.quickFilter === 'selected-net';
+    button.disabled = !currentUser || (isSelectedNet && !netMode);
+    button.classList.toggle('active', button.dataset.quickFilter === quickFilter);
+    button.setAttribute('aria-pressed', String(button.dataset.quickFilter === quickFilter));
+  });
 }
 
 function renderNetControls() {
@@ -670,6 +716,7 @@ function renderAuth() {
 
 function render() {
   renderAuth();
+  if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
 
   if (filter === 'tide') {
@@ -681,12 +728,20 @@ function render() {
   }
 
   const activeCount = todos.filter((todo) => !todo.completed).length;
-  count.textContent = `${pluralise(activeCount, 'task')} left`;
+  const visibleCount = filter === 'tide' ? filteredTodos(todos).length : visibleTodos().length;
+  count.textContent = hasActiveSearchFilter()
+    ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
+    : `${pluralise(activeCount, 'task')} left`;
+  emptyState.querySelector('h2').textContent = hasActiveSearchFilter() ? 'No fish match this search' : 'Nothing here yet';
+  emptyState.querySelector('p').textContent = hasActiveSearchFilter()
+    ? 'Clear the search or quick filter to see the whole pond.'
+    : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   emptyState.classList.toggle('visible', filter !== 'tide' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
   releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
   renderNetControls();
+  renderSearchControls();
   renderTourPanel();
 
   filterButtons.forEach((button) => {
@@ -970,6 +1025,32 @@ form.addEventListener('submit', (event) => {
 filterButtons.forEach((button) => {
   button.addEventListener('click', () => {
     filter = button.dataset.filter;
+    render();
+  });
+});
+
+taskSearch.addEventListener('input', () => {
+  searchQuery = taskSearch.value.trim();
+  render();
+});
+
+taskSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && searchQuery) {
+    event.preventDefault();
+    searchQuery = '';
+    render();
+  }
+});
+
+clearSearch.addEventListener('click', () => {
+  searchQuery = '';
+  render();
+  taskSearch.focus();
+});
+
+quickFilterButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
     render();
   });
 });

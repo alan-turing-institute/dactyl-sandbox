@@ -408,6 +408,7 @@ function createApp(options = {}) {
 
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.get('/styles.css', (req, res) => res.type('text/css').sendFile(path.join(__dirname, 'styles.css')));
+  app.get('/screen-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'screen-state.js')));
   app.get('/app.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'app.js')));
 
   app.close = () => db.close();

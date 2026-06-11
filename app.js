@@ -1,4 +1,4 @@
-/* global DactylFishEmoji, DactylScreenState */
+/* global DactylFishEmoji, DactylQuickAdd, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -21,6 +21,7 @@ const {
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
+const { parseQuickAdd } = DactylQuickAdd;
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -2867,14 +2868,20 @@ passwordForm.addEventListener('submit', (event) => {
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
+  const parsed = parseQuickAdd(input.value, { today: todayKey() });
+  if (!parsed.text) return;
+  const dueDate = dueDateInput.value || parsed.dueDate;
+  const priority = priorityInput.value !== 'medium' ? priorityInput.value : (parsed.priority || priorityInput.value);
 
-  addTodo(text, {
-    dueDate: dueDateInput.value,
-    priority: priorityInput.value,
+  addTodo(parsed.text, {
+    dueDate,
+    priority,
     githubUrl: githubUrlInput.value,
   });
+  if (parsed.dueDate || parsed.priority) {
+    const hints = [parsed.dueDate ? `due ${formatDateKey(parsed.dueDate)}` : '', parsed.priority ? `${parsed.priority} priority` : ''].filter(Boolean).join(' · ');
+    showPondMessage(`Added quick task with ${hints}.`);
+  }
   form.reset();
   priorityInput.value = 'medium';
   syncPriorityChips();

@@ -276,7 +276,8 @@ h1 {
 .showcase-panel[hidden],
 .focus-panel[hidden],
 .shoal-control[hidden],
-.secondary-action[hidden] { display: none; }
+.secondary-action[hidden],
+.blocker-badge[hidden] { display: none; }
 
 .pond-actions {
   display: flex;
@@ -855,6 +856,29 @@ kbd {
 .mood-badge.mood-normal,
 .mood-badge.mood-resting { color: var(--success); }
 
+.blocker-badge {
+  color: var(--danger);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.block-form {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-top: .35rem;
+  flex-wrap: wrap;
+}
+.block-reason-input {
+  flex: 1;
+  min-width: 8rem;
+  padding: .4rem .75rem;
+  border: 1px solid rgb(255 141 141 / 40%);
+  border-radius: 999px;
+  background: var(--card-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+}
 .github-chip { border: 1px solid rgb(141 212 255 / 22%); }
 
 .todo-item.completed .text {

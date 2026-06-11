@@ -103,6 +103,7 @@
         <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
+        <button id="copy-standup-draft" class="secondary-action" type="button">Copy stand-up draft</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
         <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
@@ -410,12 +411,14 @@
               <span class="mood-badge"></span>
               <span class="due-label"></span>
               <span class="priority-label"></span>
+              <span class="blocker-badge"></span>
             </span>
           </span>
         </label>
         <div class="todo-actions">
           <button class="focus-task" type="button">Feed</button>
           <button class="edit-task" type="button">Edit</button>
+          <button class="block-task secondary-action" type="button">Block</button>
           <button class="archive-task secondary-action" type="button" hidden>Archive</button>
           <button class="restore-task secondary-action" type="button" hidden>Restore</button>
           <button class="delete" type="button" aria-label="Delete task">×</button>

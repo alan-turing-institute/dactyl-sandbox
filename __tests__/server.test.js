@@ -357,4 +357,50 @@ describe('auth and task API', () => {
       .send({ username: 'broken-hash', password: 'very-secret' })
       .expect(401);
   });
+
+  test('persists githubUrl for tasks and normalises invalid URLs to empty string', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'github-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create a task with a valid GitHub issue URL
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Fix the bug', githubUrl: 'https://github.com/owner/repo/issues/42' })
+      .expect(201);
+
+    expect(created.body.todo.githubUrl).toBe('https://github.com/owner/repo/issues/42');
+
+    // Confirm it's returned in the list
+    const listed = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(listed.body.todos[0].githubUrl).toBe('https://github.com/owner/repo/issues/42');
+
+    // PATCH with an invalid URL — should normalise to ''
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ githubUrl: 'https://example.com/not-github' })
+      .expect(200);
+
+    expect(patched.body.todo.githubUrl).toBe('');
+
+    // PATCH with a valid pull URL — should persist
+    const patched2 = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ githubUrl: 'https://github.com/owner/repo/pull/99' })
+      .expect(200);
+
+    expect(patched2.body.todo.githubUrl).toBe('https://github.com/owner/repo/pull/99');
+  });
 });

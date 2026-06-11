@@ -77,6 +77,8 @@
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
+        <label class="sr-only" for="github-url-input">GitHub issue or PR URL (optional)</label>
+        <input id="github-url-input" name="github-url" type="url" placeholder="https://github.com/…/issues/1" />
         <button type="submit">Add</button>
       </form>
 
@@ -383,6 +385,7 @@
               <span class="mood-badge"></span>
               <span class="due-label"></span>
               <span class="priority-label"></span>
+              <a class="github-chip" target="_blank" rel="noopener noreferrer" hidden></a>
             </span>
           </span>
         </label>

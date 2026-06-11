@@ -59,6 +59,13 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+const GITHUB_URL_RE = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+$/;
+function normaliseGithubUrl(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return GITHUB_URL_RE.test(trimmed) ? trimmed : '';
+}
+
 function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
@@ -83,6 +90,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
 
@@ -196,6 +204,9 @@ function createApp(options = {}) {
   if (!todoColumns.includes('archived_at')) {
     db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('github_url')) {
+    db.exec("ALTER TABLE todos ADD COLUMN github_url TEXT NOT NULL DEFAULT ''");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -244,7 +255,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, github_url AS githubUrl
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -255,14 +266,15 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, github_url, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
         archived_at = excluded.archived_at,
+        github_url = excluded.github_url,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -273,6 +285,7 @@ function createApp(options = {}) {
       normalised.dueDate,
       normalised.priority,
       normalised.archivedAt,
+      normalised.githubUrl,
       new Date().toISOString(),
     );
     return normalised;

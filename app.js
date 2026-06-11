@@ -31,6 +31,7 @@ const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
 const priorityInput = document.querySelector('#priority-input');
+const githubUrlInput = document.querySelector('#github-url-input');
 const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
@@ -260,6 +261,13 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+const GITHUB_URL_RE = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+$/;
+function normaliseGithubUrl(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return GITHUB_URL_RE.test(trimmed) ? trimmed : '';
+}
+
 function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
@@ -284,6 +292,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
 
@@ -1004,6 +1013,12 @@ function importPastedTodos() {
   render();
 }
 
+function githubLabel(todo) {
+  if (!todo.githubUrl) return '';
+  const m = todo.githubUrl.match(/\/(issues|pull)\/(\d+)$/);
+  return m ? ` [#${m[2]} ${m[1] === 'pull' ? 'PR' : 'issue'}]` : '';
+}
+
 function buildPondReport() {
   const visiblePond = liveTodos();
   const totalCount = visiblePond.length;
@@ -1031,14 +1046,14 @@ function buildPondReport() {
   const highPriorityTodos = sortTodos(activeTodos.filter((todo) => todo.priority === 'high')).slice(0, 3);
   if (highPriorityTodos.length > 0) {
     lines.push('High-priority active:');
-    highPriorityTodos.forEach((todo) => lines.push(`• ${todo.text}`));
+    highPriorityTodos.forEach((todo) => lines.push(`• ${todo.text}${githubLabel(todo)}`));
   }
 
   const nextDueTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate)).slice(0, 3);
   if (nextDueTodos.length > 0) {
     lines.push('Next due:');
     nextDueTodos.forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}${githubLabel(todo)}`);
     });
   }
 
@@ -1593,6 +1608,12 @@ function createTodoEditForm(todo) {
   });
   prioritySelect.value = todo.priority;
 
+  const editGithubUrlInput = document.createElement('input');
+  editGithubUrlInput.name = 'githubUrl';
+  editGithubUrlInput.type = 'url';
+  editGithubUrlInput.placeholder = 'https://github.com/…/issues/1';
+  editGithubUrlInput.value = todo.githubUrl ?? '';
+
   const actions = document.createElement('div');
   actions.className = 'edit-task-actions';
   const saveButton = document.createElement('button');
@@ -1608,6 +1629,7 @@ function createTodoEditForm(todo) {
     createEditField('Task', textInput),
     createEditField('Due date', dueInput),
     createEditField('Priority', prioritySelect),
+    createEditField('GitHub URL', editGithubUrlInput),
     actions,
   );
 
@@ -1617,6 +1639,7 @@ function createTodoEditForm(todo) {
       text: textInput.value,
       dueDate: dueInput.value,
       priority: prioritySelect.value,
+      githubUrl: editGithubUrlInput.value.trim(),
     });
   });
   formElement.addEventListener('keydown', (event) => {
@@ -1643,6 +1666,7 @@ function createTodoItem(todo) {
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
+  const githubChip = item.querySelector('.github-chip');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -1667,6 +1691,17 @@ function createTodoItem(todo) {
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
+  const githubUrl = normaliseGithubUrl(todo.githubUrl);
+  if (githubUrl) {
+    const match = githubUrl.match(/\/(issues|pull)\/(\d+)$/);
+    const type = match?.[1] === 'pull' ? 'PR' : 'issue';
+    const num = match?.[2];
+    githubChip.hidden = false;
+    githubChip.textContent = `#${num} ${type}`;
+    githubChip.href = githubUrl;
+  } else {
+    githubChip.hidden = true;
+  }
   focusButton.hidden = isArchived;
   focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
@@ -2152,6 +2187,7 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    githubUrl: options.githubUrl ?? '',
   });
 
   if (!todo) return;
@@ -2269,6 +2305,7 @@ function saveEditedTodo(id, updates) {
     text: updates.text,
     dueDate: updates.dueDate,
     priority: updates.priority,
+    githubUrl: updates.githubUrl ?? existingTodo.githubUrl,
   });
 
   if (!updatedTodo) {
@@ -2742,8 +2779,10 @@ form.addEventListener('submit', (event) => {
   addTodo(text, {
     dueDate: dueDateInput.value,
     priority: priorityInput.value,
+    githubUrl: githubUrlInput.value.trim(),
   });
   form.reset();
+  githubUrlInput.value = '';
   priorityInput.value = 'medium';
   syncPriorityChips();
   input.focus();

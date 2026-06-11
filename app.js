@@ -38,7 +38,16 @@ const addPastedTasks = document.querySelector('#add-pasted-tasks');
 const clearPaste = document.querySelector('#clear-paste');
 const cancelPaste = document.querySelector('#cancel-paste');
 const copyPondReport = document.querySelector('#copy-pond-report');
+const pondHealthToggle = document.querySelector('#pond-health-toggle');
+const pondHealthPanel = document.querySelector('#pond-health-panel');
+const pondHealthSummary = document.querySelector('#pond-health-summary');
+const pondHealthMetrics = document.querySelector('#pond-health-metrics');
+const pondHealthHints = document.querySelector('#pond-health-hints');
+const copyPondDiagnostics = document.querySelector('#copy-pond-diagnostics');
 const showPondTour = document.querySelector('#show-pond-tour');
+const shortcutHelpToggle = document.querySelector('#shortcut-help-toggle');
+const shortcutHelp = document.querySelector('#shortcut-help');
+const shortcutHelpClose = document.querySelector('#shortcut-help-close');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
@@ -84,6 +93,37 @@ let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
+let lastSync = {
+  state: 'never synced',
+  at: '',
+  message: 'No sync attempted yet.',
+};
+let lastRenderDuration = 0;
+let renderDurations = [];
+
+function diagnosticNow() {
+  return window.performance?.now ? window.performance.now() : Date.now();
+}
+
+function markSyncState(state, message) {
+  lastSync = {
+    state,
+    at: new Date().toISOString(),
+    message,
+  };
+  renderPondHealth();
+}
+
+function recordRenderDuration(startTime) {
+  lastRenderDuration = Math.max(0, diagnosticNow() - startTime);
+  renderDurations = [...renderDurations.slice(-4), lastRenderDuration];
+}
+
+function averageRenderDuration() {
+  if (renderDurations.length === 0) return 0;
+  const total = renderDurations.reduce((sum, duration) => sum + duration, 0);
+  return total / renderDurations.length;
+}
 
 function showStorageError(message) {
   storageError.textContent = message;
@@ -263,6 +303,7 @@ function saveTodos() {
 
   const version = ++saveVersion;
   const snapshot = normaliseTodos(todos);
+  markSyncState('syncing', 'Saving latest pond changes…');
   saveQueue = saveQueue
     .catch(() => {})
     .then(() => apiRequest('/api/tasks', {
@@ -272,6 +313,7 @@ function saveTodos() {
     .then((body) => {
       if (version === saveVersion) {
         todos = normaliseTodos(body.todos);
+        markSyncState('synced', 'Latest task save completed.');
         clearStorageError();
         render();
       }
@@ -279,6 +321,7 @@ function saveTodos() {
 
   saveQueue.catch((error) => {
     if (version === saveVersion) {
+      markSyncState('sync error', error.message);
       showStorageError(`Tasks changed in this tab, but sync failed: ${error.message}`);
     }
   });
@@ -467,6 +510,15 @@ function setPastePanelOpen(open) {
   }
 }
 
+function setShortcutHelpOpen(open) {
+  shortcutHelp.hidden = !open;
+  shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function toggleShortcutHelp() {
+  setShortcutHelpOpen(shortcutHelp.hidden);
+}
+
 function clearPasteInput() {
   pasteInput.value = '';
   updatePastePreview();
@@ -540,6 +592,107 @@ function buildPondReport() {
   return lines.join('\n');
 }
 
+function tideCounts() {
+  return tideGroups.reduce((counts, group) => ({
+    ...counts,
+    [group.key]: todos.filter((todo) => tideFor(todo) === group.key).length,
+  }), {});
+}
+
+function visibleTodoCount() {
+  return filter === 'tide' ? todos.length : visibleTodos().length;
+}
+
+function pondDiagnostics() {
+  const activeCount = todos.filter((todo) => !todo.completed).length;
+  const completedCount = todos.length - activeCount;
+  const tides = tideCounts();
+  const averageRender = averageRenderDuration();
+
+  return {
+    totalCount: todos.length,
+    activeCount,
+    completedCount,
+    visibleCount: visibleTodoCount(),
+    selectedCount: selectedTodoIds.size,
+    filter,
+    netMode,
+    focusedTaskPresent: todos.some((todo) => todo.id === focusedTodoId && !todo.completed),
+    tides,
+    sync: lastSync,
+    lastRenderDuration,
+    averageRender,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function diagnosticHints(diagnostics) {
+  const hints = [];
+  if (diagnostics.totalCount === 0) hints.push('The pond is empty; add or stock tasks to exercise rendering and sync.');
+  if (diagnostics.totalCount >= Math.floor(MAX_TODOS * 0.8)) hints.push(`Large pond: ${diagnostics.totalCount}/${MAX_TODOS} task slots are in use.`);
+  if (diagnostics.averageRender > 80) hints.push(`Slow render hint: recent renders average ${diagnostics.averageRender.toFixed(1)} ms.`);
+  if (diagnostics.sync.state === 'sync error') hints.push(`Last sync failed: ${diagnostics.sync.message}`);
+  if (diagnostics.sync.state === 'syncing') hints.push('Sync is currently in progress.');
+  if (hints.length === 0) hints.push('No obvious health warnings.');
+  return hints;
+}
+
+function syncLabel(sync) {
+  const when = sync.at ? new Date(sync.at).toLocaleString() : 'not recorded';
+  return `${sync.state} · ${sync.message} · ${when}`;
+}
+
+function renderMetric(label, value) {
+  const item = document.createElement('div');
+  const term = document.createElement('dt');
+  const description = document.createElement('dd');
+  term.textContent = label;
+  description.textContent = value;
+  item.append(term, description);
+  pondHealthMetrics.append(item);
+}
+
+function renderPondHealth() {
+  if (pondHealthPanel.hidden) return;
+
+  const diagnostics = pondDiagnostics();
+  const hints = diagnosticHints(diagnostics);
+  pondHealthSummary.textContent = hints.some((hint) => hint.includes('failed') || hint.includes('Slow') || hint.includes('Large'))
+    ? 'Pond health needs attention.'
+    : 'Pond health looks steady.';
+
+  pondHealthMetrics.replaceChildren();
+  renderMetric('Tasks', `${diagnostics.totalCount} total · ${diagnostics.activeCount} active · ${diagnostics.completedCount} completed`);
+  renderMetric('Current view', `${diagnostics.filter} · ${diagnostics.visibleCount} visible`);
+  renderMetric('Net', diagnostics.netMode ? `${diagnostics.selectedCount} selected` : 'not cast');
+  renderMetric('Focus', diagnostics.focusedTaskPresent ? 'active focus fish' : 'none');
+  renderMetric('Tide lanes', `washed ${diagnostics.tides.washed} · high ${diagnostics.tides.high} · ebbing ${diagnostics.tides.ebbing} · incoming ${diagnostics.tides.incoming} · resting ${diagnostics.tides.completed}`);
+  renderMetric('Sync', syncLabel(diagnostics.sync));
+  renderMetric('Render', `${diagnostics.lastRenderDuration.toFixed(1)} ms last · ${diagnostics.averageRender.toFixed(1)} ms avg`);
+
+  pondHealthHints.replaceChildren();
+  hints.forEach((hint) => {
+    const item = document.createElement('li');
+    item.textContent = hint;
+    pondHealthHints.append(item);
+  });
+}
+
+function buildPondDiagnostics() {
+  const diagnostics = pondDiagnostics();
+  const hints = diagnosticHints(diagnostics);
+  return [
+    'Pond health diagnostics',
+    `Timestamp: ${diagnostics.timestamp}`,
+    `Tasks: ${diagnostics.totalCount} total, ${diagnostics.activeCount} active, ${diagnostics.completedCount} completed, ${diagnostics.visibleCount} visible`,
+    `View: filter=${diagnostics.filter}, net=${diagnostics.netMode ? 'cast' : 'not cast'}, selected=${diagnostics.selectedCount}, focus=${diagnostics.focusedTaskPresent ? 'present' : 'none'}`,
+    `Tide lanes: washed=${diagnostics.tides.washed}, high=${diagnostics.tides.high}, ebbing=${diagnostics.tides.ebbing}, incoming=${diagnostics.tides.incoming}, resting=${diagnostics.tides.completed}`,
+    `Sync: ${diagnostics.sync.state}; ${diagnostics.sync.message}; at=${diagnostics.sync.at || 'not recorded'}`,
+    `Render: last=${diagnostics.lastRenderDuration.toFixed(1)}ms, average=${diagnostics.averageRender.toFixed(1)}ms`,
+    `Hints: ${hints.join(' | ')}`,
+  ].join('\n');
+}
+
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -568,6 +721,21 @@ async function copyPondProgressReport() {
   } catch {
     showPondMessage('Could not copy the pond report. Select the tasks and try again?');
   }
+}
+
+async function copyDiagnosticsReport() {
+  try {
+    await copyText(buildPondDiagnostics());
+    showPondMessage('Copied pond diagnostics without task text or private account data.');
+  } catch {
+    showPondMessage('Could not copy diagnostics. The panel still shows the same safe summary.');
+  }
+}
+
+function setPondHealthOpen(open) {
+  pondHealthPanel.hidden = !open;
+  pondHealthToggle.setAttribute('aria-expanded', String(open));
+  if (open) renderPondHealth();
 }
 
 function createTodoItem(todo) {
@@ -773,13 +941,21 @@ function renderAuth() {
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
+  pondHealthToggle.disabled = !signedIn;
+  copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
   updatePastePreview();
 }
 
+function setFilter(nextFilter) {
+  filter = nextFilter;
+  render();
+}
+
 function render() {
+  const renderStarted = diagnosticNow();
   renderAuth();
   if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
@@ -816,6 +992,8 @@ function render() {
   });
 
   renderFocusPanel();
+  recordRenderDuration(renderStarted);
+  renderPondHealth();
 }
 
 function addTodo(text, options = {}) {
@@ -915,6 +1093,14 @@ function toggleNetMode() {
   netMode = !netMode;
   if (!netMode) selectedTodoIds.clear();
   render();
+}
+
+function leaveNetMode() {
+  if (!netMode) return false;
+  netMode = false;
+  selectedTodoIds.clear();
+  render();
+  return true;
 }
 
 function toggleSelectedTodo(id) {
@@ -1029,6 +1215,7 @@ async function authenticate(mode) {
     saveAuthToken(body.token);
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
+    markSyncState('loaded', 'Loaded tasks for the current session.');
     passwordInput.value = '';
     clearStorageError();
     hidePondMessage();
@@ -1046,6 +1233,7 @@ function logout() {
   netMode = false;
   tourForcedVisible = false;
   saveFocusedTodoId('');
+  markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
   render();
 }
@@ -1059,12 +1247,65 @@ async function restoreSession() {
     const body = await apiRequest('/api/me');
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
+    markSyncState('loaded', 'Restored the signed-in task pond.');
   } catch {
     saveAuthToken('');
     currentUser = null;
     todos = [];
+    markSyncState('signed out', 'Saved session could not be restored.');
   }
   render();
+}
+
+function isInteractiveShortcutTarget(target) {
+  if (!target || typeof target.closest !== 'function') return false;
+  return Boolean(target.closest(
+    'input, select, textarea, button, [contenteditable=""], [contenteditable="true"]',
+  ));
+}
+
+function handleGlobalShortcut(event) {
+  const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
+  if (event.defaultPrevented || hasModifier || isInteractiveShortcutTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === '?') {
+    event.preventDefault();
+    toggleShortcutHelp();
+    return;
+  }
+
+  if (event.key === '/') {
+    event.preventDefault();
+    input.focus();
+    return;
+  }
+
+  if (event.key.toLowerCase() === 't') {
+    event.preventDefault();
+    setFilter('tide');
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'a') {
+    event.preventDefault();
+    setFilter('all');
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'r') {
+    event.preventDefault();
+    if (currentUser) copyPondProgressReport();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    const helpWasOpen = !shortcutHelp.hidden;
+    setShortcutHelpOpen(false);
+    const leftNetMode = leaveNetMode();
+    if (helpWasOpen || leftNetMode) event.preventDefault();
+  }
 }
 
 authForm.addEventListener('submit', (event) => {
@@ -1090,10 +1331,7 @@ form.addEventListener('submit', (event) => {
 });
 
 filterButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    filter = button.dataset.filter;
-    render();
-  });
+  button.addEventListener('click', () => setFilter(button.dataset.filter));
 });
 
 taskSearch.addEventListener('input', () => {
@@ -1137,6 +1375,10 @@ addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
+shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
+shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
+pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
+copyPondDiagnostics.addEventListener('click', copyDiagnosticsReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
@@ -1164,5 +1406,7 @@ dismissPondTour.addEventListener('click', () => {
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
 });
 completeFocus.addEventListener('click', completeFocusedTodo);
+
+document.addEventListener('keydown', handleGlobalShortcut);
 
 restoreSession();

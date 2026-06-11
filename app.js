@@ -1,3 +1,4 @@
+/* global DactylFishEmoji, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -57,7 +58,15 @@ const STARTER_SHOALS = [
     ],
   },
 ];
+const {
+  normaliseScreenKey,
+  screenKeyFromLocation,
+  desiredScreenKey: chooseScreenKey,
+} = DactylScreenState;
+const { fishEmojiFor } = DactylFishEmoji;
 
+const authScreen = document.querySelector('#auth-screen');
+const pondScreen = document.querySelector('#pond-screen');
 const authPanel = document.querySelector('#auth-panel');
 const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
@@ -73,6 +82,7 @@ const changePasswordButton = document.querySelector('#change-password-button');
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
+const githubUrlInput = document.querySelector('#github-url-input');
 const priorityInput = document.querySelector('#priority-input');
 const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
@@ -131,6 +141,7 @@ const tourTideMode = document.querySelector('#tour-tide-mode');
 const tourCopyReport = document.querySelector('#tour-copy-report');
 const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
+const screenRoots = { auth: authScreen, pond: pondScreen, focus: focusPanel };
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const focusSprintStatus = document.querySelector('#focus-sprint-status');
@@ -203,6 +214,8 @@ let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
 let pendingRestore = null;
+let currentScreen = '';
+let suppressScreenHistory = false;
 let lastSync = {
   state: 'never synced',
   at: '',
@@ -210,6 +223,52 @@ let lastSync = {
 };
 let lastRenderDuration = 0;
 let renderDurations = [];
+
+
+function requestedScreenKey() {
+  return screenKeyFromLocation(window.location);
+}
+
+function desiredScreenKey() {
+  return chooseScreenKey({
+    signedIn: Boolean(currentUser),
+    requestedScreen: requestedScreenKey(),
+    hasFocusedTodo: Boolean(selectedFocusTodo()),
+  });
+}
+
+function focusScreenEntry(screenKey) {
+  const target = screenKey === 'auth'
+    ? usernameInput
+    : screenKey === 'focus'
+      ? focusPanel
+      : input;
+  if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+}
+
+function setScreen(nextScreen, options = {}) {
+  const screenKey = normaliseScreenKey(nextScreen) || 'auth';
+  const changed = currentScreen !== screenKey;
+  const updateUrl = options.updateUrl !== false;
+  const hash = `#${screenKey}`;
+
+  currentScreen = screenKey;
+  Object.entries(screenRoots).forEach(([key, root]) => {
+    if (root) root.hidden = key !== screenKey;
+  });
+  document.body.dataset.screen = screenKey;
+
+  if (updateUrl && window.location.hash !== hash) {
+    const method = options.replace ? 'replaceState' : 'pushState';
+    window.history[method]({ screen: screenKey }, '', hash);
+  }
+
+  if (changed || options.focus) focusScreenEntry(screenKey);
+}
+
+function syncScreen(options = {}) {
+  setScreen(desiredScreenKey(), options);
+}
 
 function diagnosticNow() {
   return window.performance?.now ? window.performance.now() : Date.now();
@@ -310,6 +369,33 @@ function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
 
+function normaliseGithubUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') return '';
+
+  let parsed;
+  try {
+    parsed = new window.URL(value.trim());
+  } catch {
+    return '';
+  }
+
+  const [owner, repo, type, number] = parsed.pathname.split('/').filter(Boolean);
+  const validPath = owner && repo && ['issues', 'pull'].includes(type) && /^[1-9]\d*$/.test(number);
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || !validPath) return '';
+  return `https://github.com/${owner}/${repo}/${type}/${number}`;
+}
+
+function githubLinkInfo(url) {
+  const normalised = normaliseGithubUrl(url);
+  if (!normalised) return null;
+  const [, , type, number] = new window.URL(normalised).pathname.split('/').filter(Boolean);
+  return {
+    url: normalised,
+    label: `#${number} ${type === 'pull' ? 'PR' : 'issue'}`,
+  };
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -330,6 +416,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
 
@@ -710,14 +797,15 @@ function tideFor(todo) {
 
 function moodFor(todo) {
   const tide = tideFor(todo);
-  if (todo.completed) return { emoji: '🐚', text: 'Resting shell', className: 'mood-resting' };
+  const emojiSeed = todo.id || todo.text;
+  if (todo.completed) return { emoji: fishEmojiFor('resting', emojiSeed), text: 'Resting shell', className: 'mood-resting' };
   if (tide === 'washed' && todo.priority === 'high') {
-    return { emoji: '🦑', text: 'Tentacular emergency', className: 'mood-emergency' };
+    return { emoji: fishEmojiFor('emergency', emojiSeed), text: 'Tentacular emergency', className: 'mood-emergency' };
   }
-  if (todo.priority === 'high') return { emoji: '🐡', text: 'Puffed up', className: 'mood-high' };
-  if (!todo.dueDate) return { emoji: '🧜', text: 'Mythical commitment', className: 'mood-mythical' };
-  if (todo.priority === 'medium') return { emoji: '🦀', text: 'Sideways but moving', className: 'mood-medium' };
-  return { emoji: '🐟', text: 'Swimming nicely', className: 'mood-normal' };
+  if (todo.priority === 'high') return { emoji: fishEmojiFor('high', emojiSeed), text: 'Puffed up', className: 'mood-high' };
+  if (!todo.dueDate) return { emoji: fishEmojiFor('mythical', emojiSeed), text: 'Mythical commitment', className: 'mood-mythical' };
+  if (todo.priority === 'medium') return { emoji: fishEmojiFor('medium', emojiSeed), text: 'Sideways but moving', className: 'mood-medium' };
+  return { emoji: fishEmojiFor('normal', emojiSeed), text: 'Swimming nicely', className: 'mood-normal' };
 }
 
 function dueLabelFor(todo) {
@@ -770,6 +858,10 @@ function parseImportLine(line) {
   let text = stripImportPrefix(line);
   if (isImportHeading(text, line)) return null;
 
+  const githubMatch = text.match(/https:\/\/github\.com\/[^\s)]+\/[^\s)]+\/(?:issues|pull)\/[1-9]\d*(?:[^\s)]*)?/i);
+  const githubUrl = githubMatch ? normaliseGithubUrl(githubMatch[0]) : '';
+  if (githubMatch) text = text.replace(githubMatch[0], '').trim();
+
   const dueMatch = text.match(/\bdue:\s*(\d{4}-\d{2}-\d{2})\b/i);
   const dueDate = dueMatch && isValidDateKey(dueMatch[1]) ? dueMatch[1] : '';
   text = text.replace(/\bdue:\s*\d{4}-\d{2}-\d{2}\b/ig, '').trim();
@@ -787,7 +879,7 @@ function parseImportLine(line) {
     .trim();
 
   if (!text) return null;
-  return { text, priority, dueDate };
+  return { text, priority, dueDate, githubUrl };
 }
 
 function parsePastedTodos(value) {
@@ -865,6 +957,7 @@ function exportedTodo(todo) {
     createdAt: todo.createdAt,
     dueDate: todo.dueDate,
     priority: todo.priority,
+    githubUrl: todo.githubUrl,
     archivedAt: todo.archivedAt,
   };
 }
@@ -923,6 +1016,7 @@ function normaliseBackupTask(task, seenIds) {
     dueDate: task.dueDate,
     priority: task.priority,
     archivedAt: task.archivedAt,
+    githubUrl: task.githubUrl,
   });
 }
 
@@ -1034,6 +1128,7 @@ function importPastedTodos() {
       createdAt: new Date(Date.now() - index).toISOString(),
       dueDate: todo.dueDate,
       priority: todo.priority,
+      githubUrl: todo.githubUrl,
     }))
     .filter(Boolean);
 
@@ -1072,23 +1167,27 @@ function buildPondReport() {
   lines.push(`Pond report: ${headlineParts.join(' — ')}.`);
 
   const focusedTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
-  if (focusedTodo) lines.push(`Focus fish: ${focusedTodo.text}.`);
+  if (focusedTodo) lines.push(`Focus fish: ${reportTodoText(focusedTodo)}.`);
 
   const highPriorityTodos = sortTodos(activeTodos.filter((todo) => todo.priority === 'high')).slice(0, 3);
   if (highPriorityTodos.length > 0) {
     lines.push('High-priority active:');
-    highPriorityTodos.forEach((todo) => lines.push(`• ${todo.text}`));
+    highPriorityTodos.forEach((todo) => lines.push(`• ${reportTodoText(todo)}`));
   }
 
   const nextDueTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate)).slice(0, 3);
   if (nextDueTodos.length > 0) {
     lines.push('Next due:');
     nextDueTodos.forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
   return lines.join('\n');
+}
+
+function reportTodoText(todo) {
+  return todo.githubUrl ? `${todo.text} (${todo.githubUrl})` : todo.text;
 }
 
 function buildPondSnapshot() {
@@ -1111,20 +1210,20 @@ function buildPondSnapshot() {
     `Priority: ${highPriorityTodos.length} high tide · ${overdueTodos.length} overdue`,
   ];
 
-  if (focusTodo) lines.push(`Focus fish: ${focusTodo.text}`);
+  if (focusTodo) lines.push(`Focus fish: ${reportTodoText(focusTodo)}`);
   else lines.push('Focus fish: none selected');
 
   if (overdueTodos.length > 0) {
     lines.push('Overdue fish:');
     sortTodos(overdueTodos).slice(0, 5).forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
   if (upcomingTodos.length > 0) {
     lines.push('Upcoming fish:');
     upcomingTodos.forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
@@ -1631,6 +1730,13 @@ function createTodoEditForm(todo) {
   dueInput.type = 'date';
   dueInput.value = todo.dueDate;
 
+  const githubInput = document.createElement('input');
+  githubInput.name = 'githubUrl';
+  githubInput.type = 'url';
+  githubInput.inputMode = 'url';
+  githubInput.placeholder = 'https://github.com/owner/repo/issues/123';
+  githubInput.value = todo.githubUrl;
+
   const prioritySelect = document.createElement('select');
   prioritySelect.name = 'priority';
   [
@@ -1659,6 +1765,7 @@ function createTodoEditForm(todo) {
   formElement.append(
     createEditField('Task', textInput),
     createEditField('Due date', dueInput),
+    createEditField('GitHub URL', githubInput),
     createEditField('Priority', prioritySelect),
     actions,
   );
@@ -1668,6 +1775,7 @@ function createTodoEditForm(todo) {
     saveEditedTodo(todo.id, {
       text: textInput.value,
       dueDate: dueInput.value,
+      githubUrl: githubInput.value,
       priority: prioritySelect.value,
     });
   });
@@ -1682,6 +1790,19 @@ function createTodoEditForm(todo) {
   return formElement;
 }
 
+function createGithubChip(todo) {
+  const info = githubLinkInfo(todo.githubUrl);
+  if (!info) return null;
+  const chip = document.createElement('a');
+  chip.className = 'github-chip';
+  chip.href = info.url;
+  chip.target = '_blank';
+  chip.rel = 'noopener noreferrer';
+  chip.textContent = info.label;
+  chip.setAttribute('aria-label', `Open GitHub ${info.label} for ${todo.text}`);
+  return chip;
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -1690,6 +1811,7 @@ function createTodoItem(todo) {
   const moodBadge = item.querySelector('.mood-badge');
   const dueLabel = item.querySelector('.due-label');
   const priorityLabel = item.querySelector('.priority-label');
+  const metadata = item.querySelector('.metadata');
   const focusButton = item.querySelector('.focus-task');
   const editButton = item.querySelector('.edit-task');
   const archiveButton = item.querySelector('.archive-task');
@@ -1719,6 +1841,8 @@ function createTodoItem(todo) {
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
+  const githubChip = createGithubChip(todo);
+  if (githubChip) metadata.append(githubChip);
   focusButton.hidden = isArchived;
   focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
@@ -2062,14 +2186,17 @@ function renderFocusPanel() {
   syncFocusSprintWithSelection();
   if (!focusedTodo) {
     saveFocusedTodoId('');
-    focusPanel.hidden = true;
     renderFocusSprint();
     return;
   }
 
-  focusPanel.hidden = false;
   focusTitle.textContent = focusedTodo.text;
-  focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
+  focusMeta.textContent = [
+    moodFor(focusedTodo).text,
+    dueLabelFor(focusedTodo),
+    priorityLabelFor(focusedTodo),
+    githubLinkInfo(focusedTodo.githubUrl)?.label,
+  ].filter(Boolean).join(' · ');
   renderFocusSprint();
 }
 
@@ -2188,6 +2315,7 @@ function render() {
   });
 
   renderFocusPanel();
+  syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
@@ -2204,12 +2332,17 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    githubUrl: options.githubUrl ?? '',
   });
 
   if (!todo) return;
   todos.unshift(todo);
   saveTodos();
   render();
+}
+
+function starterShoalTaskKey(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function applyStarterShoal(shoal) {
@@ -2222,10 +2355,19 @@ function applyStarterShoal(shoal) {
     showPondMessage('The pond is full. Release some fish first.');
     return;
   }
-  const toAdd = shoal.tasks.slice(0, available);
+  const existingTaskKeys = new Set(todos.map((todo) => starterShoalTaskKey(todo.text)));
+  const uniqueTasks = shoal.tasks.filter((task) => !existingTaskKeys.has(starterShoalTaskKey(task.text)));
+  const skippedCount = shoal.tasks.length - uniqueTasks.length;
+  const toAdd = uniqueTasks.slice(0, available);
+  if (toAdd.length === 0) {
+    const reason = skippedCount > 0 ? 'those tasks are already in the pond' : 'the pond is full';
+    showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
+    return;
+  }
   toAdd.forEach((task) => addTodo(task.text, { priority: task.priority }));
   setStarterShoalsOpen(false);
-  showPondMessage(`Stocked ${toAdd.length} tasks from the "${shoal.name}" shoal.`);
+  const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
+  showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
 }
 
 function renderStarterShoalsList() {
@@ -2352,6 +2494,7 @@ function saveEditedTodo(id, updates) {
     ...existingTodo,
     text: updates.text,
     dueDate: updates.dueDate,
+    githubUrl: updates.githubUrl,
     priority: updates.priority,
   });
 
@@ -2435,6 +2578,7 @@ function focusTodo(id) {
   if (id !== focusedTodoId) resetFocusSprint(id);
   saveFocusedTodoId(id);
   hidePondMessage();
+  setScreen('focus');
   render();
 }
 
@@ -2828,6 +2972,7 @@ form.addEventListener('submit', (event) => {
   addTodo(text, {
     dueDate: dueDateInput.value,
     priority: priorityInput.value,
+    githubUrl: githubUrlInput.value,
   });
   form.reset();
   priorityInput.value = 'medium';
@@ -2981,6 +3126,13 @@ prefTextBadges.addEventListener('change', () => {
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);
+function renderFromHistory() {
+  suppressScreenHistory = true;
+  render();
+  suppressScreenHistory = false;
+}
+window.addEventListener('popstate', renderFromHistory);
+window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
 
 applyViewPrefs();

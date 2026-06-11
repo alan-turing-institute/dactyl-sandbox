@@ -8,6 +8,9 @@ const { sanitizeAnalyticsEvent } = require('./analytics');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MAX_NOTES_LENGTH = 1000;
+const MAX_CHECKLIST_ITEMS = 10;
+const MAX_CHECKLIST_TEXT_LENGTH = 80;
 const MAX_SHARE_TITLE_LENGTH = 80;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
@@ -84,6 +87,24 @@ function normaliseGithubUrl(value) {
   return `https://github.com/${owner}/${repo}/${type}/${number}`;
 }
 
+function normaliseChecklist(value) {
+  if (!Array.isArray(value)) return [];
+  const checklist = [];
+  const seenIds = new Set();
+
+  value.forEach((item) => {
+    if (!item || typeof item !== 'object' || checklist.length >= MAX_CHECKLIST_ITEMS) return;
+    const text = typeof item.text === 'string' ? item.text.trim().slice(0, MAX_CHECKLIST_TEXT_LENGTH) : '';
+    if (!text) return;
+    const candidateId = typeof item.id === 'string' ? item.id.trim().slice(0, 80) : '';
+    const id = candidateId && !seenIds.has(candidateId) ? candidateId : crypto.randomUUID();
+    seenIds.add(id);
+    checklist.push({ id, text, completed: Boolean(item.completed) });
+  });
+
+  return checklist;
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -107,6 +128,8 @@ function normaliseTodo(todo) {
     blocked: Boolean(todo.blocked),
     blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
     githubUrl: normaliseGithubUrl(todo.githubUrl),
+    notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
+    checklist: normaliseChecklist(todo.checklist),
   };
 }
 
@@ -260,6 +283,12 @@ function createApp(options = {}) {
   if (!todoColumns.includes('github_url')) {
     db.exec("ALTER TABLE todos ADD COLUMN github_url TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('notes')) {
+    db.exec("ALTER TABLE todos ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('checklist_json')) {
+    db.exec("ALTER TABLE todos ADD COLUMN checklist_json TEXT NOT NULL DEFAULT '[]'");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -308,19 +337,32 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
-    `).all(userId).map((todo) => ({ ...todo, completed: Boolean(todo.completed), blocked: Boolean(todo.blocked) }));
+    `).all(userId).map((todo) => {
+      let checklist;
+      try {
+        checklist = JSON.parse(todo.checklistJson || '[]');
+      } catch {
+        checklist = [];
+      }
+      return normaliseTodo({
+        ...todo,
+        completed: Boolean(todo.completed),
+        blocked: Boolean(todo.blocked),
+        checklist,
+      });
+    }).filter(Boolean);
   }
 
   function upsertTodo(userId, todo) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, notes, checklist_json, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
@@ -330,6 +372,8 @@ function createApp(options = {}) {
         blocked = excluded.blocked,
         blocker_reason = excluded.blocker_reason,
         github_url = excluded.github_url,
+        notes = excluded.notes,
+        checklist_json = excluded.checklist_json,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -343,6 +387,8 @@ function createApp(options = {}) {
       normalised.blocked ? 1 : 0,
       normalised.blockerReason,
       normalised.githubUrl,
+      normalised.notes,
+      JSON.stringify(normalised.checklist),
       new Date().toISOString(),
     );
     return normalised;
@@ -534,8 +580,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl FROM todos WHERE user_id = ? AND id = ?')
-      .get(req.user.id, req.params.id);
+    const existing = listTodos(req.user.id).find((todo) => todo.id === req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });
     if (!updated) return res.status(400).json({ error: 'A task needs non-empty text.' });

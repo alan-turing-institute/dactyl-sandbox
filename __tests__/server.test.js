@@ -336,6 +336,68 @@ describe('auth and task API', () => {
     ]));
   });
 
+  test('persists task notes and checklist details through create, patch, and replace', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'details-user', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        text: 'Detailed fish',
+        notes: ` ${'n'.repeat(1100)} `,
+        checklist: [
+          { id: 'one', text: 'Write test', completed: true },
+          { id: 'two', text: ' '.repeat(4), completed: false },
+          { id: 'three', text: 'Run smoke check', completed: false },
+        ],
+      })
+      .expect(201);
+
+    expect(created.body.todo.notes).toHaveLength(1000);
+    expect(created.body.todo.checklist).toEqual([
+      { id: 'one', text: 'Write test', completed: true },
+      { id: 'three', text: 'Run smoke check', completed: false },
+    ]);
+
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        notes: 'Short context',
+        checklist: [{ id: 'one', text: 'Write test', completed: false }],
+      })
+      .expect(200);
+
+    expect(patched.body.todo).toMatchObject({
+      notes: 'Short context',
+      checklist: [{ id: 'one', text: 'Write test', completed: false }],
+    });
+
+    const replacement = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        todos: [{
+          id: 'bulk-details',
+          text: 'Bulk detail task',
+          notes: 'Acceptance notes stay private',
+          checklist: Array.from({ length: 12 }, (_, index) => ({ id: `item-${index}`, text: `Step ${index}`, completed: index === 0 })),
+        }],
+      })
+      .expect(200);
+
+    expect(replacement.body.todos[0]).toMatchObject({
+      id: 'bulk-details',
+      notes: 'Acceptance notes stay private',
+    });
+    expect(replacement.body.todos[0].checklist).toHaveLength(10);
+  });
+
   test('rejects invalid task patches with 400', async () => {
     app = makeApp();
 

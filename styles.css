@@ -911,6 +911,12 @@ kbd {
   align-items: stretch;
 }
 
+.todo-item.details-open {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
 .todo-item.editing > label,
 .todo-item.editing > .todo-actions { opacity: .65; }
 
@@ -1056,6 +1062,84 @@ kbd {
   color: #07111a;
   background: var(--accent);
 }
+
+.task-details-panel {
+  display: grid;
+  gap: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.task-details-panel label {
+  display: grid;
+  gap: .35rem;
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.task-details-panel textarea,
+.checklist-add-row input {
+  width: 100%;
+  min-width: 0;
+  padding: .7rem .85rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+  font: inherit;
+}
+
+.task-details-panel textarea:focus,
+.checklist-add-row input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
+}
+
+.task-details-heading {
+  margin: 0 0 .4rem;
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 800;
+}
+
+.task-checklist-items {
+  display: grid;
+  gap: .45rem;
+  margin: 0 0 .6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.task-checklist-items li,
+.checklist-add-row,
+.task-details-actions {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-checklist-items label {
+  display: flex;
+  flex: 1;
+  min-width: 12rem;
+  align-items: center;
+  gap: .5rem;
+  color: var(--text);
+  font-size: .92rem;
+}
+
+.checklist-add-row input { flex: 1; }
+
+.task-details-actions button:first-child {
+  padding: .7rem 1rem;
+  color: #07111a;
+  background: var(--accent);
+}
+
+.checklist-badge { border: 1px solid rgb(141 255 202 / 22%); }
 
 .edit-task {
   padding: .5rem .75rem;

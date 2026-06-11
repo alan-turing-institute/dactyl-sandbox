@@ -27,7 +27,7 @@
           </label>
           <label>
             <span>Password</span>
-            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" required />
+            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />
           </label>
           <div class="auth-actions">
             <button id="login-button" type="submit">Log in</button>
@@ -40,11 +40,11 @@
           <h3>Change password</h3>
           <label>
             <span>Current password</span>
-            <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" required />
+            <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />
           </label>
           <label>
             <span>New password</span>
-            <input id="new-password-input" name="new-password" type="password" autocomplete="new-password" minlength="8" required />
+            <input id="new-password-input" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required />
           </label>
           <button id="change-password-button" class="secondary-action" type="submit">Update password</button>
         </form>

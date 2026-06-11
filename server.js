@@ -6,6 +6,8 @@ const express = require('express');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -82,6 +84,13 @@ function toPublicUser(row) {
 
 function userTokenVersion(row) {
   return Number.isInteger(row?.token_version) ? row.token_version : 0;
+}
+
+function passwordLengthError(password, label = 'Password') {
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    return `${label} must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters.`;
+  }
+  return '';
 }
 
 function createPasswordHash(password) {
@@ -204,7 +213,8 @@ function createApp(options = {}) {
     if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
       return res.status(400).json({ error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.' });
     }
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
 
     const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
     try {
@@ -220,6 +230,9 @@ function createApp(options = {}) {
   app.post('/api/login', (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
+
     const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid username or password.' });
@@ -234,7 +247,10 @@ function createApp(options = {}) {
   app.post('/api/account/password', requireAuth, (req, res) => {
     const currentPassword = String(req.body?.currentPassword || '');
     const newPassword = String(req.body?.newPassword || '');
-    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    const currentPasswordError = passwordLengthError(currentPassword, 'Current password');
+    if (currentPasswordError) return res.status(400).json({ error: currentPasswordError });
+    const newPasswordError = passwordLengthError(newPassword, 'New password');
+    if (newPasswordError) return res.status(400).json({ error: newPasswordError });
 
     const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE id = ?').get(req.user.id);
     if (!user || !verifyPassword(currentPassword, user.password_hash)) {

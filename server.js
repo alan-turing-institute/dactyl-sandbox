@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 const express = require('express');
 
@@ -63,6 +64,23 @@ function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
 
+function normaliseGithubUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') return '';
+
+  let parsed;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return '';
+  }
+
+  const [owner, repo, type, number] = parsed.pathname.split('/').filter(Boolean);
+  const validPath = owner && repo && ['issues', 'pull'].includes(type) && /^[1-9]\d*$/.test(number);
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || !validPath) return '';
+  return `https://github.com/${owner}/${repo}/${type}/${number}`;
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -85,6 +103,7 @@ function normaliseTodo(todo) {
     archivedAt: normaliseTimestamp(todo.archivedAt),
     blocked: Boolean(todo.blocked),
     blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
 
@@ -204,6 +223,9 @@ function createApp(options = {}) {
   if (!todoColumns.includes('blocker_reason')) {
     db.exec("ALTER TABLE todos ADD COLUMN blocker_reason TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('github_url')) {
+    db.exec("ALTER TABLE todos ADD COLUMN github_url TEXT NOT NULL DEFAULT ''");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -252,7 +274,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -263,8 +285,8 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
@@ -273,6 +295,7 @@ function createApp(options = {}) {
         archived_at = excluded.archived_at,
         blocked = excluded.blocked,
         blocker_reason = excluded.blocker_reason,
+        github_url = excluded.github_url,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -285,6 +308,7 @@ function createApp(options = {}) {
       normalised.archivedAt,
       normalised.blocked ? 1 : 0,
       normalised.blockerReason,
+      normalised.githubUrl,
       new Date().toISOString(),
     );
     return normalised;
@@ -380,7 +404,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason FROM todos WHERE user_id = ? AND id = ?')
+    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl FROM todos WHERE user_id = ? AND id = ?')
       .get(req.user.id, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });

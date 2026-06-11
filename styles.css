@@ -166,7 +166,7 @@ h1 {
 
 .todo-form {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(12rem, auto) auto;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(14rem, auto) minmax(12rem, auto) auto;
   gap: .75rem;
   margin-bottom: 1rem;
 }
@@ -826,13 +826,25 @@ kbd {
   flex-wrap: wrap;
 }
 
-.metadata span {
+.metadata span,
+.metadata a {
   padding: .22rem .5rem;
   border-radius: 999px;
   background: rgb(255 255 255 / 8%);
   color: var(--muted);
   font-size: .8rem;
   font-weight: 700;
+}
+
+.metadata a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.metadata a:hover,
+.metadata a:focus-visible {
+  color: var(--accent-strong);
+  text-decoration: underline;
 }
 
 .mood-badge.mood-emergency,
@@ -866,6 +878,7 @@ kbd {
   font: inherit;
   font-size: .9rem;
 }
+.github-chip { border: 1px solid rgb(141 212 255 / 22%); }
 
 .todo-item.completed .text {
   color: var(--muted);
@@ -880,7 +893,7 @@ kbd {
 
 .edit-task-form {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(9rem, auto) auto;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(14rem, auto) minmax(9rem, auto) auto;
   gap: .65rem;
   align-items: end;
   padding-top: .75rem;

@@ -27,10 +27,16 @@ describe('auth and task API', () => {
     const createTask = await request(app)
       .post('/api/tasks')
       .set('Authorization', `Bearer ${token}`)
-      .send({ text: 'Sync the fish pond', dueDate: '2026-06-11', priority: 'high' })
+      .send({
+        text: 'Sync the fish pond',
+        dueDate: '2026-06-11',
+        priority: 'high',
+        githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31?from=test',
+      })
       .expect(201);
 
     expect(createTask.body.todo.text).toBe('Sync the fish pond');
+    expect(createTask.body.todo.githubUrl).toBe('https://github.com/alan-turing-institute/dactyl-sandbox/issues/31');
 
     await request(app)
       .patch(`/api/tasks/${createTask.body.todo.id}`)
@@ -44,7 +50,12 @@ describe('auth and task API', () => {
       .expect(200);
 
     expect(login.body.todos).toHaveLength(1);
-    expect(login.body.todos[0]).toMatchObject({ text: 'Sync the fish pond', completed: true, priority: 'high' });
+    expect(login.body.todos[0]).toMatchObject({
+      text: 'Sync the fish pond',
+      completed: true,
+      priority: 'high',
+      githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31',
+    });
   });
 
   test('does not expose server source files', async () => {
@@ -131,15 +142,17 @@ describe('auth and task API', () => {
       .send({
         todos: [
           { id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' },
-          { id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' },
+          { id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low', githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/48' },
+          { id: 'bulk-3', text: 'Invalid GitHub link', completed: false, githubUrl: 'https://example.com/not-github/issues/1' },
         ],
       })
       .expect(200);
 
-    expect(replacement.body.todos).toHaveLength(2);
+    expect(replacement.body.todos).toHaveLength(3);
     expect(replacement.body.todos).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' }),
-      expect.objectContaining({ id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' }),
+      expect.objectContaining({ id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low', githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/48' }),
+      expect.objectContaining({ id: 'bulk-3', text: 'Invalid GitHub link', githubUrl: '' }),
     ]));
 
     const tasks = await request(app)
@@ -210,6 +223,22 @@ describe('auth and task API', () => {
       .set('Authorization', `Bearer ${signup.body.token}`)
       .send({ text: '' })
       .expect(400);
+
+    const linked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/66#discussion' })
+      .expect(200);
+
+    expect(linked.body.todo.githubUrl).toBe('https://github.com/alan-turing-institute/dactyl-sandbox/pull/66');
+
+    const unlinked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ githubUrl: 'https://github.example/alan-turing-institute/dactyl-sandbox/pull/66' })
+      .expect(200);
+
+    expect(unlinked.body.todo.githubUrl).toBe('');
   });
 
   test('deletes a task and enforces user isolation on delete', async () => {

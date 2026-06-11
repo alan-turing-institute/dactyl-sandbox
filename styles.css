@@ -1318,6 +1318,8 @@ kbd {
   display: flex;
   gap: .35rem;
   flex-wrap: wrap;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .metadata span,
@@ -1329,6 +1331,41 @@ kbd {
   font-size: .8rem;
   font-weight: 700;
 }
+
+/* Progressive card: metadata collapses to a single status chip when unfocused */
+.metadata-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .18s ease;
+}
+
+.todo-item:hover .metadata-wrap,
+.todo-item:focus-within .metadata-wrap {
+  grid-template-rows: 1fr;
+}
+
+.status-summary {
+  padding: .22rem .5rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 700;
+  align-self: start;
+  transition: opacity .12s ease;
+}
+
+.status-summary:empty { display: none; }
+
+.todo-item:hover .status-summary,
+.todo-item:focus-within .status-summary {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Always-expanded mode for the "detailed" density level */
+[data-density="detailed"] .metadata-wrap { grid-template-rows: 1fr; }
+[data-density="detailed"] .status-summary { display: none; }
 
 .metadata a {
   color: var(--accent);

@@ -2621,6 +2621,7 @@ function createTodoItem(todo) {
   const deleteButton = item.querySelector('.delete');
   const blockButton = item.querySelector('.block-task');
   const blockerBadge = item.querySelector('.blocker-badge');
+  const statusSummary = item.querySelector('.status-summary');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -2693,6 +2694,28 @@ function createTodoItem(todo) {
   blockerBadge.textContent = todo.blocked
     ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
     : '';
+
+  if (statusSummary) {
+    let summaryText = '';
+    let summaryAriaLabel = '';
+    if (!todo.completed) {
+      const today = todayKey();
+      if (todo.dueDate && todo.dueDate < today) {
+        summaryText = dueLabelFor(todo);
+      } else if (todo.blocked) {
+        summaryText = todo.blockerReason ? `Snagged: ${todo.blockerReason}` : 'Snagged';
+      } else if (todo.dueDate) {
+        summaryText = dueLabelFor(todo);
+      } else if (todo.priority && todo.priority !== 'medium') {
+        summaryText = priorityLabelFor(todo);
+      } else if (todo.shoal) {
+        summaryText = todo.shoal;
+        summaryAriaLabel = `Shoal: ${todo.shoal}`;
+      }
+    }
+    statusSummary.textContent = summaryText;
+    statusSummary.setAttribute('aria-label', summaryAriaLabel || summaryText);
+  }
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);

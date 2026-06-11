@@ -631,6 +631,7 @@ function createApp(options = {}) {
     res.type('application/javascript').send(`window.DACTYL_ANALYTICS_CONFIG = ${JSON.stringify({ enabled: analyticsEnabled, endpoint: '/api/analytics' })};\n`);
   });
   app.get('/analytics.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'analytics.js')));
+  app.get('/premium-hooks.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'premium-hooks.js')));
   app.get('/screen-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'screen-state.js')));
   app.get('/fish-emoji.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'fish-emoji.js')));
   app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));

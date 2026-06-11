@@ -25,6 +25,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
+- Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal

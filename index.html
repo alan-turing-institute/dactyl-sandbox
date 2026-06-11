@@ -370,6 +370,15 @@
       <section id="empty-state" class="empty-state">
         <h2>Nothing here yet</h2>
         <p>Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.</p>
+        <div id="first-task-onboarding" class="first-task-onboarding" aria-label="Starter task suggestions" hidden>
+          <p>Pick a starter fish to get the pond moving:</p>
+          <div class="first-task-actions">
+            <button class="secondary-action" type="button" data-first-task-template="today">Plan one small win</button>
+            <button class="secondary-action" type="button" data-first-task-template="plan">Map three next steps</button>
+            <button class="secondary-action" type="button" data-first-task-template="follow-up">Send a follow-up</button>
+          </div>
+          <button id="dismiss-first-task-onboarding" class="ghost-action" type="button">Not now</button>
+        </div>
       </section>
 
       <button id="clear-completed" class="clear-completed" type="button">Release completed</button>
@@ -428,6 +437,7 @@
 
     <script src="screen-state.js"></script>
     <script src="fish-emoji.js"></script>
+    <script src="first-task-onboarding.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -63,6 +63,10 @@ describe('auth and task API', () => {
 
     await request(app).get('/server.js').expect(404);
     await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
+    await request(app)
+      .get('/first-task-onboarding.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
   });
 
   test('rate limits auth routes', async () => {

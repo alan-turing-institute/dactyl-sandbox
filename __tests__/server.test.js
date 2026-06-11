@@ -612,6 +612,92 @@ describe('auth and task API', () => {
       });
   });
 
+  test('creates, lists, patches, and truncates shoal on tasks', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'shoal-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create task with a shoal value
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Work on the reef report', shoal: 'project-alpha' })
+      .expect(201);
+
+    expect(created.body.todo.shoal).toBe('project-alpha');
+
+    // List tasks confirms shoal is returned
+    const listed = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(listed.body.todos[0].shoal).toBe('project-alpha');
+
+    // PATCH to update shoal
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ shoal: 'project-beta' })
+      .expect(200);
+
+    expect(patched.body.todo.shoal).toBe('project-beta');
+
+    // Overly long shoal (>40 chars) is truncated to 40
+    const longShoal = 'a'.repeat(60);
+    const truncated = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ shoal: longShoal })
+      .expect(200);
+
+    expect(truncated.body.todo.shoal).toHaveLength(40);
+    expect(truncated.body.todo.shoal).toBe('a'.repeat(40));
+
+    await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        todos: [{
+          id: created.body.todo.id,
+          text: 'Work on the reef report',
+          createdAt: created.body.todo.createdAt,
+          shoal: 'replacement-shoal',
+        }],
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.todos).toHaveLength(1);
+        expect(body.todos[0]).toMatchObject({ text: 'Work on the reef report', shoal: 'replacement-shoal' });
+      });
+
+    const invalidShoal = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ shoal: { name: 'not-a-string' } })
+      .expect(200);
+
+    expect(invalidShoal.body.todo.shoal).toBe('');
+
+    const otherSignup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'other-shoal-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${otherSignup.body.token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.todos).toHaveLength(0);
+      });
+  });
+
   test('malformed password hashes fail login without crashing', async () => {
     app = makeApp();
 

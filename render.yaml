@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dactyl-sandbox
+    runtime: node
+    buildCommand: npm ci
+    startCommand: node server.js
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /
+    plan: free

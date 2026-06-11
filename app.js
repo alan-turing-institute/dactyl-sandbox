@@ -100,6 +100,7 @@ const trophiesPanel = document.querySelector('#trophies-panel');
 const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
+const notificationToggle = document.querySelector('#notification-toggle');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -124,6 +125,9 @@ let quickFilter = '';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
+let notificationsEnabled = loadNotificationsEnabled();
+let notifiedTodayIds = loadNotifiedTodayIds();
+let notificationIntervalId = null;
 let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
@@ -2411,6 +2415,7 @@ async function changePassword() {
 }
 
 function logout() {
+  stopNotificationInterval();
   saveAuthToken('');
   currentUser = null;
   todos = [];
@@ -2516,6 +2521,11 @@ authForm.addEventListener('submit', (event) => {
 
 signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
+notificationToggle.addEventListener('click', () => {
+  const enabled = notificationsEnabled && Notification.permission === 'granted';
+  if (enabled) disableNotifications();
+  else enableNotifications();
+});
 passwordForm.addEventListener('submit', (event) => {
   event.preventDefault();
   changePassword();

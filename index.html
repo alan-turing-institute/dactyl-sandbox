@@ -82,6 +82,7 @@
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
+        <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
@@ -129,6 +130,34 @@
         <p id="pond-health-summary" class="pond-health-summary">Open pond health to review lightweight diagnostics.</p>
         <dl id="pond-health-metrics" class="pond-health-metrics"></dl>
         <ul id="pond-health-hints" class="pond-health-hints"></ul>
+      </section>
+
+      <section id="reminder-prefs-panel" class="reminder-prefs-panel" aria-labelledby="reminder-prefs-title" hidden>
+        <div class="reminder-prefs-header">
+          <div>
+            <p class="eyebrow">Notifications</p>
+            <h2 id="reminder-prefs-title">Quiet hours</h2>
+          </div>
+          <button id="reminder-prefs-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p id="reminder-prefs-status" class="reminder-prefs-status" role="status" aria-live="polite"></p>
+        <div class="reminder-prefs-form">
+          <label class="reminder-enable-label">
+            <input id="reminder-enable" type="checkbox" />
+            <span>Enable due-date reminders</span>
+          </label>
+          <div class="reminder-hours">
+            <label>
+              <span>Quiet from</span>
+              <input id="quiet-start" type="time" value="22:00" />
+            </label>
+            <label>
+              <span>Until</span>
+              <input id="quiet-end" type="time" value="08:00" />
+            </label>
+          </div>
+        </div>
+        <p class="reminder-prefs-note">Reminders are off by default. Quiet hours silence notifications overnight or whenever you need uninterrupted time.</p>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>

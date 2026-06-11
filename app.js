@@ -10,6 +10,7 @@ const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
+const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
 
 const authPanel = document.querySelector('#auth-panel');
 const authTitle = document.querySelector('#auth-title');
@@ -81,6 +82,13 @@ const showcaseToggle = document.querySelector('#showcase-toggle');
 const showcasePanel = document.querySelector('#showcase-panel');
 const showcaseClose = document.querySelector('#showcase-close');
 const showcaseBody = document.querySelector('#showcase-body');
+const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
+const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
+const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
+const reminderPrefsStatus = document.querySelector('#reminder-prefs-status');
+const reminderEnable = document.querySelector('#reminder-enable');
+const quietStart = document.querySelector('#quiet-start');
+const quietEnd = document.querySelector('#quiet-end');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -950,6 +958,75 @@ function setShowcaseOpen(open) {
   }
 }
 
+function loadReminderPrefs() {
+  const defaults = { enabled: false, quietStart: '22:00', quietEnd: '08:00' };
+  try {
+    const raw = localStorage.getItem(REMINDER_PREFS_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw);
+    const enabled = typeof parsed.enabled === 'boolean' ? parsed.enabled : false;
+    const quietStartVal = /^\d{2}:\d{2}$/.test(parsed.quietStart) ? parsed.quietStart : defaults.quietStart;
+    const quietEndVal = /^\d{2}:\d{2}$/.test(parsed.quietEnd) ? parsed.quietEnd : defaults.quietEnd;
+    return { enabled, quietStart: quietStartVal, quietEnd: quietEndVal };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveReminderPrefs(prefs) {
+  try {
+    localStorage.setItem(REMINDER_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    showStorageError('Could not save reminder preferences.');
+  }
+}
+
+function isInQuietHours(prefs) {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [startH, startM] = prefs.quietStart.split(':').map(Number);
+  const [endH, endM] = prefs.quietEnd.split(':').map(Number);
+  const start = startH * 60 + startM;
+  const end = endH * 60 + endM;
+  if (start <= end) return currentMinutes >= start && currentMinutes < end;
+  // Crosses midnight (e.g. 22:00 – 08:00)
+  return currentMinutes >= start || currentMinutes < end;
+}
+
+function canNotifyNow(prefs) {
+  if (!prefs.enabled) return false;
+  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return false;
+  return !isInQuietHours(prefs);
+}
+
+function renderReminderPrefs() {
+  const prefs = loadReminderPrefs();
+  reminderEnable.checked = prefs.enabled;
+  quietStart.value = prefs.quietStart;
+  quietEnd.value = prefs.quietEnd;
+  const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+  let statusText;
+  if (!prefs.enabled) {
+    statusText = 'Reminders are off.';
+  } else if (denied) {
+    statusText = 'Notifications are blocked by the browser. Update site permissions to enable reminders.';
+  } else if (isInQuietHours(prefs)) {
+    statusText = `In quiet hours (${prefs.quietStart}–${prefs.quietEnd}). Reminders paused.`;
+  } else {
+    statusText = 'Reminders active. Notifications will fire when a task is due.';
+  }
+  reminderPrefsStatus.textContent = statusText;
+}
+
+function setReminderPrefsOpen(open) {
+  reminderPrefsPanel.hidden = !open;
+  reminderPrefsToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderReminderPrefs();
+    reminderPrefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 function createEditField(labelText, control) {
   const label = document.createElement('label');
   const labelSpan = document.createElement('span');
@@ -1466,6 +1543,7 @@ function render() {
   recordRenderDuration(renderStarted);
   renderPondHealth();
   renderShowcase();
+  if (!reminderPrefsPanel.hidden) renderReminderPrefs();
 }
 
 function addTodo(text, options = {}) {
@@ -2028,7 +2106,9 @@ function handleGlobalShortcut(event) {
     const leftNetMode = leaveNetMode();
     const closedShowcase = !showcasePanel.hidden;
     if (closedShowcase) setShowcaseOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase) event.preventDefault();
+    const closedReminderPrefs = !reminderPrefsPanel.hidden;
+    if (closedReminderPrefs) setReminderPrefsOpen(false);
+    if (helpWasOpen || leftNetMode || closedShowcase || closedReminderPrefs) event.preventDefault();
   }
 }
 
@@ -2104,6 +2184,31 @@ completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
 completeFocus.addEventListener('click', completeFocusedTodo);
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
+reminderPrefsToggle.addEventListener('click', () => setReminderPrefsOpen(reminderPrefsPanel.hidden));
+reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
+reminderEnable.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  const enabling = reminderEnable.checked;
+  if (enabling && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission().then(() => {
+      saveReminderPrefs({ ...prefs, enabled: true });
+      renderReminderPrefs();
+    });
+  } else {
+    saveReminderPrefs({ ...prefs, enabled: enabling });
+    renderReminderPrefs();
+  }
+});
+quietStart.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  saveReminderPrefs({ ...prefs, quietStart: quietStart.value });
+  renderReminderPrefs();
+});
+quietEnd.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  saveReminderPrefs({ ...prefs, quietEnd: quietEnd.value });
+  renderReminderPrefs();
+});
 
 document.addEventListener('keydown', handleGlobalShortcut);
 

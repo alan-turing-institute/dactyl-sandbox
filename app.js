@@ -1205,10 +1205,37 @@ function closeCommandPalette() {
   commandPaletteOpen = false;
   commandPaletteEl.hidden = true;
   commandPaletteActiveIndex = 0;
+  commandSearch.removeAttribute('aria-activedescendant');
   if (commandPalettePriorFocus && typeof commandPalettePriorFocus.focus === 'function') {
     commandPalettePriorFocus.focus();
   }
   commandPalettePriorFocus = null;
+}
+
+function commandPaletteFocusableElements() {
+  return [...commandPaletteEl.querySelectorAll(
+    'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => !element.disabled && element.offsetParent !== null);
+}
+
+function trapCommandPaletteFocus(event) {
+  if (!commandPaletteOpen || event.key !== 'Tab') return;
+  const focusable = commandPaletteFocusableElements();
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (focusable.length === 1) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function renderCommandList(query) {
@@ -1220,6 +1247,7 @@ function renderCommandList(query) {
     empty.className = 'command-list-empty';
     empty.textContent = 'No matching commands.';
     commandList.appendChild(empty);
+    commandSearch.removeAttribute('aria-activedescendant');
     return;
   }
   if (commandPaletteActiveIndex >= filtered.length) commandPaletteActiveIndex = 0;
@@ -4171,6 +4199,7 @@ commandSearch.addEventListener('keydown', (event) => {
     closeCommandPalette();
   }
 });
+commandPaletteEl.addEventListener('keydown', trapCommandPaletteFocus);
 commandPaletteEl.addEventListener('click', (event) => {
   if (event.target === commandPaletteEl) closeCommandPalette();
 });

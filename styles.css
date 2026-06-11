@@ -1588,6 +1588,14 @@ kbd {
 .empty-state h2 { margin: 0 0 .4rem; color: var(--text); }
 .empty-state p { margin: 0; }
 
+.empty-state-actions {
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  margin-top: .85rem;
+  flex-wrap: wrap;
+}
+
 .clear-completed {
   display: none;
   margin-top: 1rem;

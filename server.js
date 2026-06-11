@@ -12,6 +12,7 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const AUTH_RATE_LIMIT_MAX = 20;
+const AUTH_RATE_LIMIT_MAX_KEYS = 1000;
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
@@ -114,17 +115,36 @@ function verifyPassword(password, passwordHash) {
   return stored.length === hash.length && crypto.timingSafeEqual(stored, hash);
 }
 
-function createFixedWindowRateLimiter({ windowMs, max, keyPrefix = 'rate-limit' }) {
+function createFixedWindowRateLimiter({ windowMs, max, keyPrefix = 'rate-limit', maxKeys = AUTH_RATE_LIMIT_MAX_KEYS }) {
   const hits = new Map();
+
+  function pruneExpired(now) {
+    for (const [key, entry] of hits) {
+      if (entry.resetAt <= now) hits.delete(key);
+    }
+  }
+
+  function pruneOldest() {
+    while (hits.size >= maxKeys) {
+      const oldestKey = hits.keys().next().value;
+      if (!oldestKey) return;
+      hits.delete(oldestKey);
+    }
+  }
 
   return (req, res, next) => {
     if (!Number.isFinite(windowMs) || windowMs <= 0 || !Number.isFinite(max) || max <= 0) return next();
+    if (!Number.isFinite(maxKeys) || maxKeys <= 0) return next();
 
     const now = Date.now();
-    const clientId = req.ip || req.socket?.remoteAddress || 'unknown';
+    const clientId = req.ips?.[0] || req.ip || req.socket?.remoteAddress;
+    if (!clientId) return next();
+
     const key = keyPrefix + ':' + clientId;
     let entry = hits.get(key);
     if (!entry || entry.resetAt <= now) {
+      pruneExpired(now);
+      if (!hits.has(key)) pruneOldest();
       entry = { count: 0, resetAt: now + windowMs };
       hits.set(key, entry);
     }
@@ -196,6 +216,7 @@ function createApp(options = {}) {
   const authRateLimiter = createFixedWindowRateLimiter({
     windowMs: options.authRateLimitWindowMs ?? AUTH_RATE_LIMIT_WINDOW_MS,
     max: options.authRateLimitMax ?? AUTH_RATE_LIMIT_MAX,
+    maxKeys: options.authRateLimitMaxKeys ?? AUTH_RATE_LIMIT_MAX_KEYS,
     keyPrefix: 'auth',
   });
 

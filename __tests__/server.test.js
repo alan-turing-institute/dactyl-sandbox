@@ -54,6 +54,35 @@ describe('auth and task API', () => {
     await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
   });
 
+  test('rate limits auth routes', async () => {
+    app = createApp({
+      dbPath: ':memory:',
+      jwtSecret: 'test-secret',
+      authRateLimitMax: 2,
+      authRateLimitWindowMs: 60 * 1000,
+    });
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'limited-user', password: 'wrong-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-other', password: 'very-secret' })
+      .expect(429)
+      .expect('Retry-After', /.+/)
+      .expect('RateLimit-Limit', '2')
+      .expect(({ body }) => {
+        expect(body.error).toBe('Too many authentication attempts. Please try again later.');
+      });
+  });
+
   test('requires a valid token and keeps users isolated', async () => {
     app = makeApp();
 
@@ -181,6 +210,47 @@ describe('auth and task API', () => {
       .set('Authorization', `Bearer ${signup.body.token}`)
       .send({ text: '' })
       .expect(400);
+  });
+
+  test('deletes a task and enforces user isolation on delete', async () => {
+    app = makeApp();
+
+    const owner = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-owner', password: 'very-secret' })
+      .expect(201);
+    const other = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-other', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .send({ text: 'Delete me' })
+      .expect(201);
+
+    await request(app)
+      .delete(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${other.body.token}`)
+      .expect(404);
+
+    await request(app)
+      .delete('/api/tasks/missing-task')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(404);
+
+    await request(app)
+      .delete(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(204);
+
+    const tasks = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(200);
+
+    expect(tasks.body.todos).toEqual([]);
   });
 
   test('changes password and invalidates older tokens', async () => {

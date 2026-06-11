@@ -14,6 +14,7 @@ const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
 const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
+const MAX_ACTIVITY_LOG = 50;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
 const MAX_NOTES_LENGTH = 1000;
@@ -239,6 +240,12 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const activityLogToggle = document.querySelector('#activity-log-toggle');
+const activityLogPanel = document.querySelector('#activity-log-panel');
+const activityLogClose = document.querySelector('#activity-log-close');
+const activityLogList = document.querySelector('#activity-log-list');
+const activityLogUndo = document.querySelector('#activity-log-undo');
+const activityUndoBtn = document.querySelector('#activity-undo-btn');
 const shoalInput = document.querySelector('#shoal-input');
 const shoalDatalist = document.querySelector('#shoal-datalist');
 const shoalFilterSelect = document.querySelector('#shoal-filter-select');
@@ -293,6 +300,7 @@ let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
+let activityLog = [];
 let pendingRestore = null;
 let buttonHelpReturnFocus = null;
 let currentScreen = '';
@@ -785,6 +793,47 @@ function setPrefsOpen(open) {
     prefTextBadges.checked = viewPrefs.textBadges;
     prefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
+}
+
+function logActivity(action, todoText) {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const at = `${hh}:${mm}`;
+  const trimTo40 = String(todoText || '').slice(0, 40);
+  activityLog.unshift({ action, text: trimTo40, at });
+  if (activityLog.length > MAX_ACTIVITY_LOG) activityLog = activityLog.slice(0, MAX_ACTIVITY_LOG);
+  renderActivityLog();
+}
+
+function setActivityLogOpen(open) {
+  activityLogPanel.hidden = !open;
+  activityLogToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    activityLogPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    activityLogClose.focus();
+  } else {
+    activityLogToggle.focus();
+  }
+}
+
+function renderActivityLog() {
+  if (!activityLogList) return;
+  activityLogList.replaceChildren();
+  if (activityLog.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'activity-entry activity-entry--empty';
+    li.textContent = 'No recent actions.';
+    activityLogList.append(li);
+  } else {
+    activityLog.forEach(({ action, text, at }) => {
+      const li = document.createElement('li');
+      li.className = 'activity-entry';
+      li.textContent = `${at} — ${action}: ${text}`;
+      activityLogList.append(li);
+    });
+  }
+  if (activityLogUndo) activityLogUndo.hidden = !lastUndoAction;
 }
 
 function saveFocusedTodoId(value) {
@@ -3305,6 +3354,7 @@ function addTodo(text, options = {}) {
     recurrence: todo.recurrence,
     source: options.source || 'form',
   });
+  logActivity('Added', todo.text);
   saveTodos();
   render();
 }
@@ -3430,6 +3480,7 @@ function toggleTodo(id) {
   const toggledTodo = todos.find((todo) => todo.id === id);
   if (toggledTodo?.completed) {
     trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
+    logActivity('Completed', toggledTodo.text);
     if (generatedTodo) showPondMessage(`Scheduled next ${normaliseRecurrence(toggledTodo.recurrence)} fish for ${dueLabelFor(generatedTodo).toLowerCase()}.`);
   }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
@@ -3587,7 +3638,9 @@ function setTodoBlocked(id, blocked, reason) {
 
 function deleteTodo(id) {
   const isArchivedDelete = todos.some((todo) => todo.id === id && todo.archivedAt);
+  const todoToDelete = todos.find((todo) => todo.id === id);
   if (editingTodoId === id) editingTodoId = '';
+  if (todoToDelete) logActivity('Deleted', todoToDelete.text);
   removeTodosWithUndo(
     (todo) => todo.id === id,
     () => (isArchivedDelete
@@ -3598,6 +3651,7 @@ function deleteTodo(id) {
 
 function archiveTodo(id) {
   const archivedAt = new Date().toISOString();
+  const todoToArchive = todos.find((todo) => todo.id === id);
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: true, archivedAt } : todo
   ));
@@ -3606,6 +3660,7 @@ function archiveTodo(id) {
     saveFocusedTodoId('');
   }
   selectedTodoIds.delete(id);
+  if (todoToArchive) logActivity('Archived', todoToArchive.text);
   saveTodos();
   showPondMessage('Moved 1 completed fish to the reef archive.');
   render();
@@ -3630,9 +3685,11 @@ function archiveCompletedTodos() {
 }
 
 function restoreArchivedTodo(id) {
+  const todoToRestore = todos.find((todo) => todo.id === id);
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, archivedAt: '' } : todo
   ));
+  if (todoToRestore) logActivity('Restored', todoToRestore.text);
   saveTodos();
   showPondMessage('Restored 1 fish from the reef archive.');
   render();
@@ -4119,7 +4176,9 @@ function handleGlobalShortcut(event) {
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
+    const closedActivityLog = !activityLogPanel.hidden;
+    if (closedActivityLog) setActivityLogOpen(false);
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog) event.preventDefault();
   }
 }
 
@@ -4365,6 +4424,15 @@ prefTextBadges.addEventListener('change', () => {
   viewPrefs = { ...viewPrefs, textBadges: prefTextBadges.checked };
   saveViewPrefs();
   applyViewPrefs();
+});
+
+activityLogToggle.addEventListener('click', () => setActivityLogOpen(activityLogPanel.hidden));
+activityLogClose.addEventListener('click', () => setActivityLogOpen(false));
+activityUndoBtn.addEventListener('click', () => {
+  if (lastUndoAction) {
+    restoreUndoAction();
+    logActivity('Undone', '');
+  }
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);

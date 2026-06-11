@@ -360,6 +360,7 @@ h1 {
 .starter-shoals-panel[hidden],
 .reminder-prefs-panel[hidden],
 .prefs-panel[hidden],
+.activity-log-panel[hidden],
 .paste-panel[hidden],
 .restore-panel[hidden],
 .pond-tour[hidden],
@@ -1939,6 +1940,61 @@ kbd {
 .pref-option span span {
   font-size: .8rem;
   color: var(--muted);
+}
+
+.activity-log-panel {
+  display: grid;
+  gap: .85rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 20%);
+  border-radius: 1.25rem;
+  background: rgb(141 212 255 / 6%);
+}
+
+.activity-log-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.activity-log-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.activity-log-note {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+.activity-log-list {
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-entry {
+  font-size: .88rem;
+  color: var(--text);
+  padding: .3rem .5rem;
+  border-radius: .5rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.activity-entry--empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.activity-log-undo {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
 }
 
 .pond-wave {

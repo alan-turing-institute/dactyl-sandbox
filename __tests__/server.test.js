@@ -98,6 +98,34 @@ describe('auth and task API', () => {
       });
   });
 
+  test('returns field-specific signup validation errors', async () => {
+    app = makeApp();
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'valid-user', password: 'short' })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          error: 'Password must be 8-128 characters.',
+          field: 'password',
+          code: 'invalid_password_length',
+        });
+      });
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'bad username', password: 'very-secret' })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.',
+          field: 'username',
+          code: 'invalid_username',
+        });
+      });
+  });
+
   test('requires a valid token and keeps users isolated', async () => {
     app = makeApp();
 

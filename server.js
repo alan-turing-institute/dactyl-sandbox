@@ -59,6 +59,19 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseChecklist(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === 'object' && typeof item.text === 'string')
+    .map((item) => ({
+      id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : crypto.randomUUID(),
+      text: item.text.trim().slice(0, 80),
+      completed: Boolean(item.completed),
+    }))
+    .filter((item) => item.text)
+    .slice(0, 10);
+}
+
 function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
@@ -83,6 +96,8 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, 1000) : '',
+    checklist: normaliseChecklist(todo.checklist),
   };
 }
 
@@ -196,6 +211,12 @@ function createApp(options = {}) {
   if (!todoColumns.includes('archived_at')) {
     db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('notes')) {
+    db.exec("ALTER TABLE todos ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('checklist_json')) {
+    db.exec("ALTER TABLE todos ADD COLUMN checklist_json TEXT NOT NULL DEFAULT '[]'");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -244,25 +265,33 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, notes, checklist_json AS checklistJson
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
-    `).all(userId).map((todo) => ({ ...todo, completed: Boolean(todo.completed) }));
+    `).all(userId).map((todo) => ({
+      ...todo,
+      completed: Boolean(todo.completed),
+      checklist: (() => { try { return normaliseChecklist(JSON.parse(todo.checklistJson || '[]')); } catch { return []; } })(),
+      checklistJson: undefined,
+    }));
   }
 
   function upsertTodo(userId, todo) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
+    const checklistJson = JSON.stringify(normalised.checklist);
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, notes, checklist_json, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
         archived_at = excluded.archived_at,
+        notes = excluded.notes,
+        checklist_json = excluded.checklist_json,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -273,6 +302,8 @@ function createApp(options = {}) {
       normalised.dueDate,
       normalised.priority,
       normalised.archivedAt,
+      normalised.notes,
+      checklistJson,
       new Date().toISOString(),
     );
     return normalised;
@@ -368,9 +399,14 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt FROM todos WHERE user_id = ? AND id = ?')
+    const existingRow = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, notes, checklist_json AS checklistJson FROM todos WHERE user_id = ? AND id = ?')
       .get(req.user.id, req.params.id);
-    if (!existing) return res.status(404).json({ error: 'Task not found.' });
+    if (!existingRow) return res.status(404).json({ error: 'Task not found.' });
+    const existing = {
+      ...existingRow,
+      checklist: (() => { try { return normaliseChecklist(JSON.parse(existingRow.checklistJson || '[]')); } catch { return []; } })(),
+      checklistJson: undefined,
+    };
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });
     if (!updated) return res.status(400).json({ error: 'A task needs non-empty text.' });
     return res.json({ todo: updated });

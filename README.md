@@ -31,6 +31,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
 - Clear completed tasks
+- **Task notes and checklists** — keep private context, repro steps, or mini checklists directly on each task.
 - Validate saved task data before rendering
 - Responsive layout with accessible labels
 

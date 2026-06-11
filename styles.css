@@ -1450,3 +1450,65 @@ kbd {
   .ghost-item { flex-direction: column; }
   .ghost-actions { justify-content: flex-end; }
 }
+
+.task-details-panel {
+  display: grid;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 4%);
+  margin-top: .35rem;
+}
+.task-notes-label {
+  display: grid;
+  gap: .35rem;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.task-notes {
+  resize: vertical;
+  min-height: 4rem;
+  padding: .6rem .75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: .75rem;
+  background: var(--card-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+}
+.task-checklist { display: grid; gap: .35rem; }
+.checklist-title { margin: 0; font-size: .78rem; font-weight: 700; color: var(--muted); }
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .88rem;
+  cursor: pointer;
+}
+.checklist-delete {
+  margin-left: auto;
+  padding: .2rem .5rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .85rem;
+  cursor: pointer;
+}
+.checklist-delete:hover { color: var(--danger); }
+.checklist-add-form {
+  display: flex;
+  gap: .5rem;
+}
+.checklist-input {
+  flex: 1;
+  padding: .4rem .75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: var(--card-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: .85rem;
+}

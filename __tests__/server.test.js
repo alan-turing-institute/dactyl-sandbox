@@ -357,4 +357,83 @@ describe('auth and task API', () => {
       .send({ username: 'broken-hash', password: 'very-secret' })
       .expect(401);
   });
+
+  test('creates task with notes and checklist, returns them on list, patch, and replace', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'notes-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create task with notes and checklist
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        text: 'Task with notes',
+        notes: 'Some context here',
+        checklist: [
+          { id: 'item-1', text: 'Step one', completed: false },
+          { id: 'item-2', text: 'Step two', completed: true },
+        ],
+      })
+      .expect(201);
+
+    expect(created.body.todo.notes).toBe('Some context here');
+    expect(created.body.todo.checklist).toHaveLength(2);
+    expect(created.body.todo.checklist[0]).toMatchObject({ id: 'item-1', text: 'Step one', completed: false });
+    expect(created.body.todo.checklist[1]).toMatchObject({ id: 'item-2', text: 'Step two', completed: true });
+
+    // List confirms notes/checklist returned
+    const list = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body.todos[0].notes).toBe('Some context here');
+    expect(list.body.todos[0].checklist).toHaveLength(2);
+
+    // PATCH to update notes
+    const patched = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ notes: 'Updated context' })
+      .expect(200);
+
+    expect(patched.body.todo.notes).toBe('Updated context');
+    expect(patched.body.todo.checklist).toHaveLength(2);
+
+    // PUT replace preserves notes/checklist when supplied
+    const replaced = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        todos: [
+          {
+            id: created.body.todo.id,
+            text: 'Task with notes',
+            notes: 'Replaced notes',
+            checklist: [{ id: 'item-1', text: 'Step one', completed: true }],
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(replaced.body.todos[0].notes).toBe('Replaced notes');
+    expect(replaced.body.todos[0].checklist).toHaveLength(1);
+    expect(replaced.body.todos[0].checklist[0]).toMatchObject({ id: 'item-1', text: 'Step one', completed: true });
+
+    // Notes/checklist default to empty when omitted
+    const minimal = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Minimal task' })
+      .expect(201);
+
+    expect(minimal.body.todo.notes).toBe('');
+    expect(minimal.body.todo.checklist).toEqual([]);
+  });
 });

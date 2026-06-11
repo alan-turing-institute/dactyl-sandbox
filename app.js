@@ -150,6 +150,7 @@ let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
+let detailsOpenTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
@@ -260,6 +261,19 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseChecklist(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === 'object' && typeof item.text === 'string')
+    .map((item) => ({
+      id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : crypto.randomUUID(),
+      text: item.text.trim().slice(0, 80),
+      completed: Boolean(item.completed),
+    }))
+    .filter((item) => item.text)
+    .slice(0, 10);
+}
+
 function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
@@ -284,6 +298,8 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, 1000) : '',
+    checklist: normaliseChecklist(todo.checklist),
   };
 }
 
@@ -1630,6 +1646,83 @@ function createTodoEditForm(todo) {
   return formElement;
 }
 
+function createDetailsPanel(todo) {
+  const panel = document.createElement('div');
+  panel.className = 'task-details-panel';
+
+  // Notes
+  const notesLabel = document.createElement('label');
+  notesLabel.className = 'task-notes-label';
+  notesLabel.textContent = 'Notes';
+  const notesArea = document.createElement('textarea');
+  notesArea.className = 'task-notes';
+  notesArea.maxLength = 1000;
+  notesArea.rows = 3;
+  notesArea.placeholder = 'Notes, links, or context for this task…';
+  notesArea.value = todo.notes;
+  notesArea.addEventListener('blur', () => saveTodoNotes(todo.id, notesArea.value));
+  notesLabel.append(notesArea);
+  panel.append(notesLabel);
+
+  // Checklist
+  const checklistSection = document.createElement('div');
+  checklistSection.className = 'task-checklist';
+  const checklistTitle = document.createElement('p');
+  checklistTitle.className = 'checklist-title';
+  checklistTitle.textContent = `Checklist (${todo.checklist.filter((i) => i.completed).length}/${todo.checklist.length})`;
+  checklistSection.append(checklistTitle);
+
+  todo.checklist.forEach((item) => {
+    const row = document.createElement('label');
+    row.className = 'checklist-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = item.completed;
+    cb.addEventListener('change', () => toggleChecklistItem(todo.id, item.id));
+    const span = document.createElement('span');
+    span.textContent = item.text;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'checklist-delete';
+    del.textContent = '\xd7';
+    del.setAttribute('aria-label', `Remove: ${item.text}`);
+    del.addEventListener('click', () => deleteChecklistItem(todo.id, item.id));
+    row.append(cb, span, del);
+    checklistSection.append(row);
+  });
+
+  if (todo.checklist.length < 10) {
+    const addForm = document.createElement('form');
+    addForm.className = 'checklist-add-form';
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.className = 'checklist-input';
+    addInput.maxLength = 80;
+    addInput.placeholder = 'Add checklist item…';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'submit';
+    addBtn.textContent = 'Add';
+    addForm.append(addInput, addBtn);
+    addForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = addInput.value.trim();
+      if (text) addChecklistItem(todo.id, text);
+    });
+    checklistSection.append(addForm);
+  }
+
+  panel.append(checklistSection);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'secondary-action';
+  closeBtn.textContent = 'Close details';
+  closeBtn.addEventListener('click', () => { detailsOpenTodoId = ''; render(); });
+  panel.append(closeBtn);
+
+  return panel;
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -1643,6 +1736,7 @@ function createTodoItem(todo) {
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
+  const detailsButton = item.querySelector('.task-details');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -1680,9 +1774,20 @@ function createTodoItem(todo) {
   restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
   deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
 
+  const checklistProgress = todo.checklist.length > 0
+    ? `${todo.checklist.filter((i) => i.completed).length}/${todo.checklist.length}`
+    : null;
+  detailsButton.hidden = isArchived;
+  detailsButton.textContent = checklistProgress ? `Details (${checklistProgress})` : 'Details';
+  detailsButton.setAttribute('aria-expanded', String(todo.id === detailsOpenTodoId));
+
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
     item.append(editForm);
+  }
+
+  if (todo.id === detailsOpenTodoId) {
+    item.append(createDetailsPanel(todo));
   }
 
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
@@ -1692,6 +1797,10 @@ function createTodoItem(todo) {
   archiveButton.addEventListener('click', () => archiveTodo(todo.id));
   restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
+  detailsButton.addEventListener('click', () => {
+    detailsOpenTodoId = detailsOpenTodoId === todo.id ? '' : todo.id;
+    render();
+  });
 
   return item;
 }
@@ -2017,7 +2126,10 @@ function renderFocusPanel() {
 
   focusPanel.hidden = false;
   focusTitle.textContent = focusedTodo.text;
-  focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
+  const checklistMeta = focusedTodo.checklist.length > 0
+    ? ` · Checklist ${focusedTodo.checklist.filter((i) => i.completed).length}/${focusedTodo.checklist.length}`
+    : '';
+  focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}${checklistMeta}`;
   renderFocusSprint();
 }
 
@@ -2283,6 +2395,45 @@ function saveEditedTodo(id, updates) {
   pendingEditFocusId = '';
   saveTodos();
   showPondMessage('Updated this fish in the pond.');
+  render();
+}
+
+function saveTodoNotes(id, notes) {
+  todos = todos.map((todo) =>
+    todo.id === id ? normaliseTodo({ ...todo, notes }) : todo,
+  ).filter(Boolean);
+  saveTodos();
+}
+
+function toggleChecklistItem(id, itemId) {
+  todos = todos.map((todo) => {
+    if (todo.id !== id) return todo;
+    const checklist = todo.checklist.map((item) =>
+      item.id === itemId ? { ...item, completed: !item.completed } : item,
+    );
+    return normaliseTodo({ ...todo, checklist });
+  }).filter(Boolean);
+  saveTodos();
+  render();
+}
+
+function deleteChecklistItem(id, itemId) {
+  todos = todos.map((todo) => {
+    if (todo.id !== id) return todo;
+    return normaliseTodo({ ...todo, checklist: todo.checklist.filter((i) => i.id !== itemId) });
+  }).filter(Boolean);
+  saveTodos();
+  render();
+}
+
+function addChecklistItem(id, text) {
+  todos = todos.map((todo) => {
+    if (todo.id !== id) return todo;
+    if (todo.checklist.length >= 10) return todo;
+    const item = { id: crypto.randomUUID(), text: text.trim().slice(0, 80), completed: false };
+    return normaliseTodo({ ...todo, checklist: [...todo.checklist, item] });
+  }).filter(Boolean);
+  saveTodos();
   render();
 }
 

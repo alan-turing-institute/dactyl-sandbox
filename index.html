@@ -105,6 +105,7 @@
         <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
+        <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
         <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
         <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
@@ -166,6 +167,18 @@
           <button id="trophies-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
         </div>
         <ul id="trophies-list" class="trophies-list" aria-label="Trophy progress"></ul>
+      </section>
+
+      <section id="starter-shoals-panel" class="starter-shoals-panel" aria-labelledby="starter-shoals-title" hidden>
+        <div class="starter-shoals-header">
+          <div>
+            <p class="eyebrow">Templates</p>
+            <h2 id="starter-shoals-title">Starter shoals</h2>
+          </div>
+          <button id="starter-shoals-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p class="starter-shoals-note">Choose a template to stock the pond with a practical task list.</p>
+        <ul class="starter-shoals-list" id="starter-shoals-list"></ul>
       </section>
 
       <section id="reminder-prefs-panel" class="reminder-prefs-panel" aria-labelledby="reminder-prefs-title" hidden>

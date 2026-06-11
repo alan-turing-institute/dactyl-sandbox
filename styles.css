@@ -267,6 +267,7 @@ h1 {
 .shortcut-help[hidden],
 .pond-health-panel[hidden],
 .trophies-panel[hidden],
+.starter-shoals-panel[hidden],
 .reminder-prefs-panel[hidden],
 .prefs-panel[hidden],
 .paste-panel[hidden],
@@ -1334,6 +1335,52 @@ kbd {
 
 .trophy-status.earned { color: var(--warning); }
 .trophy-status.locked { color: var(--muted); }
+
+/* ── Starter shoals ──────────────────────────────────────── */
+.starter-shoals-panel {
+  display: grid;
+  gap: .85rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 20%);
+  border-radius: 1.25rem;
+  background: rgb(141 212 255 / 6%);
+}
+
+.starter-shoals-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.starter-shoals-panel h2 { margin: 0; font-size: 1.25rem; }
+.starter-shoals-note { margin: 0; font-size: .82rem; color: var(--muted); }
+.starter-shoals-list {
+  display: grid;
+  gap: .5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.starter-shoal-btn {
+  width: 100%;
+  display: grid;
+  gap: .2rem;
+  padding: .75rem 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 5%);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.starter-shoal-btn:hover { background: rgb(255 255 255 / 10%); }
+.starter-shoal-btn strong { font-size: .95rem; }
+.starter-shoal-btn span { font-size: .82rem; color: var(--muted); }
+.shoal-count { color: var(--accent) !important; font-weight: 700; }
 
 .reminder-prefs-panel {
   border: 1px solid var(--accent);

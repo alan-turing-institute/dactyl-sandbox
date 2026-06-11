@@ -1,13 +1,21 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 const express = require('express');
+const { sanitizeAnalyticsEvent } = require('./analytics');
+const { normaliseRecurrence } = require('./recurrence');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MAX_NOTES_LENGTH = 1000;
+const MAX_CHECKLIST_ITEMS = 10;
+const MAX_CHECKLIST_TEXT_LENGTH = 80;
+const MAX_SHARE_TITLE_LENGTH = 80;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
+const USERNAME_PATTERN = /^[a-z0-9_.-]{3,32}$/;
 const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -63,6 +71,41 @@ function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
 
+function normaliseGithubUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') return '';
+
+  let parsed;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return '';
+  }
+
+  const [owner, repo, type, number] = parsed.pathname.split('/').filter(Boolean);
+  const validPath = owner && repo && ['issues', 'pull'].includes(type) && /^[1-9]\d*$/.test(number);
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || !validPath) return '';
+  return `https://github.com/${owner}/${repo}/${type}/${number}`;
+}
+
+function normaliseChecklist(value) {
+  if (!Array.isArray(value)) return [];
+  const checklist = [];
+  const seenIds = new Set();
+
+  value.forEach((item) => {
+    if (!item || typeof item !== 'object' || checklist.length >= MAX_CHECKLIST_ITEMS) return;
+    const text = typeof item.text === 'string' ? item.text.trim().slice(0, MAX_CHECKLIST_TEXT_LENGTH) : '';
+    if (!text) return;
+    const candidateId = typeof item.id === 'string' ? item.id.trim().slice(0, 80) : '';
+    const id = candidateId && !seenIds.has(candidateId) ? candidateId : crypto.randomUUID();
+    seenIds.add(id);
+    checklist.push({ id, text, completed: Boolean(item.completed) });
+  });
+
+  return checklist;
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -84,11 +127,26 @@ function normaliseTodo(todo) {
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
     shoal: typeof todo.shoal === 'string' ? todo.shoal.trim().slice(0, 40) : '',
+    blocked: Boolean(todo.blocked),
+    blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
+    notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
+    checklist: normaliseChecklist(todo.checklist),
+    recurrence: normaliseRecurrence(todo.recurrence),
   };
 }
 
 function toPublicUser(row) {
   return { id: row.id, username: row.username };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function userTokenVersion(row) {
@@ -100,6 +158,10 @@ function passwordLengthError(password, label = 'Password') {
     return `${label} must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters.`;
   }
   return '';
+}
+
+function authError(error, field, code) {
+  return { error, field, code };
 }
 
 function createPasswordHash(password) {
@@ -169,6 +231,8 @@ function createApp(options = {}) {
   const app = express();
   const dbPath = options.dbPath || process.env.DATABASE_PATH || path.join(__dirname, 'data', 'todos.sqlite');
   const jwtSecret = options.jwtSecret || process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+  const analyticsEnabled = options.analyticsEnabled ?? process.env.DACTYL_ANALYTICS_ENABLED === 'true';
+  const analyticsSink = options.analyticsSink || (() => {});
   if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
 
@@ -191,6 +255,22 @@ function createApp(options = {}) {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (id, user_id)
     );
+    CREATE TABLE IF NOT EXISTS shared_ponds (
+      token TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS shared_pond_tasks (
+      share_token TEXT NOT NULL REFERENCES shared_ponds(token) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      completed INTEGER NOT NULL DEFAULT 0,
+      due_date TEXT NOT NULL DEFAULT '',
+      priority TEXT NOT NULL DEFAULT 'medium',
+      github_url TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (share_token, position)
+    );
   `);
 
   const todoColumns = db.prepare('PRAGMA table_info(todos)').all().map((column) => column.name);
@@ -199,6 +279,24 @@ function createApp(options = {}) {
   }
   if (!todoColumns.includes('shoal')) {
     db.exec("ALTER TABLE todos ADD COLUMN shoal TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('blocked')) {
+    db.exec('ALTER TABLE todos ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!todoColumns.includes('blocker_reason')) {
+    db.exec("ALTER TABLE todos ADD COLUMN blocker_reason TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('github_url')) {
+    db.exec("ALTER TABLE todos ADD COLUMN github_url TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('notes')) {
+    db.exec("ALTER TABLE todos ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+  }
+  if (!todoColumns.includes('checklist_json')) {
+    db.exec("ALTER TABLE todos ADD COLUMN checklist_json TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!todoColumns.includes('recurrence')) {
+    db.exec("ALTER TABLE todos ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
   }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
@@ -248,19 +346,32 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, shoal
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, shoal, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson, recurrence
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
-    `).all(userId).map((todo) => ({ ...todo, completed: Boolean(todo.completed) }));
+    `).all(userId).map((todo) => {
+      let checklist;
+      try {
+        checklist = JSON.parse(todo.checklistJson || '[]');
+      } catch {
+        checklist = [];
+      }
+      return normaliseTodo({
+        ...todo,
+        completed: Boolean(todo.completed),
+        blocked: Boolean(todo.blocked),
+        checklist,
+      });
+    }).filter(Boolean);
   }
 
   function upsertTodo(userId, todo) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, shoal, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, shoal, blocked, blocker_reason, github_url, notes, checklist_json, recurrence, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
@@ -268,6 +379,12 @@ function createApp(options = {}) {
         priority = excluded.priority,
         archived_at = excluded.archived_at,
         shoal = excluded.shoal,
+        blocked = excluded.blocked,
+        blocker_reason = excluded.blocker_reason,
+        github_url = excluded.github_url,
+        notes = excluded.notes,
+        checklist_json = excluded.checklist_json,
+        recurrence = excluded.recurrence,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -279,26 +396,128 @@ function createApp(options = {}) {
       normalised.priority,
       normalised.archivedAt,
       normalised.shoal,
+      normalised.blocked ? 1 : 0,
+      normalised.blockerReason,
+      normalised.githubUrl,
+      normalised.notes,
+      JSON.stringify(normalised.checklist),
+      normalised.recurrence,
       new Date().toISOString(),
     );
     return normalised;
   }
 
+  function shareUrl(req, token) {
+    return `${req.protocol}://${req.get('host')}/share/${token}`;
+  }
+
+  function createSharedPond(user, payload) {
+    const requestedIds = Array.isArray(payload?.todoIds)
+      ? payload.todoIds.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_TODOS)
+      : [];
+    const requestedIdSet = new Set(requestedIds);
+    const sourceTasks = listTodos(user.id).filter((todo) => (
+      requestedIds.length === 0 || requestedIdSet.has(todo.id)
+    ));
+    const orderedTasks = requestedIds.length === 0
+      ? sourceTasks
+      : requestedIds.map((id) => sourceTasks.find((todo) => todo.id === id)).filter(Boolean);
+    const title = String(payload?.title || `${user.username}'s shared pond`)
+      .trim()
+      .slice(0, MAX_SHARE_TITLE_LENGTH) || `${user.username}'s shared pond`;
+    const token = crypto.randomBytes(18).toString('base64url');
+    const createdAt = new Date().toISOString();
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO shared_ponds (token, owner_id, title, created_at) VALUES (?, ?, ?, ?)')
+        .run(token, user.id, title, createdAt);
+      const insertTask = db.prepare(`
+        INSERT INTO shared_pond_tasks (share_token, position, text, completed, due_date, priority, github_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      orderedTasks.forEach((todo, index) => {
+        insertTask.run(token, index, todo.text, todo.completed ? 1 : 0, todo.dueDate, todo.priority, todo.githubUrl);
+      });
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return { token, title, createdAt, tasks: orderedTasks };
+  }
+
+  function getSharedPond(token) {
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(String(token || ''))) return null;
+    const share = db.prepare(`
+      SELECT shared_ponds.token, shared_ponds.title, shared_ponds.created_at AS createdAt, users.username AS ownerUsername
+      FROM shared_ponds
+      JOIN users ON users.id = shared_ponds.owner_id
+      WHERE shared_ponds.token = ?
+    `).get(token);
+    if (!share) return null;
+    const tasks = db.prepare(`
+      SELECT text, completed, due_date AS dueDate, priority, github_url AS githubUrl
+      FROM shared_pond_tasks
+      WHERE share_token = ?
+      ORDER BY position ASC
+    `).all(token).map((todo) => ({ ...todo, completed: Boolean(todo.completed) }));
+    return {
+      token: share.token,
+      title: share.title,
+      createdAt: share.createdAt,
+      owner: { username: share.ownerUsername },
+      tasks,
+    };
+  }
+
+  function renderSharedPondPage(share) {
+    const taskItems = share.tasks.length === 0
+      ? '<li class="shared-empty">No tasks were included in this shared planning view.</li>'
+      : share.tasks.map((todo) => {
+        const meta = [todo.completed ? 'completed' : 'active', todo.dueDate || 'no due date', `${todo.priority} priority`]
+          .map(escapeHtml)
+          .join(' · ');
+        const github = todo.githubUrl
+          ? ` <a href="${escapeHtml(todo.githubUrl)}" rel="noreferrer">GitHub</a>`
+          : '';
+        return `<li class="shared-task" data-priority="${escapeHtml(todo.priority)}"><strong>${escapeHtml(todo.text)}</strong><span>${meta}${github}</span></li>`;
+      }).join('');
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(share.title)} · Dactyl shared pond</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app shared-view" aria-labelledby="shared-title">
+      <p class="eyebrow">Read-only shared pond</p>
+      <h1 id="shared-title">${escapeHtml(share.title)}</h1>
+      <p class="subtitle">${escapeHtml(share.owner.username)} shared this planning view. Private tasks that were not selected for this view stay hidden.</p>
+      <ul class="shared-task-list">${taskItems}</ul>
+    </main>
+  </body>
+</html>`;
+  }
+
   app.post('/api/signup', authRateLimiter, (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
-    if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
-      return res.status(400).json({ error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.' });
+    if (!USERNAME_PATTERN.test(username)) {
+      return res.status(400).json(authError('Username must be 3-32 letters, numbers, dots, underscores, or hyphens.', 'username', 'invalid_username'));
     }
     const passwordError = passwordLengthError(password);
-    if (passwordError) return res.status(400).json({ error: passwordError });
+    if (passwordError) return res.status(400).json(authError(passwordError, 'password', 'invalid_password_length'));
 
     const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
     try {
       db.prepare('INSERT INTO users (id, username, password_hash, created_at, token_version) VALUES (?, ?, ?, ?, 0)')
         .run(user.id, username, createPasswordHash(password), user.createdAt);
     } catch (error) {
-      if (String(error.message).includes('UNIQUE')) return res.status(409).json({ error: 'Username already exists.' });
+      if (String(error.message).includes('UNIQUE')) return res.status(409).json(authError('Username already exists.', 'username', 'username_taken'));
       throw error;
     }
     return res.status(201).json({ token: issueToken(user), user: toPublicUser(user), todos: [] });
@@ -308,7 +527,7 @@ function createApp(options = {}) {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     const passwordError = passwordLengthError(password);
-    if (passwordError) return res.status(400).json({ error: passwordError });
+    if (passwordError) return res.status(400).json(authError(passwordError, 'password', 'invalid_password_length'));
 
     const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
     if (!user || !verifyPassword(password, user.password_hash)) {
@@ -374,8 +593,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt FROM todos WHERE user_id = ? AND id = ?')
-      .get(req.user.id, req.params.id);
+    const existing = listTodos(req.user.id).find((todo) => todo.id === req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });
     if (!updated) return res.status(400).json({ error: 'A task needs non-empty text.' });
@@ -388,8 +606,52 @@ function createApp(options = {}) {
     return res.status(204).send();
   });
 
+  app.post('/api/analytics', (req, res) => {
+    const event = sanitizeAnalyticsEvent(req.body?.event, req.body?.payload);
+    if (!event) return res.status(400).json({ error: 'Unsupported analytics event.' });
+    if (analyticsEnabled) analyticsSink({ ...event, receivedAt: new Date().toISOString() });
+    return res.status(204).send();
+  });
+
+  app.post('/api/shared-ponds', requireAuth, (req, res) => {
+    const share = createSharedPond(req.user, req.body);
+    return res.status(201).json({
+      share: {
+        token: share.token,
+        title: share.title,
+        createdAt: share.createdAt,
+        taskCount: share.tasks.length,
+        url: shareUrl(req, share.token),
+      },
+    });
+  });
+
+  app.get('/api/shared-ponds/:token', (req, res) => {
+    const share = getSharedPond(req.params.token);
+    if (!share) return res.status(404).json({ error: 'Shared pond not found.' });
+    return res.json({ share });
+  });
+
+  app.get('/share/:token', (req, res) => {
+    const share = getSharedPond(req.params.token);
+    if (!share) return res.status(404).send('Shared pond not found.');
+    return res.type('html').send(renderSharedPondPage(share));
+  });
+
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.get('/styles.css', (req, res) => res.type('text/css').sendFile(path.join(__dirname, 'styles.css')));
+  app.get('/analytics-config.js', (req, res) => {
+    res.type('application/javascript').send(`window.DACTYL_ANALYTICS_CONFIG = ${JSON.stringify({ enabled: analyticsEnabled, endpoint: '/api/analytics' })};\n`);
+  });
+  app.get('/analytics.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'analytics.js')));
+  app.get('/daily-catch.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'daily-catch.js')));
+  app.get('/premium-hooks.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'premium-hooks.js')));
+  app.get('/recurrence.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'recurrence.js')));
+  app.get('/screen-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'screen-state.js')));
+  app.get('/fish-emoji.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'fish-emoji.js')));
+  app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));
+  app.get('/quick-add-parser.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'quick-add-parser.js')));
+  app.get('/triage-mode.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'triage-mode.js')));
   app.get('/app.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'app.js')));
 
   app.close = () => db.close();

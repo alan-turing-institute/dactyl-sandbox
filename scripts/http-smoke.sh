@@ -60,6 +60,13 @@ esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 grep -q 'DACTYL_ANALYTICS_CONFIG' "$TMP_DIR/body"
 
+fetch /calendar-export.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /calendar-export.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+
 fetch /contextual-empty-states.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;

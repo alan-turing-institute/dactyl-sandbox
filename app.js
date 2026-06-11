@@ -155,6 +155,7 @@ const addPastedTasks = document.querySelector('#add-pasted-tasks');
 const clearPaste = document.querySelector('#clear-paste');
 const cancelPaste = document.querySelector('#cancel-paste');
 const exportPond = document.querySelector('#export-pond');
+const exportCalendarBtn = document.querySelector('#export-calendar');
 const restorePondToggle = document.querySelector('#restore-pond-toggle');
 const restorePanel = document.querySelector('#restore-panel');
 const restoreFile = document.querySelector('#restore-file');
@@ -1558,6 +1559,24 @@ function downloadJsonFile(filename, data) {
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+function downloadIcsFile(filename, content) {
+  const blob = new window.Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function exportCalendar() {
+  if (!currentUser) return;
+  const ics = window.CalendarExport.generateIcs(todos);
+  downloadIcsFile('dactyl-pond.ics', ics);
 }
 
 function exportPondBackup() {
@@ -3289,6 +3308,7 @@ function renderAuth() {
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
   exportPond.disabled = !signedIn;
+  exportCalendarBtn.disabled = !signedIn;
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
@@ -4472,6 +4492,7 @@ addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
 exportPond.addEventListener('click', exportPondBackup);
+exportCalendarBtn.addEventListener('click', exportCalendar);
 restorePondToggle.addEventListener('click', () => setRestorePanelOpen(restorePanel.hidden));
 restoreFile.addEventListener('change', previewRestoreFile);
 mergeRestore.addEventListener('click', () => applyRestore('merge'));

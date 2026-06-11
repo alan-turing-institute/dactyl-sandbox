@@ -77,6 +77,10 @@ describe('auth and task API', () => {
       .expect(200)
       .expect('Content-Type', /javascript/);
     await request(app)
+      .get('/calendar-export.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
       .get('/contextual-empty-states.js')
       .expect(200)
       .expect('Content-Type', /javascript/);

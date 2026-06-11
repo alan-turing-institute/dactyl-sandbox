@@ -286,6 +286,7 @@ let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
 let pendingRestore = null;
+let buttonHelpReturnFocus = null;
 let currentScreen = '';
 let suppressScreenHistory = false;
 let lastSync = {
@@ -1139,7 +1140,14 @@ function setShortcutHelpOpen(open) {
 function setButtonHelpOpen(open) {
   buttonHelpPanel.hidden = !open;
   buttonHelpToggle.setAttribute('aria-expanded', String(open));
-  if (open) buttonHelpPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (open) {
+    buttonHelpReturnFocus = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : buttonHelpToggle;
+    buttonHelpPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    buttonHelpClose.focus({ preventScroll: true });
+  } else if (buttonHelpReturnFocus && typeof buttonHelpReturnFocus.focus === 'function') {
+    buttonHelpReturnFocus.focus({ preventScroll: true });
+    buttonHelpReturnFocus = null;
+  }
 }
 
 function renderUpgradeCallout() {

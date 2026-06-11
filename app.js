@@ -195,7 +195,7 @@ const triageDueLater = document.querySelector('#triage-due-later');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
-const shoalPriority = document.querySelector('#shoal-priority');
+const bulkShoalInput = document.querySelector('#bulk-shoal-input');
 const moveShoal = document.querySelector('#move-shoal');
 const pondTour = document.querySelector('#pond-tour');
 const tourAddTask = document.querySelector('#tour-add-task');
@@ -241,6 +241,13 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const shoalInput = document.querySelector('#shoal-input');
+const shoalDatalist = document.querySelector('#shoal-datalist');
+const shoalFilterSelect = document.querySelector('#shoal-filter-select');
+const commandPaletteEl = document.querySelector('#command-palette');
+const commandSearch = document.querySelector('#command-search');
+const commandList = document.querySelector('#command-list');
+const commandPaletteToggle = document.querySelector('#command-palette-toggle');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -262,6 +269,7 @@ let todos = [];
 let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
+let shoalFilter = '';
 let smartViews = loadSmartViews();
 let dailyCatch = loadDailyCatch();
 let premiumCalloutDismissed = loadPremiumCalloutDismissed();
@@ -298,6 +306,9 @@ let lastSync = {
 };
 let lastRenderDuration = 0;
 let renderDurations = [];
+let commandPaletteOpen = false;
+let commandPalettePriorFocus = null;
+let commandPaletteActiveIndex = 0;
 
 
 function requestedScreenKey() {
@@ -516,6 +527,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    shoal: typeof todo.shoal === 'string' ? todo.shoal.trim().slice(0, 40) : '',
     blocked: Boolean(todo.blocked),
     blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
     githubUrl: normaliseGithubUrl(todo.githubUrl),
@@ -936,8 +948,34 @@ function filteredTodos(items) {
 }
 
 function visibleTodos() {
-  const filtered = filterTodos(baseVisibleTodos());
+  let filtered = filterTodos(baseVisibleTodos());
+  if (shoalFilter) filtered = filtered.filter((todo) => todo.shoal === shoalFilter);
   return filter === 'archive' ? sortArchivedTodos(filtered) : sortTodos(filtered);
+}
+
+function setShoalFilter(name) {
+  shoalFilter = name;
+  if (shoalFilterSelect) shoalFilterSelect.value = name;
+  render();
+}
+
+function updateShoalDatalist() {
+  if (!shoalDatalist) return;
+  const names = [...new Set(todos.map((t) => t.shoal).filter(Boolean))].sort();
+  shoalDatalist.replaceChildren(...names.map((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    return opt;
+  }));
+  if (shoalFilterSelect) {
+    const currentVal = shoalFilterSelect.value;
+    shoalFilterSelect.replaceChildren(
+      Object.assign(document.createElement('option'), { value: '', textContent: 'All shoals' }),
+      ...names.map((name) => Object.assign(document.createElement('option'), { value: name, textContent: name })),
+    );
+    shoalFilterSelect.value = names.includes(currentVal) ? currentVal : '';
+    if (shoalFilterSelect.value !== currentVal) shoalFilter = '';
+  }
 }
 
 function ghostNetTodos() {
@@ -1203,6 +1241,123 @@ function toggleShortcutHelp() {
   setShortcutHelpOpen(shortcutHelp.hidden);
 }
 
+const COMMANDS = [
+  { id: 'filter-all', label: 'Show all tasks', action: () => setFilter('all') },
+  { id: 'filter-active', label: 'Show active tasks', action: () => setFilter('active') },
+  { id: 'filter-completed', label: 'Show completed tasks', action: () => setFilter('completed') },
+  { id: 'filter-tide', label: 'Switch to Tide mode', action: () => setFilter('tide') },
+  { id: 'filter-ghost', label: 'Switch to Ghost net review', action: () => setFilter('ghost') },
+  { id: 'copy-pond-report', label: 'Copy pond report', action: () => copyPondProgressReport() },
+  { id: 'pond-health', label: 'Open pond health', action: () => setPondHealthOpen(true) },
+  { id: 'keyboard-shortcuts', label: 'Show keyboard shortcuts', action: () => setShortcutHelpOpen(true) },
+  { id: 'triage-mode', label: 'Open triage mode', action: () => setTriageOpen(true) },
+  { id: 'add-task', label: 'Add a task', action: () => { input.focus(); input.select(); } },
+  { id: 'search-tasks', label: 'Search tasks', action: () => { taskSearch.focus(); taskSearch.select(); } },
+  { id: 'log-out', label: 'Log out', action: () => logout() },
+];
+
+function openCommandPalette() {
+  commandPalettePriorFocus = document.activeElement;
+  commandPaletteOpen = true;
+  commandPaletteEl.hidden = false;
+  commandPaletteActiveIndex = 0;
+  renderCommandList('');
+  commandSearch.value = '';
+  commandSearch.focus();
+}
+
+function closeCommandPalette() {
+  commandPaletteOpen = false;
+  commandPaletteEl.hidden = true;
+  commandPaletteActiveIndex = 0;
+  commandSearch.removeAttribute('aria-activedescendant');
+  if (commandPalettePriorFocus && typeof commandPalettePriorFocus.focus === 'function') {
+    commandPalettePriorFocus.focus();
+  }
+  commandPalettePriorFocus = null;
+}
+
+function commandPaletteFocusableElements() {
+  return [...commandPaletteEl.querySelectorAll(
+    'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => !element.disabled && element.offsetParent !== null);
+}
+
+function trapCommandPaletteFocus(event) {
+  if (!commandPaletteOpen || event.key !== 'Tab') return;
+  const focusable = commandPaletteFocusableElements();
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (focusable.length === 1) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function renderCommandList(query) {
+  const q = query.toLowerCase().trim();
+  const filtered = q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
+  commandList.replaceChildren();
+  if (filtered.length === 0) {
+    commandSearch.removeAttribute('aria-activedescendant');
+    const empty = document.createElement('li');
+    empty.className = 'command-list-empty';
+    empty.textContent = 'No matching commands.';
+    commandList.appendChild(empty);
+    return;
+  }
+  if (commandPaletteActiveIndex >= filtered.length) commandPaletteActiveIndex = 0;
+  filtered.forEach((cmd, idx) => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', String(idx === commandPaletteActiveIndex));
+    li.id = `command-option-${cmd.id}`;
+    li.textContent = cmd.label;
+    if (idx === commandPaletteActiveIndex) li.classList.add('command-list-active');
+    li.addEventListener('click', () => {
+      closeCommandPalette();
+      cmd.action();
+    });
+    commandList.appendChild(li);
+  });
+  commandSearch.setAttribute('aria-activedescendant', `command-option-${filtered[commandPaletteActiveIndex].id}`);
+}
+
+function navigateCommandList(direction) {
+  const items = [...commandList.querySelectorAll('li[role="option"]')];
+  if (items.length === 0) return;
+  commandPaletteActiveIndex = (commandPaletteActiveIndex + direction + items.length) % items.length;
+  items.forEach((li, idx) => {
+    li.setAttribute('aria-selected', String(idx === commandPaletteActiveIndex));
+    li.classList.toggle('command-list-active', idx === commandPaletteActiveIndex);
+  });
+  if (items[commandPaletteActiveIndex]) {
+    items[commandPaletteActiveIndex].scrollIntoView({ block: 'nearest' });
+    commandSearch.setAttribute('aria-activedescendant', items[commandPaletteActiveIndex].id);
+  }
+}
+
+function executeActiveCommand() {
+  const q = commandSearch.value.toLowerCase().trim();
+  const filtered = q ? COMMANDS.filter((c) => c.label.toLowerCase().includes(q)) : COMMANDS;
+  if (filtered.length === 0) return;
+  const idx = Math.min(commandPaletteActiveIndex, filtered.length - 1);
+  const cmd = filtered[idx];
+  if (cmd) {
+    closeCommandPalette();
+    cmd.action();
+  }
+}
+
 function clearPasteInput() {
   pasteInput.value = '';
   updatePastePreview();
@@ -1446,6 +1601,19 @@ function buildPondReport() {
     lines.push('Next due:');
     nextDueTodos.forEach((todo) => {
       lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
+    });
+  }
+
+  const shoaledTodos = sortTodos(activeTodos.filter((t) => t.shoal));
+  if (shoaledTodos.length > 0) {
+    const byShoal = new Map();
+    shoaledTodos.forEach((t) => {
+      if (!byShoal.has(t.shoal)) byShoal.set(t.shoal, []);
+      byShoal.get(t.shoal).push(t);
+    });
+    lines.push('By shoal:');
+    byShoal.forEach((tasks, shoal) => {
+      lines.push(`  ${shoal}: ${tasks.map((t) => t.text).join(', ')}`);
     });
   }
 
@@ -2407,6 +2575,15 @@ function createTodoItem(todo) {
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
+  const shoalChip = item.querySelector('.shoal-chip');
+  if (shoalChip) {
+    if (todo.shoal) {
+      shoalChip.hidden = false;
+      shoalChip.textContent = todo.shoal;
+    } else {
+      shoalChip.hidden = true;
+    }
+  }
   const githubChip = createGithubChip(todo);
   if (githubChip) metadata.append(githubChip);
   const recurrenceText = recurrenceLabelFor(todo);
@@ -3120,6 +3297,7 @@ function render() {
   renderFocusPanel();
   syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
+  updateShoalDatalist();
   recordRenderDuration(renderStarted);
   renderDailyCatch();
   renderPondHealth();
@@ -3137,6 +3315,7 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    shoal: options.shoal ?? '',
     recurrence: options.recurrence ?? 'none',
     githubUrl: options.githubUrl ?? '',
     notes: options.notes ?? '',
@@ -3540,12 +3719,16 @@ function moveSelectedToShoal() {
   // Constrain to rendered todos only, so tasks hidden by the current filter are never moved.
   const effectiveIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   const selectedCount = effectiveIds.size;
-  const priority = normalisePriority(shoalPriority.value);
+  const shoal = bulkShoalInput.value.trim().slice(0, 40);
+  if (selectedCount === 0) return;
   todos = todos.map((todo) => (
-    effectiveIds.has(todo.id) ? { ...todo, priority } : todo
+    effectiveIds.has(todo.id) ? { ...todo, shoal } : todo
   ));
+  if (bulkShoalInput) bulkShoalInput.value = '';
   saveTodos();
-  showPondMessage(`Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${priority} shoal.`);
+  showPondMessage(shoal
+    ? `Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${shoal} shoal.`
+    : `Cleared shoal grouping for ${pluralise(selectedCount, 'selected fish', 'selected fish')}.`);
   render();
 }
 
@@ -3841,6 +4024,12 @@ function isInteractiveShortcutTarget(target) {
 }
 
 function handleGlobalShortcut(event) {
+  if (!event.defaultPrevented && (event.ctrlKey || event.metaKey) && event.key === 'k') {
+    event.preventDefault();
+    if (commandPaletteOpen) { closeCommandPalette(); } else { openCommandPalette(); }
+    return;
+  }
+
   const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
   if (event.defaultPrevented || hasModifier || isInteractiveShortcutTarget(event.target)) {
     return;
@@ -3933,6 +4122,11 @@ function handleGlobalShortcut(event) {
   }
 
   if (event.key === 'Escape') {
+    if (commandPaletteOpen) {
+      closeCommandPalette();
+      event.preventDefault();
+      return;
+    }
     const helpWasOpen = !shortcutHelp.hidden;
     setShortcutHelpOpen(false);
     const buttonHelpWasOpen = !buttonHelpPanel.hidden;
@@ -3982,6 +4176,7 @@ form.addEventListener('submit', (event) => {
   addTodo(parsed.text, {
     dueDate,
     priority,
+    shoal: shoalInput ? shoalInput.value.trim() : '',
     recurrence: recurrenceInput.value,
     githubUrl: githubUrlInput.value,
     source: parsed.dueDate || parsed.priority ? 'quick_add' : 'form',
@@ -3992,6 +4187,7 @@ form.addEventListener('submit', (event) => {
   }
   form.reset();
   priorityInput.value = 'medium';
+  if (shoalInput) shoalInput.value = '';
   recurrenceInput.value = 'none';
   syncPriorityChips();
   input.focus();
@@ -4032,6 +4228,8 @@ quickFilterButtons.forEach((button) => {
     render();
   });
 });
+
+shoalFilterSelect?.addEventListener('change', () => setShoalFilter(shoalFilterSelect.value));
 
 saveSmartView.addEventListener('click', saveCurrentSmartView);
 smartViewName.addEventListener('keydown', (event) => {
@@ -4076,6 +4274,35 @@ buttonHelpToggle.addEventListener('click', () => setButtonHelpOpen(buttonHelpPan
 buttonHelpClose.addEventListener('click', () => setButtonHelpOpen(false));
 triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));
 triageClose.addEventListener('click', () => setTriageOpen(false));
+commandPaletteToggle.addEventListener('click', () => {
+  if (commandPaletteOpen) { closeCommandPalette(); } else { openCommandPalette(); }
+});
+commandSearch.addEventListener('input', () => {
+  commandPaletteActiveIndex = 0;
+  renderCommandList(commandSearch.value);
+});
+commandSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    navigateCommandList(1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    navigateCommandList(-1);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    executeActiveCommand();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeCommandPalette();
+  } else if (event.key === 'Tab') {
+    event.preventDefault();
+    commandSearch.focus();
+  }
+});
+commandPaletteEl.addEventListener('keydown', trapCommandPaletteFocus);
+commandPaletteEl.addEventListener('click', (event) => {
+  if (event.target === commandPaletteEl) closeCommandPalette();
+});
 triagePrev.addEventListener('click', () => moveTriage(-1));
 triageNext.addEventListener('click', () => moveTriage(1));
 triageComplete.addEventListener('click', completeTriageTodo);

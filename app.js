@@ -27,6 +27,8 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
+const GETTING_STARTED_PREF_KEY = 'gettingStartedOpen';
+const GETTING_STARTED_AUTO_COLLAPSED_KEY = 'gettingStartedAutoCollapsed';
 const STARTER_SHOALS = [
   {
     name: 'Morning stand-up shoal',
@@ -173,6 +175,12 @@ const pondHealthSummary = document.querySelector('#pond-health-summary');
 const pondHealthMetrics = document.querySelector('#pond-health-metrics');
 const pondHealthHints = document.querySelector('#pond-health-hints');
 const copyPondDiagnostics = document.querySelector('#copy-pond-diagnostics');
+const gettingStartedToggle = document.querySelector('#getting-started-toggle');
+const gettingStartedPanel = document.querySelector('#getting-started-panel');
+const gettingStartedCollapse = document.querySelector('#getting-started-collapse');
+const checklistAddTask = document.querySelector('#checklist-add-task');
+const checklistTideMode = document.querySelector('#checklist-tide-mode');
+const checklistPondTour = document.querySelector('#checklist-pond-tour');
 const showPondTour = document.querySelector('#show-pond-tour');
 const shortcutHelpToggle = document.querySelector('#shortcut-help-toggle');
 const shortcutHelp = document.querySelector('#shortcut-help');
@@ -753,7 +761,15 @@ function saveFirstCompletionCelebrated(value) {
 
 function loadViewPrefs() {
   const systemReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const defaults = { reducedMotion: systemReducedMotion, highContrast: false, compact: false, textBadges: false, addFormAdvanced: false };
+  const defaults = {
+    reducedMotion: systemReducedMotion,
+    highContrast: false,
+    compact: false,
+    textBadges: false,
+    addFormAdvanced: false,
+    [GETTING_STARTED_PREF_KEY]: null,
+    [GETTING_STARTED_AUTO_COLLAPSED_KEY]: false,
+  };
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return defaults;
@@ -764,6 +780,12 @@ function loadViewPrefs() {
       compact: typeof saved.compact === 'boolean' ? saved.compact : false,
       textBadges: typeof saved.textBadges === 'boolean' ? saved.textBadges : false,
       addFormAdvanced: typeof saved.addFormAdvanced === 'boolean' ? saved.addFormAdvanced : false,
+      [GETTING_STARTED_PREF_KEY]: typeof saved[GETTING_STARTED_PREF_KEY] === 'boolean'
+        ? saved[GETTING_STARTED_PREF_KEY]
+        : null,
+      [GETTING_STARTED_AUTO_COLLAPSED_KEY]: typeof saved[GETTING_STARTED_AUTO_COLLAPSED_KEY] === 'boolean'
+        ? saved[GETTING_STARTED_AUTO_COLLAPSED_KEY]
+        : false,
     };
   } catch {
     return defaults;
@@ -2872,6 +2894,53 @@ function renderNetControls() {
   releaseSelected.textContent = selectedCount > 0 ? `Release selected (${selectedCount})` : 'Release selected';
 }
 
+function hasRealTask() {
+  return liveTodos().some((todo) => !DEMO_TODO_IDS.includes(todo.id));
+}
+
+function onboardingIsComplete() {
+  return tourDismissed && hasRealTask();
+}
+
+function setGettingStartedOpen(open) {
+  viewPrefs = { ...viewPrefs, [GETTING_STARTED_PREF_KEY]: Boolean(open) };
+  saveViewPrefs();
+  renderGettingStartedPanel();
+}
+
+function markChecklistItem(item, complete) {
+  if (!item) return;
+  item.classList.toggle('complete', complete);
+  item.querySelector('span').textContent = complete ? '✓' : '○';
+}
+
+function renderGettingStartedPanel() {
+  if (!gettingStartedToggle || !gettingStartedPanel) return;
+  const complete = onboardingIsComplete();
+  let storedOpen = viewPrefs[GETTING_STARTED_PREF_KEY];
+
+  if (complete && !viewPrefs[GETTING_STARTED_AUTO_COLLAPSED_KEY]) {
+    storedOpen = false;
+    viewPrefs = {
+      ...viewPrefs,
+      [GETTING_STARTED_PREF_KEY]: false,
+      [GETTING_STARTED_AUTO_COLLAPSED_KEY]: true,
+    };
+    saveViewPrefs();
+  }
+
+  const open = Boolean(currentUser) && (storedOpen === null ? !complete : storedOpen);
+  gettingStartedPanel.hidden = !open;
+  gettingStartedToggle.hidden = !currentUser;
+  gettingStartedToggle.setAttribute('aria-expanded', String(open));
+  gettingStartedToggle.textContent = open ? 'Hide getting started' : 'Getting started';
+  if (gettingStartedCollapse) gettingStartedCollapse.disabled = !currentUser;
+
+  markChecklistItem(checklistAddTask, hasRealTask());
+  markChecklistItem(checklistTideMode, filter === 'tide');
+  markChecklistItem(checklistPondTour, tourDismissed || !pondTour.hidden);
+}
+
 function renderTourPanel() {
   const shouldAutoShow = Boolean(currentUser) && todos.length === 0 && !tourDismissed;
   const shouldShow = Boolean(currentUser) && (tourForcedVisible || shouldAutoShow);
@@ -3326,7 +3395,7 @@ function render() {
       ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
       : showFirstTaskGuide
         ? 'Start with a tiny guided task, or add your own fish in the box above.'
-        : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+        : 'Add your first task above, or open Getting started for demo fish and a quick pond tour.';
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
@@ -3337,6 +3406,7 @@ function render() {
   renderSearchControls();
   renderSmartViews();
   renderTourPanel();
+  renderGettingStartedPanel();
   renderUpgradeCallout();
 
   filterButtons.forEach((button) => {
@@ -4303,6 +4373,8 @@ clearCompleted.addEventListener('click', () => {
   else archiveCompletedTodos();
 });
 
+gettingStartedToggle.addEventListener('click', () => setGettingStartedOpen(gettingStartedPanel.hidden));
+gettingStartedCollapse.addEventListener('click', () => setGettingStartedOpen(false));
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
 firstTaskTemplateButtons.forEach((button) => {

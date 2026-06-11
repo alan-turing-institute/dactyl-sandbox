@@ -106,6 +106,7 @@
         <button id="copy-pond-snapshot" class="secondary-action" type="button">Copy snapshot</button>
         <button id="share-pond" class="secondary-action" type="button">Share visible pond</button>
         <button id="copy-standup-draft" class="secondary-action" type="button">Copy stand-up draft</button>
+        <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel">Daily Catch</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
         <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel">Starter shoals</button>
@@ -279,6 +280,27 @@
               <span>Show tide labels instead of colour dots on tasks.</span>
             </span>
           </label>
+        </div>
+      </section>
+
+      <section id="daily-catch-panel" class="daily-catch-panel" aria-labelledby="daily-catch-title" aria-live="polite" hidden>
+        <div class="daily-catch-header">
+          <div>
+            <p class="eyebrow">Daily Catch</p>
+            <h2 id="daily-catch-title">Plan a realistic catch for today</h2>
+            <p id="daily-catch-summary" class="daily-catch-summary">Pick a few fish to focus on.</p>
+          </div>
+          <button id="daily-catch-close" class="secondary-action" type="button">Close</button>
+        </div>
+        <div class="daily-catch-columns">
+          <div>
+            <h3>Today’s catch</h3>
+            <ul id="daily-catch-pinned" class="daily-catch-list"></ul>
+          </div>
+          <div>
+            <h3>Suggested fish</h3>
+            <ul id="daily-catch-suggestions" class="daily-catch-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -478,6 +500,7 @@
 
     <script src="analytics-config.js"></script>
     <script src="analytics.js"></script>
+    <script src="daily-catch.js"></script>
     <script src="premium-hooks.js"></script>
     <script src="screen-state.js"></script>
     <script src="fish-emoji.js"></script>

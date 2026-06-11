@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -9,6 +9,7 @@ const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed
 const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
+const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
 const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
@@ -78,8 +79,9 @@ const {
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
-const { premiumHookForSurface } = DactylPremiumHooks;
 const { parseQuickAdd } = DactylQuickAdd;
+const { selectDailyCatchSuggestions } = DactylDailyCatch;
+const { premiumHookForSurface } = DactylPremiumHooks;
 const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
@@ -150,6 +152,12 @@ const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
 const sharePond = document.querySelector('#share-pond');
 const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
+const dailyCatchToggle = document.querySelector('#daily-catch-toggle');
+const dailyCatchPanel = document.querySelector('#daily-catch-panel');
+const dailyCatchClose = document.querySelector('#daily-catch-close');
+const dailyCatchSummary = document.querySelector('#daily-catch-summary');
+const dailyCatchPinned = document.querySelector('#daily-catch-pinned');
+const dailyCatchSuggestions = document.querySelector('#daily-catch-suggestions');
 const upgradeCallout = document.querySelector('#upgrade-callout');
 const upgradeCalloutTitle = document.querySelector('#upgrade-callout-title');
 const upgradeCalloutBody = document.querySelector('#upgrade-callout-body');
@@ -248,6 +256,7 @@ let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
 let smartViews = loadSmartViews();
+let dailyCatch = loadDailyCatch();
 let premiumCalloutDismissed = loadPremiumCalloutDismissed();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
@@ -583,6 +592,14 @@ function loadSmartViews() {
   }
 }
 
+function persistSmartViews() {
+  try {
+    localStorage.setItem(SMART_VIEWS_KEY, JSON.stringify(smartViews));
+  } catch {
+    showPondMessage('Could not save that smart view in this browser.');
+  }
+}
+
 function loadPremiumCalloutDismissed() {
   try {
     return localStorage.getItem(PREMIUM_CALLOUT_DISMISSED_KEY) === 'true';
@@ -601,11 +618,25 @@ function dismissPremiumCallout() {
   renderUpgradeCallout();
 }
 
-function persistSmartViews() {
+function loadDailyCatch() {
   try {
-    localStorage.setItem(SMART_VIEWS_KEY, JSON.stringify(smartViews));
+    const parsed = JSON.parse(localStorage.getItem(DAILY_CATCH_KEY) ?? '{}');
+    if (parsed.date !== todayKey()) return { date: todayKey(), ids: [] };
+    return {
+      date: parsed.date,
+      ids: Array.isArray(parsed.ids) ? parsed.ids.filter((id) => typeof id === 'string') : [],
+    };
   } catch {
-    showPondMessage('Could not save that smart view in this browser.');
+    return { date: todayKey(), ids: [] };
+  }
+}
+
+function persistDailyCatch() {
+  dailyCatch = { date: todayKey(), ids: dailyCatch.ids.filter((id) => todos.some((todo) => todo.id === id && !todo.archivedAt)) };
+  try {
+    localStorage.setItem(DAILY_CATCH_KEY, JSON.stringify(dailyCatch));
+  } catch {
+    showPondMessage('Could not save today’s catch in this browser.');
   }
 }
 
@@ -1565,6 +1596,100 @@ async function copyStandupDraft() {
     showPondMessage('Copied stand-up draft to clipboard.');
   } catch {
     showPondMessage('Could not copy the stand-up draft.');
+  }
+}
+
+function dailyCatchTodos() {
+  if (dailyCatch.date !== todayKey()) dailyCatch = { date: todayKey(), ids: [] };
+  const ids = new Set(dailyCatch.ids);
+  return todos.filter((todo) => ids.has(todo.id) && !todo.archivedAt);
+}
+
+function setDailyCatchOpen(open) {
+  dailyCatchPanel.hidden = !open;
+  dailyCatchToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderDailyCatch();
+    dailyCatchPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function pinDailyCatchTodo(id) {
+  if (!dailyCatch.ids.includes(id)) dailyCatch.ids = [...dailyCatch.ids, id].slice(0, 5);
+  persistDailyCatch();
+  showPondMessage('Added fish to today’s catch.');
+  render();
+}
+
+function unpinDailyCatchTodo(id) {
+  dailyCatch.ids = dailyCatch.ids.filter((candidate) => candidate !== id);
+  persistDailyCatch();
+  showPondMessage('Removed fish from today’s catch.');
+  render();
+}
+
+function createDailyCatchItem(todo, action) {
+  const item = document.createElement('li');
+  item.className = 'daily-catch-item';
+  const copy = document.createElement('div');
+  const title = document.createElement('strong');
+  title.textContent = todo.text;
+  const meta = document.createElement('span');
+  meta.textContent = [dueLabelFor(todo), priorityLabelFor(todo), checklistProgress(todo)].filter(Boolean).join(' · ');
+  copy.append(title, meta);
+
+  const buttons = document.createElement('div');
+  buttons.className = 'daily-catch-actions';
+  const primary = document.createElement('button');
+  primary.type = 'button';
+  primary.className = action === 'pin' ? '' : 'secondary-action';
+  primary.textContent = action === 'pin' ? 'Pin' : 'Unpin';
+  primary.addEventListener('click', () => (action === 'pin' ? pinDailyCatchTodo(todo.id) : unpinDailyCatchTodo(todo.id)));
+  const focus = document.createElement('button');
+  focus.type = 'button';
+  focus.className = 'secondary-action';
+  focus.textContent = 'Feed';
+  focus.disabled = todo.completed;
+  focus.addEventListener('click', () => focusTodo(todo.id));
+  buttons.append(primary, focus);
+  item.append(copy, buttons);
+  return item;
+}
+
+function renderDailyCatch() {
+  if (dailyCatchPanel.hidden) return;
+
+  const catchTodos = dailyCatchTodos();
+  const completed = catchTodos.filter((todo) => todo.completed).length;
+  const activeCatch = catchTodos.filter((todo) => !todo.completed);
+  dailyCatchSummary.textContent = catchTodos.length > 0
+    ? `${completed}/${catchTodos.length} fish fed today · ${activeCatch.length} still swimming.`
+    : 'Pin three to five fish for a realistic day’s catch.';
+
+  dailyCatchPinned.replaceChildren();
+  if (catchTodos.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'daily-catch-empty';
+    empty.textContent = 'No fish pinned yet. Start from the suggestions.';
+    dailyCatchPinned.append(empty);
+  } else {
+    catchTodos.forEach((todo) => dailyCatchPinned.append(createDailyCatchItem(todo, 'unpin')));
+  }
+
+  const suggestions = selectDailyCatchSuggestions(todos, {
+    today: todayKey(),
+    focusedTodoId,
+    pinnedIds: dailyCatch.ids,
+    limit: 5,
+  });
+  dailyCatchSuggestions.replaceChildren();
+  if (suggestions.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'daily-catch-empty';
+    empty.textContent = 'No urgent suggestions. The pond is unusually calm.';
+    dailyCatchSuggestions.append(empty);
+  } else {
+    suggestions.forEach((todo) => dailyCatchSuggestions.append(createDailyCatchItem(todo, 'pin')));
   }
 }
 
@@ -2625,6 +2750,7 @@ function renderAuth() {
   copyPondSnapshot.disabled = !signedIn;
   sharePond.disabled = !signedIn;
   copyStandupDraftButton.disabled = !signedIn;
+  dailyCatchToggle.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
@@ -2836,6 +2962,7 @@ function render() {
   syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
   recordRenderDuration(renderStarted);
+  renderDailyCatch();
   renderPondHealth();
   renderTriagePanel();
   renderShowcase();
@@ -3617,13 +3744,15 @@ function handleGlobalShortcut(event) {
     if (closedTrophies) setTrophiesOpen(false);
     const closedStarterShoals = !starterShoalsPanel.hidden;
     if (closedStarterShoals) setStarterShoalsOpen(false);
+    const closedDailyCatch = !dailyCatchPanel.hidden;
+    if (closedDailyCatch) setDailyCatchOpen(false);
     const closedTriage = triageOpen;
     if (closedTriage) setTriageOpen(false);
     const closedReminderPrefs = !reminderPrefsPanel.hidden;
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -3735,6 +3864,8 @@ copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
 sharePond.addEventListener('click', shareVisiblePond);
 copyStandupDraftButton.addEventListener('click', copyStandupDraft);
+dailyCatchToggle.addEventListener('click', () => setDailyCatchOpen(dailyCatchPanel.hidden));
+dailyCatchClose.addEventListener('click', () => setDailyCatchOpen(false));
 upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));

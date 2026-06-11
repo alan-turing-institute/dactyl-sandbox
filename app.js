@@ -2728,6 +2728,64 @@ function createTodoItem(todo) {
     }
   });
 
+  // Keyboard-first action strip
+  const actionsDiv = item.querySelector('.todo-actions');
+  actionsDiv.setAttribute('aria-label', `Actions for ${todo.text}`);
+
+  // Toolbar buttons are not in the tab order — navigate with arrow keys
+  actionsDiv.querySelectorAll('button').forEach((btn) => btn.setAttribute('tabindex', '-1'));
+
+  function visibleStripButtons() {
+    return Array.from(actionsDiv.querySelectorAll('button')).filter(
+      (btn) => !btn.hidden && !btn.disabled
+    );
+  }
+
+  function handleStripShortcut(e) {
+    if (e.key === 'c' || e.key === 'C') {
+      e.preventDefault();
+      toggleTodo(todo.id);
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      startEditingTodo(todo.id);
+    } else if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault();
+      const order = ['', 'low', 'medium', 'high'];
+      const next = order[(order.indexOf(todo.priority || '') + 1) % order.length] || null;
+      updateTodoDetails(todo.id, { priority: next }, 'Tide level updated.');
+    }
+  }
+
+  // Arrow-key navigation + shortcut keys within the toolbar
+  actionsDiv.addEventListener('keydown', (e) => {
+    const btns = visibleStripButtons();
+    const idx = btns.indexOf(document.activeElement);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (btns.length) btns[(idx + 1) % btns.length].focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (btns.length) btns[(idx - 1 + btns.length) % btns.length].focus();
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      item.focus();
+    } else {
+      handleStripShortcut(e);
+    }
+  });
+
+  // Enter/ArrowRight on the <li> itself enters the toolbar; single-letter shortcuts act immediately
+  item.addEventListener('keydown', (e) => {
+    if (document.activeElement !== item) return;
+    if (e.key === 'Enter' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const btns = visibleStripButtons();
+      if (btns.length) btns[0].focus();
+    } else {
+      handleStripShortcut(e);
+    }
+  });
+
   return item;
 }
 

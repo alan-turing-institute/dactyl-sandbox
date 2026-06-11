@@ -1313,9 +1313,14 @@ function isInQuietHours(prefs) {
   return currentMinutes >= start || currentMinutes < end;
 }
 
+function getNotificationApi() {
+  return window.Notification || null;
+}
+
 function canNotifyNow(prefs) {
-  if (!prefs.enabled) return false;
-  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return false;
+  const notificationApi = getNotificationApi();
+  if (!prefs.enabled || !notificationApi) return false;
+  if (notificationApi.permission === 'denied') return false;
   return !isInQuietHours(prefs);
 }
 
@@ -1324,13 +1329,16 @@ function renderReminderPrefs() {
   reminderEnable.checked = prefs.enabled;
   quietStart.value = prefs.quietStart;
   quietEnd.value = prefs.quietEnd;
-  const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+  const notificationApi = getNotificationApi();
+  const denied = notificationApi?.permission === 'denied';
   let statusText;
   if (!prefs.enabled) {
     statusText = 'Reminders are off.';
+  } else if (!notificationApi) {
+    statusText = 'Notifications are not supported in this browser.';
   } else if (denied) {
     statusText = 'Notifications are blocked by the browser. Update site permissions to enable reminders.';
-  } else if (isInQuietHours(prefs)) {
+  } else if (!canNotifyNow(prefs)) {
     statusText = `In quiet hours (${prefs.quietStart}–${prefs.quietEnd}). Reminders paused.`;
   } else {
     statusText = 'Reminders active. Notifications will fire when a task is due.';
@@ -2587,8 +2595,9 @@ reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
 reminderEnable.addEventListener('change', () => {
   const prefs = loadReminderPrefs();
   const enabling = reminderEnable.checked;
-  if (enabling && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    Notification.requestPermission().then(() => {
+  const notificationApi = getNotificationApi();
+  if (enabling && notificationApi?.permission === 'default') {
+    notificationApi.requestPermission().then(() => {
       saveReminderPrefs({ ...prefs, enabled: true });
       renderReminderPrefs();
     });

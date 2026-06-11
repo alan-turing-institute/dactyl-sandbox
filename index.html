@@ -39,8 +39,8 @@
             <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
           </label>
           <div class="auth-actions">
-            <button id="login-button" type="submit">Log in</button>
-            <button id="signup-button" class="secondary-action" type="button">Sign up</button>
+            <button id="login-button" type="submit" name="auth-mode" value="login">Log in</button>
+            <button id="signup-button" class="secondary-action" type="submit" name="auth-mode" value="signup">Sign up</button>
           </div>
         </form>
         <form id="password-form" class="password-form" autocomplete="on" hidden>
@@ -151,16 +151,32 @@
           </div>
           <button id="button-help-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
         </div>
-        <p class="button-help-note">A quick map for TODO-app developers swimming through the fishy UI.</p>
+        <p class="button-help-note">A quick map for TODO-app developers swimming through the fishy UI. Opening this guide is read-only; no fish are moved.</p>
         <dl class="button-help-list">
-          <div><dt>➕ Add</dt><dd>Type a task, optional due date, GitHub link, and tide priority, then add a new fish to the pond.</dd></div>
-          <div><dt>✓ Complete</dt><dd>Tick a fish when it is fed. Completed fish can be archived or celebrated in reports.</dd></div>
-          <div><dt>× Delete</dt><dd>Release a fish from the pond. Bulk release uses the Cast net controls and keeps an undo line where available.</dd></div>
-          <div><dt>🌊 Filters</dt><dd>All, Active, Tide, Ghost net, Week ahead, and Archive reshape the visible shoal without changing hidden tasks.</dd></div>
-          <div><dt>🎯 Feed</dt><dd>Pin one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
-          <div><dt>📝 Details/Edit</dt><dd>Edit changes the core task fields; Details opens private notes and checklist items for the selected fish.</dd></div>
-          <div><dt>🕸 Cast net</dt><dd>Select visible fish for safe bulk release or custom-shoal moves. Hidden tasks stay out of the net.</dd></div>
-          <div><dt>⌨ Shortcuts</dt><dd>Open Pond shortcuts for keyboard commands; Escape closes pop-up panels and leaves net mode.</dd></div>
+          <div><dt>➕ Add task</dt><dd><span class="help-safety help-safety-change">Creates task</span> Adds a new TODO fish with optional due date, GitHub link, priority, and quick-add hints. Requires sign-in.</dd></div>
+          <div><dt>✓ Complete</dt><dd><span class="help-safety help-safety-change">Changes task</span> Marks a fish fed/completed. This can be undone from the Archive before permanent release; recurring fish schedule the next occurrence.</dd></div>
+          <div><dt>× Delete / Release</dt><dd><span class="help-safety help-safety-danger">Destructive</span> Removes a fish. Archive release can be permanent; bulk release shows an undo affordance where supported.</dd></div>
+          <div><dt>🌊 Filters</dt><dd><span class="help-safety help-safety-view">View only</span> All, Active, Tide, Ghost net, Week ahead, and Archive only change which fish you see. Hidden fish are not modified.</dd></div>
+          <div><dt>🐟 Stock the pond</dt><dd><span class="help-safety help-safety-change">Creates demos</span> Adds sample tasks so new users can explore the pond. Your existing fish stay untouched.</dd></div>
+          <div><dt>🧹 Release demo fish</dt><dd><span class="help-safety help-safety-danger">Deletes demos</span> Removes only demo/sample fish. It never touches your own non-demo tasks.</dd></div>
+          <div><dt>📋 Paste to pond</dt><dd><span class="help-safety help-safety-change">Creates tasks</span> Turns pasted bullets or checkbox notes into tasks. Preview first; importing creates real fish in your account.</dd></div>
+          <div><dt>💾 Export pond</dt><dd><span class="help-safety help-safety-external">Downloads file</span> Saves a backup of your task pond to your device. It does not change task data.</dd></div>
+          <div><dt>♻️ Restore pond</dt><dd><span class="help-safety help-safety-danger">Can replace data</span> Loads a backup file. Merge adds imported fish; Replace swaps the current pond after the preview.</dd></div>
+          <div><dt>📣 Copy pond report / snapshot / stand-up draft</dt><dd><span class="help-safety help-safety-external">Clipboard</span> Copies text for updates or stand-up notes. The app does not post externally for you.</dd></div>
+          <div><dt>🔗 Share visible pond</dt><dd><span class="help-safety help-safety-external">External share</span> Opens your browser/device share sheet for the currently visible pond summary. You choose where it goes.</dd></div>
+          <div><dt>🎣 Daily Catch</dt><dd><span class="help-safety help-safety-change">Planning only</span> Suggests a small focus list from due, priority, and feeding signals. Pinning changes only the local planning catch.</dd></div>
+          <div><dt>🩺 Pond health</dt><dd><span class="help-safety help-safety-view">View only</span> Shows lightweight diagnostics and can copy a privacy-preserving summary for debugging.</dd></div>
+          <div><dt>🏆 Tide trophies</dt><dd><span class="help-safety help-safety-view">View only</span> Displays progress badges. This is read-only and reflects your current task pond.</dd></div>
+          <div><dt>🔕 Quiet hours</dt><dd><span class="help-safety help-safety-change">Local setting</span> Configures due-date reminder timing. Notifications are opt-in and stay in the browser.</dd></div>
+          <div><dt>🫧 Calm Water</dt><dd><span class="help-safety help-safety-change">Display setting</span> Adjusts visual preferences like reduced celebration intensity and text-first badges. It is stored locally.</dd></div>
+          <div><dt>🐠 Aquarium view</dt><dd><span class="help-safety help-safety-view">View only</span> Opens a visual showcase of active fish. It is decorative and does not change task state.</dd></div>
+          <div><dt>⌨ Pond shortcuts</dt><dd><span class="help-safety help-safety-view">Help only</span> Lists keyboard commands like search focus, tide filters, reports, and triage. Opening it is read-only.</dd></div>
+          <div><dt>🧭 Triage mode</dt><dd><span class="help-safety help-safety-change">Fast edits</span> Shows one active fish at a time for keyboard completion, archive, priority, and due-date changes.</dd></div>
+          <div><dt>🎯 Feed</dt><dd><span class="help-safety help-safety-change">Focus state</span> Pins one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
+          <div><dt>📝 Details / Edit</dt><dd><span class="help-safety help-safety-change">Edits task</span> Edit changes core task fields. Details opens private notes and checklist items for the selected fish.</dd></div>
+          <div><dt>🕸 Cast net</dt><dd><span class="help-safety help-safety-view">Selection mode</span> Lets you select visible fish for batch actions. Hidden tasks stay out of the net until their view is active.</dd></div>
+          <div><dt>🌊 Release selected</dt><dd><span class="help-safety help-safety-danger">Bulk destructive</span> Releases the fish currently caught in the net. Use the undo message immediately if the wrong fish swim off.</dd></div>
+          <div><dt>🏷 Move to shoal</dt><dd><span class="help-safety help-safety-change">Bulk edit</span> Moves selected fish into a custom shoal name, or clears the shoal when left blank. It changes only the caught fish.</dd></div>
         </dl>
       </section>
 

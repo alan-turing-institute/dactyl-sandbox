@@ -103,7 +103,6 @@ const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
 const usernameInput = document.querySelector('#username-input');
 const passwordInput = document.querySelector('#password-input');
-const signupButton = document.querySelector('#signup-button');
 const logoutButton = document.querySelector('#logout-button');
 const authStatus = document.querySelector('#auth-status');
 const passwordForm = document.querySelector('#password-form');
@@ -291,6 +290,7 @@ let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
 let pendingRestore = null;
+let buttonHelpReturnFocus = null;
 let currentScreen = '';
 let suppressScreenHistory = false;
 let lastSync = {
@@ -1171,7 +1171,14 @@ function setShortcutHelpOpen(open) {
 function setButtonHelpOpen(open) {
   buttonHelpPanel.hidden = !open;
   buttonHelpToggle.setAttribute('aria-expanded', String(open));
-  if (open) buttonHelpPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (open) {
+    buttonHelpReturnFocus = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : buttonHelpToggle;
+    buttonHelpPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    buttonHelpClose.focus({ preventScroll: true });
+  } else if (buttonHelpReturnFocus && typeof buttonHelpReturnFocus.focus === 'function') {
+    buttonHelpReturnFocus.focus({ preventScroll: true });
+    buttonHelpReturnFocus = null;
+  }
 }
 
 function renderUpgradeCallout() {
@@ -3983,10 +3990,10 @@ function handleGlobalShortcut(event) {
 
 authForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  authenticate('login');
+  const mode = event.submitter?.value === 'signup' ? 'signup' : 'login';
+  authenticate(mode);
 });
 
-signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
 passwordForm.addEventListener('submit', (event) => {
   event.preventDefault();

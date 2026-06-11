@@ -10,6 +10,9 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_RATE_LIMIT_MAX = 20;
+const AUTH_RATE_LIMIT_MAX_KEYS = 1000;
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
@@ -112,6 +115,55 @@ function verifyPassword(password, passwordHash) {
   return stored.length === hash.length && crypto.timingSafeEqual(stored, hash);
 }
 
+function createFixedWindowRateLimiter({ windowMs, max, keyPrefix = 'rate-limit', maxKeys = AUTH_RATE_LIMIT_MAX_KEYS }) {
+  const hits = new Map();
+
+  function pruneExpired(now) {
+    for (const [key, entry] of hits) {
+      if (entry.resetAt <= now) hits.delete(key);
+    }
+  }
+
+  function pruneOldest() {
+    while (hits.size >= maxKeys) {
+      const oldestKey = hits.keys().next().value;
+      if (!oldestKey) return;
+      hits.delete(oldestKey);
+    }
+  }
+
+  return (req, res, next) => {
+    if (!Number.isFinite(windowMs) || windowMs <= 0 || !Number.isFinite(max) || max <= 0) return next();
+    if (!Number.isFinite(maxKeys) || maxKeys <= 0) return next();
+
+    const now = Date.now();
+    const clientId = req.ips?.[0] || req.ip || req.socket?.remoteAddress;
+    if (!clientId) return next();
+
+    const key = keyPrefix + ':' + clientId;
+    let entry = hits.get(key);
+    if (!entry || entry.resetAt <= now) {
+      pruneExpired(now);
+      if (!hits.has(key)) pruneOldest();
+      entry = { count: 0, resetAt: now + windowMs };
+      hits.set(key, entry);
+    }
+
+    entry.count += 1;
+    const resetSeconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+    res.setHeader('RateLimit-Limit', String(max));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, max - entry.count)));
+    res.setHeader('RateLimit-Reset', String(resetSeconds));
+
+    if (entry.count > max) {
+      res.setHeader('Retry-After', String(resetSeconds));
+      return res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' });
+    }
+
+    return next();
+  };
+}
+
 function createApp(options = {}) {
   const app = express();
   const dbPath = options.dbPath || process.env.DATABASE_PATH || path.join(__dirname, 'data', 'todos.sqlite');
@@ -160,6 +212,13 @@ function createApp(options = {}) {
     next();
   });
   app.use(express.json({ limit: '100kb' }));
+
+  const authRateLimiter = createFixedWindowRateLimiter({
+    windowMs: options.authRateLimitWindowMs ?? AUTH_RATE_LIMIT_WINDOW_MS,
+    max: options.authRateLimitMax ?? AUTH_RATE_LIMIT_MAX,
+    maxKeys: options.authRateLimitMaxKeys ?? AUTH_RATE_LIMIT_MAX_KEYS,
+    keyPrefix: 'auth',
+  });
 
   function issueToken(user) {
     return signJwt({
@@ -219,7 +278,7 @@ function createApp(options = {}) {
     return normalised;
   }
 
-  app.post('/api/signup', (req, res) => {
+  app.post('/api/signup', authRateLimiter, (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
@@ -239,7 +298,7 @@ function createApp(options = {}) {
     return res.status(201).json({ token: issueToken(user), user: toPublicUser(user), todos: [] });
   });
 
-  app.post('/api/login', (req, res) => {
+  app.post('/api/login', authRateLimiter, (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     const passwordError = passwordLengthError(password);

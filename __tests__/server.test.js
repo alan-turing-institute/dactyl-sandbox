@@ -54,6 +54,35 @@ describe('auth and task API', () => {
     await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
   });
 
+  test('rate limits auth routes', async () => {
+    app = createApp({
+      dbPath: ':memory:',
+      jwtSecret: 'test-secret',
+      authRateLimitMax: 2,
+      authRateLimitWindowMs: 60 * 1000,
+    });
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'limited-user', password: 'wrong-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-other', password: 'very-secret' })
+      .expect(429)
+      .expect('Retry-After', /.+/)
+      .expect('RateLimit-Limit', '2')
+      .expect(({ body }) => {
+        expect(body.error).toBe('Too many authentication attempts. Please try again later.');
+      });
+  });
+
   test('requires a valid token and keeps users isolated', async () => {
     app = makeApp();
 

@@ -85,6 +85,10 @@ function toPublicUser(row) {
   return { id: row.id, username: row.username };
 }
 
+function userTokenVersion(row) {
+  return Number.isInteger(row?.token_version) ? row.token_version : 0;
+}
+
 function createPasswordHash(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -132,6 +136,11 @@ function createApp(options = {}) {
     db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
   }
 
+  const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
+  if (!userColumns.includes('token_version')) {
+    db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
+  }
+
   app.locals.db = db;
   app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; connect-src 'self'");
@@ -144,7 +153,12 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '100kb' }));
 
   function issueToken(user) {
-    return signJwt({ sub: user.id, username: user.username, exp: Date.now() + TOKEN_TTL_MS }, jwtSecret);
+    return signJwt({
+      sub: user.id,
+      username: user.username,
+      tokenVersion: userTokenVersion(user),
+      exp: Date.now() + TOKEN_TTL_MS,
+    }, jwtSecret);
   }
 
   function requireAuth(req, res, next) {
@@ -152,8 +166,10 @@ function createApp(options = {}) {
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     const payload = verifyJwt(token, jwtSecret);
     if (!payload) return res.status(401).json({ error: 'Authentication required.' });
-    const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(payload.sub);
-    if (!user) return res.status(401).json({ error: 'Authentication required.' });
+    const user = db.prepare('SELECT id, username, token_version FROM users WHERE id = ?').get(payload.sub);
+    if (!user || (payload.tokenVersion ?? 0) !== userTokenVersion(user)) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
     req.user = user;
     return next();
   }
@@ -204,7 +220,7 @@ function createApp(options = {}) {
 
     const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
     try {
-      db.prepare('INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)')
+      db.prepare('INSERT INTO users (id, username, password_hash, created_at, token_version) VALUES (?, ?, ?, ?, 0)')
         .run(user.id, username, createPasswordHash(password), user.createdAt);
     } catch (error) {
       if (String(error.message).includes('UNIQUE')) return res.status(409).json({ error: 'Username already exists.' });
@@ -216,7 +232,7 @@ function createApp(options = {}) {
   app.post('/api/login', (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
-    const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
+    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
@@ -225,6 +241,28 @@ function createApp(options = {}) {
 
   app.get('/api/me', requireAuth, (req, res) => {
     res.json({ user: toPublicUser(req.user), todos: listTodos(req.user.id) });
+  });
+
+  app.post('/api/account/password', requireAuth, (req, res) => {
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+
+    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE id = ?').get(req.user.id);
+    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const nextTokenVersion = userTokenVersion(user) + 1;
+    db.prepare('UPDATE users SET password_hash = ?, token_version = ? WHERE id = ?')
+      .run(createPasswordHash(newPassword), nextTokenVersion, user.id);
+
+    const updatedUser = { ...user, token_version: nextTokenVersion };
+    return res.json({
+      token: issueToken(updatedUser),
+      user: toPublicUser(updatedUser),
+      todos: listTodos(user.id),
+    });
   });
 
   app.get('/api/tasks', requireAuth, (req, res) => {

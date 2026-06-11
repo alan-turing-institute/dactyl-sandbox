@@ -16,12 +16,14 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
 - Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
+- Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
+- Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions

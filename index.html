@@ -80,8 +80,11 @@
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
+        <button id="export-pond" class="secondary-action" type="button">Export pond</button>
+        <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
+        <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
         <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel">Quiet hours</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
@@ -132,6 +135,18 @@
         <ul id="pond-health-hints" class="pond-health-hints"></ul>
       </section>
 
+      <section id="trophies-panel" class="trophies-panel" aria-labelledby="trophies-title" hidden>
+        <div class="trophies-header">
+          <div>
+            <p class="eyebrow">Progress</p>
+            <h2 id="trophies-title">Tide trophies</h2>
+            <p id="trophies-summary" class="trophies-summary">0 of 5 earned</p>
+          </div>
+          <button id="trophies-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <ul id="trophies-list" class="trophies-list" aria-label="Trophy progress"></ul>
+      </section>
+
       <section id="reminder-prefs-panel" class="reminder-prefs-panel" aria-labelledby="reminder-prefs-title" hidden>
         <div class="reminder-prefs-header">
           <div>
@@ -174,6 +189,23 @@
         <div class="paste-actions">
           <button id="add-pasted-tasks" type="button" disabled>Add tasks</button>
           <button id="clear-paste" class="secondary-action" type="button">Clear</button>
+        </div>
+      </section>
+
+      <section id="restore-panel" class="restore-panel" aria-labelledby="restore-title" hidden>
+        <div class="restore-panel-header">
+          <div>
+            <p class="eyebrow">Backups</p>
+            <h2 id="restore-title">Restore pond</h2>
+          </div>
+          <button id="cancel-restore" class="secondary-action" type="button">Cancel</button>
+        </div>
+        <label for="restore-file">Choose a Dactyl pond JSON backup to preview before importing.</label>
+        <input id="restore-file" type="file" accept="application/json,.json" />
+        <p id="restore-preview" class="restore-preview" role="status" aria-live="polite">Choose a backup file to preview its fish.</p>
+        <div class="restore-actions">
+          <button id="merge-restore" type="button" disabled>Merge into pond</button>
+          <button id="replace-restore" class="secondary-action" type="button" disabled>Replace pond</button>
         </div>
       </section>
 
@@ -243,6 +275,20 @@
           </div>
         </div>
         <button id="complete-focus" type="button">Mark fed</button>
+      </section>
+
+      <section class="search-panel" aria-label="Search and quick filters">
+        <label class="search-field" for="task-search">
+          <span class="sr-only">Search tasks</span>
+          <input id="task-search" type="search" autocomplete="off" placeholder="Search tasks…" />
+        </label>
+        <button id="clear-search" class="secondary-action" type="button" hidden>Clear search</button>
+        <div class="quick-filters" role="group" aria-label="Quick task filters">
+          <button type="button" class="quick-filter" data-quick-filter="high" aria-pressed="false">High tide</button>
+          <button type="button" class="quick-filter" data-quick-filter="due-soon" aria-pressed="false">Due soon</button>
+          <button type="button" class="quick-filter" data-quick-filter="no-due-date" aria-pressed="false">No due date</button>
+          <button type="button" class="quick-filter" data-quick-filter="selected-net" aria-pressed="false">Selected net</button>
+        </div>
       </section>
 
       <section class="toolbar" aria-label="TODO filters">

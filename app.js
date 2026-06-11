@@ -5,6 +5,7 @@ const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const MAX_TODOS = 200;
+const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -34,6 +35,9 @@ const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
+const taskSearch = document.querySelector('#task-search');
+const clearSearch = document.querySelector('#clear-search');
+const quickFilterButtons = [...document.querySelectorAll('.quick-filter')];
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
@@ -45,6 +49,14 @@ const pastePreview = document.querySelector('#paste-preview');
 const addPastedTasks = document.querySelector('#add-pasted-tasks');
 const clearPaste = document.querySelector('#clear-paste');
 const cancelPaste = document.querySelector('#cancel-paste');
+const exportPond = document.querySelector('#export-pond');
+const restorePondToggle = document.querySelector('#restore-pond-toggle');
+const restorePanel = document.querySelector('#restore-panel');
+const restoreFile = document.querySelector('#restore-file');
+const restorePreview = document.querySelector('#restore-preview');
+const mergeRestore = document.querySelector('#merge-restore');
+const replaceRestore = document.querySelector('#replace-restore');
+const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
@@ -82,6 +94,11 @@ const showcaseToggle = document.querySelector('#showcase-toggle');
 const showcasePanel = document.querySelector('#showcase-panel');
 const showcaseClose = document.querySelector('#showcase-close');
 const showcaseBody = document.querySelector('#showcase-body');
+const trophiesToggle = document.querySelector('#trophies-toggle');
+const trophiesPanel = document.querySelector('#trophies-panel');
+const trophiesClose = document.querySelector('#trophies-close');
+const trophiesList = document.querySelector('#trophies-list');
+const trophiesSummary = document.querySelector('#trophies-summary');
 const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
 const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
 const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
@@ -108,6 +125,8 @@ let authToken = loadAuthToken();
 let currentUser = null;
 let todos = [];
 let filter = 'all';
+let searchQuery = '';
+let quickFilter = '';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
@@ -121,6 +140,7 @@ let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
+let pendingRestore = null;
 let lastSync = {
   state: 'never synced',
   at: '',
@@ -415,17 +435,52 @@ function archivedTodos() {
   return sortArchivedTodos(todos.filter((todo) => todo.archivedAt));
 }
 
-function visibleTodos() {
+function baseVisibleTodos() {
   const live = liveTodos();
-  if (filter === 'archive') return archivedTodos();
-  if (filter === 'active') return sortTodos(live.filter((todo) => !todo.completed));
-  if (filter === 'completed') return sortTodos(live.filter((todo) => todo.completed));
+  if (filter === 'archive') return todos.filter((todo) => todo.archivedAt);
+  if (filter === 'active') return live.filter((todo) => !todo.completed);
+  if (filter === 'completed') return live.filter((todo) => todo.completed);
   if (filter === 'week') {
     const today = todayKey();
     const weekEnd = addDays(today, 6);
-    return sortTodos(live.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
+    return live.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd);
   }
-  return sortTodos(live);
+  return live;
+}
+
+function normalisedSearchQuery() {
+  return searchQuery.trim().toLowerCase();
+}
+
+function matchesSearch(todo) {
+  const query = normalisedSearchQuery();
+  if (!query) return true;
+  return todo.text.toLowerCase().includes(query);
+}
+
+function matchesQuickFilter(todo) {
+  const today = todayKey();
+  if (quickFilter === 'high') return todo.priority === 'high';
+  if (quickFilter === 'due-soon') {
+    const dueSoonEnd = addDays(today, 3);
+    return !todo.completed && todo.dueDate && todo.dueDate >= today && todo.dueDate <= dueSoonEnd;
+  }
+  if (quickFilter === 'no-due-date') return !todo.dueDate;
+  if (quickFilter === 'selected-net') return netMode && selectedTodoIds.has(todo.id);
+  return true;
+}
+
+function filterTodos(items) {
+  return items.filter((todo) => matchesSearch(todo) && matchesQuickFilter(todo));
+}
+
+function filteredTodos(items) {
+  return sortTodos(filterTodos(items));
+}
+
+function visibleTodos() {
+  const filtered = filterTodos(baseVisibleTodos());
+  return filter === 'archive' ? sortArchivedTodos(filtered) : sortTodos(filtered);
 }
 
 function ghostNetTodos() {
@@ -445,10 +500,24 @@ function ghostNetTodos() {
 }
 
 function renderedTodoIds() {
-  // tide renders all todos across groups (including completed); other filters match visibleTodos().
-  if (filter === 'tide') return new Set(todos.map((todo) => todo.id));
+  // Tide renders filtered live todos across groups; Ghost net uses its own review set.
+  if (filter === 'tide') return new Set(filteredTodos(liveTodos()).map((todo) => todo.id));
   if (filter === 'ghost') return new Set(ghostNetTodos().map((todo) => todo.id));
   return new Set(visibleTodos().map((todo) => todo.id));
+}
+
+function hasActiveSearchFilter() {
+  return Boolean(normalisedSearchQuery() || quickFilter);
+}
+
+function filteredEmptyHeading() {
+  return normalisedSearchQuery() ? 'No fish match your search or filters' : 'No fish match these filters';
+}
+
+function filteredEmptyDescription() {
+  return normalisedSearchQuery()
+    ? 'Clear the search or quick filter to see more fish in this view.'
+    : 'Clear the quick filter to see more fish in this view.';
 }
 
 function tideFor(todo) {
@@ -594,6 +663,172 @@ function clearPasteInput() {
   pasteInput.value = '';
   updatePastePreview();
   pasteInput.focus();
+}
+
+function exportedTodo(todo) {
+  return {
+    id: todo.id,
+    text: todo.text,
+    completed: todo.completed,
+    createdAt: todo.createdAt,
+    dueDate: todo.dueDate,
+    priority: todo.priority,
+    archivedAt: todo.archivedAt,
+  };
+}
+
+function buildPondBackup() {
+  return {
+    source: 'dactyl-sandbox',
+    version: POND_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    tasks: normaliseTodos(todos).map(exportedTodo),
+  };
+}
+
+function backupFileName() {
+  return `dactyl-pond-backup-${todayKey()}.json`;
+}
+
+function downloadJsonFile(filename, data) {
+  const blob = new window.Blob([`${JSON.stringify(data, null, 2)}\n`], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function exportPondBackup() {
+  if (!currentUser) return;
+  const backup = buildPondBackup();
+  downloadJsonFile(backupFileName(), backup);
+  showPondMessage(`Exported ${pluralise(backup.tasks.length, 'fish', 'fish')} as a JSON pond backup.`);
+}
+
+function backupTasksFromJson(value) {
+  if (!value || typeof value !== 'object') throw new Error('This file is not a Dactyl pond backup.');
+  if (value.source && value.source !== 'dactyl-sandbox') throw new Error('This backup came from an unsupported source.');
+  if (Number(value.version || 1) > POND_EXPORT_VERSION) throw new Error('This backup was made by a newer Dactyl version.');
+  const tasks = Array.isArray(value.tasks) ? value.tasks : value.todos;
+  if (!Array.isArray(tasks)) throw new Error('This backup does not contain a task list.');
+  return tasks;
+}
+
+function normaliseBackupTask(task, seenIds) {
+  if (!task || typeof task !== 'object') return null;
+  const candidateId = typeof task.id === 'string' ? task.id.trim() : '';
+  const id = candidateId && !seenIds.has(candidateId) ? candidateId : crypto.randomUUID();
+  seenIds.add(id);
+  return normaliseTodo({
+    id,
+    text: task.text,
+    completed: task.completed,
+    createdAt: task.createdAt,
+    dueDate: task.dueDate,
+    priority: task.priority,
+    archivedAt: task.archivedAt,
+  });
+}
+
+function duplicateRestoreHints(imported) {
+  const existingKeys = new Set(todos.map((todo) => `${todo.text.trim().toLowerCase()}|${todo.dueDate || ''}`));
+  return imported.filter((todo) => existingKeys.has(`${todo.text.trim().toLowerCase()}|${todo.dueDate || ''}`)).length;
+}
+
+function updateRestorePreview() {
+  const readyCount = pendingRestore?.todos.length ?? 0;
+  mergeRestore.disabled = !currentUser || readyCount === 0 || todos.length >= MAX_TODOS;
+  replaceRestore.disabled = !currentUser || readyCount === 0;
+
+  if (!pendingRestore) return;
+
+  const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+  const mergeableCount = Math.min(readyCount, remainingSlots);
+  const parts = [
+    `${pluralise(readyCount, 'fish', 'fish')} ready`,
+    `${pendingRestore.skippedCount} skipped`,
+  ];
+  if (pendingRestore.duplicateHints > 0) parts.push(`${pluralise(pendingRestore.duplicateHints, 'possible duplicate')} by title/date`);
+  if (mergeableCount < readyCount) parts.push(`${mergeableCount} can be merged before the ${MAX_TODOS}-fish pond limit`);
+  restorePreview.textContent = `${parts.join(' · ')}. Merge keeps existing fish; replace requires confirmation.`;
+}
+
+function setRestorePanelOpen(open) {
+  restorePanel.hidden = !open;
+  restorePondToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    updateRestorePreview();
+    restoreFile.focus();
+  }
+}
+
+function clearRestoreSelection() {
+  pendingRestore = null;
+  restoreFile.value = '';
+  restorePreview.textContent = 'Choose a backup file to preview its fish.';
+  updateRestorePreview();
+}
+
+async function previewRestoreFile() {
+  const [file] = restoreFile.files;
+  pendingRestore = null;
+  if (!file) {
+    clearRestoreSelection();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(await file.text());
+    const rawTasks = backupTasksFromJson(parsed);
+    const seenIds = new Set();
+    const importedTodos = rawTasks
+      .map((task) => normaliseBackupTask(task, seenIds))
+      .filter(Boolean)
+      .slice(0, MAX_TODOS);
+    pendingRestore = {
+      todos: importedTodos,
+      skippedCount: Math.max(0, rawTasks.length - importedTodos.length),
+      duplicateHints: duplicateRestoreHints(importedTodos),
+    };
+    updateRestorePreview();
+  } catch (error) {
+    pendingRestore = null;
+    restorePreview.textContent = `Could not read this backup: ${error.message}`;
+    updateRestorePreview();
+  }
+}
+
+function applyRestore(mode) {
+  if (!currentUser || !pendingRestore || pendingRestore.todos.length === 0) return;
+
+  const imported = normaliseTodos(pendingRestore.todos);
+  let restoredCount = imported.length;
+  if (mode === 'replace') {
+    const confirmed = window.confirm(`Replace your current pond with ${pluralise(imported.length, 'fish', 'fish')} from this backup? This cannot be undone after sync.`);
+    if (!confirmed) return;
+    todos = imported;
+  } else {
+    const existingIds = new Set(todos.map((todo) => todo.id));
+    const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+    const merged = imported.slice(0, remainingSlots).map((todo) => ({
+      ...todo,
+      id: existingIds.has(todo.id) ? crypto.randomUUID() : todo.id,
+    }));
+    restoredCount = merged.length;
+    todos = normaliseTodos([...merged, ...todos]);
+  }
+
+  selectedTodoIds.clear();
+  saveFocusedTodoId(focusedTodoId && todos.some((todo) => todo.id === focusedTodoId) ? focusedTodoId : '');
+  saveTodos();
+  showPondMessage(`${mode === 'replace' ? 'Replaced' : 'Merged'} ${pluralise(restoredCount, 'fish', 'fish')} from the pond backup.`);
+  clearRestoreSelection();
+  setRestorePanelOpen(false);
+  render();
 }
 
 function importPastedTodos() {
@@ -958,6 +1193,91 @@ function setShowcaseOpen(open) {
   }
 }
 
+const TROPHY_DEFS = [
+  {
+    id: 'first-catch',
+    emoji: '🎣',
+    name: 'First catch',
+    description: 'Added the first task to your pond.',
+    earned: () => todos.length > 0,
+  },
+  {
+    id: 'fed-fish',
+    emoji: '🐟',
+    name: 'Fed the fish',
+    description: 'Completed at least one task.',
+    earned: () => todos.some((t) => t.completed),
+  },
+  {
+    id: 'clear-waters',
+    emoji: '💧',
+    name: 'Clear waters',
+    description: 'Active tasks exist with none overdue.',
+    earned: () => {
+      const active = liveTodos().filter((t) => !t.completed);
+      return active.length > 0 && active.every((t) => tideFor(t) !== 'washed');
+    },
+  },
+  {
+    id: 'tide-rider',
+    emoji: '🌊',
+    name: 'Tide rider',
+    description: 'Active tasks spread across two or more tide lanes.',
+    earned: () => new Set(liveTodos().filter((t) => !t.completed).map((t) => tideFor(t))).size >= 2,
+  },
+  {
+    id: 'shoal-wrangler',
+    emoji: '🐙',
+    name: 'Shoal wrangler',
+    description: 'Active tasks organised across multiple priorities.',
+    earned: () => new Set(liveTodos().filter((t) => !t.completed).map((t) => t.priority)).size >= 2,
+  },
+];
+
+function renderTrophies() {
+  if (trophiesPanel.hidden) return;
+
+  const results = TROPHY_DEFS.map((def) => ({ def, isEarned: def.earned() }));
+  const earnedCount = results.filter((r) => r.isEarned).length;
+
+  trophiesSummary.textContent = `${earnedCount} of ${TROPHY_DEFS.length} earned`;
+
+  trophiesList.replaceChildren();
+  results.forEach(({ def, isEarned }) => {
+    const item = document.createElement('li');
+    item.className = `trophy-item ${isEarned ? 'earned' : 'locked'}`;
+
+    const emoji = document.createElement('span');
+    emoji.className = 'trophy-emoji';
+    emoji.setAttribute('aria-hidden', 'true');
+    emoji.textContent = def.emoji;
+
+    const name = document.createElement('p');
+    name.className = 'trophy-name';
+    name.textContent = def.name;
+
+    const desc = document.createElement('p');
+    desc.className = 'trophy-desc';
+    desc.textContent = def.description;
+
+    const status = document.createElement('p');
+    status.className = `trophy-status ${isEarned ? 'earned' : 'locked'}`;
+    status.textContent = isEarned ? 'Earned' : 'Locked';
+
+    item.append(emoji, name, desc, status);
+    trophiesList.append(item);
+  });
+}
+
+function setTrophiesOpen(open) {
+  trophiesPanel.hidden = !open;
+  trophiesToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderTrophies();
+    trophiesPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 function loadReminderPrefs() {
   const defaults = { enabled: false, quietStart: '22:00', quietEnd: '08:00' };
   try {
@@ -1172,7 +1492,7 @@ function createTodoItem(todo) {
 
 function weekAheadGroups() {
   const today = todayKey();
-  const activeDueTodos = sortTodos(liveTodos().filter((todo) => !todo.completed && todo.dueDate));
+  const activeDueTodos = visibleTodos();
   const groups = [
     {
       key: 'overdue',
@@ -1200,9 +1520,11 @@ function renderWeekAhead() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'week-group week-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Clear waters ahead';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Clear waters ahead';
     const description = document.createElement('p');
-    description.textContent = 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
+    description.textContent = hasActiveSearchFilter()
+      ? filteredEmptyDescription()
+      : 'No active due-date tasks in the next seven days. Add due dates to plan the pond.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -1231,7 +1553,7 @@ function renderWeekAhead() {
 }
 
 function renderTideMode() {
-  const sortedTodos = sortTodos(todos);
+  const sortedTodos = filteredTodos(liveTodos());
   const populatedGroups = tideGroups
     .map((group) => ({ ...group, todos: sortedTodos.filter((todo) => tideFor(todo) === group.key) }))
     .filter((group) => group.todos.length > 0);
@@ -1240,9 +1562,11 @@ function renderTideMode() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'tide-group tide-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Still waters (0)';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Still waters (0)';
     const description = document.createElement('p');
-    description.textContent = 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
+    description.textContent = hasActiveSearchFilter()
+      ? filteredEmptyDescription()
+      : 'No tasks in the pond yet. Add one above or stock the pond with demo fish.';
     emptyItem.append(heading, description);
     list.append(emptyItem);
     return;
@@ -1268,6 +1592,21 @@ function renderTideMode() {
 
     list.append(groupItem);
   }
+}
+
+function renderSearchControls() {
+  if (taskSearch.value !== searchQuery) {
+    taskSearch.value = searchQuery;
+  }
+  taskSearch.disabled = !currentUser;
+  clearSearch.hidden = !searchQuery;
+  clearSearch.disabled = !currentUser;
+  quickFilterButtons.forEach((button) => {
+    const isSelectedNet = button.dataset.quickFilter === 'selected-net';
+    button.disabled = !currentUser || (isSelectedNet && !netMode);
+    button.classList.toggle('active', button.dataset.quickFilter === quickFilter);
+    button.setAttribute('aria-pressed', String(button.dataset.quickFilter === quickFilter));
+  });
 }
 
 function renderNetControls() {
@@ -1462,6 +1801,8 @@ function renderAuth() {
   });
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
+  exportPond.disabled = !signedIn;
+  restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
@@ -1469,6 +1810,7 @@ function renderAuth() {
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
   updatePastePreview();
+  updateRestorePreview();
 }
 
 function setFilter(nextFilter) {
@@ -1502,6 +1844,7 @@ function dismissTour() {
 function render() {
   const renderStarted = diagnosticNow();
   renderAuth();
+  if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
 
   if (filter === 'tide') {
@@ -1517,21 +1860,31 @@ function render() {
   }
 
   const activeCount = liveTodos().filter((todo) => !todo.completed).length;
-  count.textContent = filter === 'archive'
-    ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
-    : filter === 'ghost'
+  const visibleCount = filter === 'tide' ? filteredTodos(liveTodos()).length : visibleTodos().length;
+  count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
-    : `${pluralise(activeCount, 'task')} left`;
-  emptyState.querySelector('h2').textContent = filter === 'archive' ? 'No fish in the reef archive' : 'Nothing here yet';
-  emptyState.querySelector('p').textContent = filter === 'archive'
-    ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-    : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+    : hasActiveSearchFilter()
+      ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
+      : filter === 'archive'
+        ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+        : `${pluralise(activeCount, 'task')} left`;
+  emptyState.querySelector('h2').textContent = hasActiveSearchFilter()
+    ? filteredEmptyHeading()
+    : filter === 'archive'
+      ? 'No fish in the reef archive'
+      : 'Nothing here yet';
+  emptyState.querySelector('p').textContent = hasActiveSearchFilter()
+    ? filteredEmptyDescription()
+    : filter === 'archive'
+      ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
+      : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
+  renderSearchControls();
   renderTourPanel();
 
   filterButtons.forEach((button) => {
@@ -1543,6 +1896,7 @@ function render() {
   recordRenderDuration(renderStarted);
   renderPondHealth();
   renderShowcase();
+  renderTrophies();
   if (!reminderPrefsPanel.hidden) renderReminderPrefs();
 }
 
@@ -1990,6 +2344,11 @@ async function authenticate(mode) {
   }
 }
 
+function clearSearchState() {
+  searchQuery = '';
+  quickFilter = '';
+}
+
 async function changePassword() {
   if (!currentUser || !passwordForm.reportValidity()) return;
 
@@ -2023,10 +2382,13 @@ function logout() {
   currentUser = null;
   todos = [];
   selectedTodoIds.clear();
+  clearSearchState();
   netMode = false;
   tourForcedVisible = false;
   resetFocusSprint('');
   saveFocusedTodoId('');
+  clearRestoreSelection();
+  setRestorePanelOpen(false);
   markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
   render();
@@ -2106,9 +2468,11 @@ function handleGlobalShortcut(event) {
     const leftNetMode = leaveNetMode();
     const closedShowcase = !showcasePanel.hidden;
     if (closedShowcase) setShowcaseOpen(false);
+    const closedTrophies = !trophiesPanel.hidden;
+    if (closedTrophies) setTrophiesOpen(false);
     const closedReminderPrefs = !reminderPrefsPanel.hidden;
     if (closedReminderPrefs) setReminderPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedReminderPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedReminderPrefs) event.preventDefault();
   }
 }
 
@@ -2142,6 +2506,32 @@ filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
 });
 
+taskSearch.addEventListener('input', () => {
+  searchQuery = taskSearch.value;
+  render();
+});
+
+taskSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && searchQuery) {
+    event.preventDefault();
+    searchQuery = '';
+    render();
+  }
+});
+
+clearSearch.addEventListener('click', () => {
+  searchQuery = '';
+  render();
+  taskSearch.focus();
+});
+
+quickFilterButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
+    render();
+  });
+});
+
 clearCompleted.addEventListener('click', () => {
   if (filter === 'archive') releaseArchivedTodos();
   else archiveCompletedTodos();
@@ -2154,6 +2544,12 @@ pasteInput.addEventListener('input', updatePastePreview);
 addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
+exportPond.addEventListener('click', exportPondBackup);
+restorePondToggle.addEventListener('click', () => setRestorePanelOpen(restorePanel.hidden));
+restoreFile.addEventListener('change', previewRestoreFile);
+mergeRestore.addEventListener('click', () => applyRestore('merge'));
+replaceRestore.addEventListener('click', () => applyRestore('replace'));
+cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
@@ -2184,6 +2580,8 @@ completeFocusSprint.addEventListener('click', completeSprintFocusedTodo);
 completeFocus.addEventListener('click', completeFocusedTodo);
 showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hidden));
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
+trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
+trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
 reminderPrefsToggle.addEventListener('click', () => setReminderPrefsOpen(reminderPrefsPanel.hidden));
 reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
 reminderEnable.addEventListener('change', () => {

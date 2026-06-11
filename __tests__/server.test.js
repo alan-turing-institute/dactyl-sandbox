@@ -390,4 +390,71 @@ describe('auth and task API', () => {
       .send({ username: 'broken-hash', password: 'very-secret' })
       .expect(401);
   });
+
+  test('persists blocked and blockerReason fields through patch and list', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'blocker-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create a task then flag it as blocked with a reason
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Blocked fish', blocked: true, blockerReason: 'Waiting on PR review' })
+      .expect(201);
+
+    expect(created.body.todo.blocked).toBe(true);
+    expect(created.body.todo.blockerReason).toBe('Waiting on PR review');
+
+    // Verify it comes back in list
+    const list = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body.todos[0].blocked).toBe(true);
+    expect(list.body.todos[0].blockerReason).toBe('Waiting on PR review');
+
+    // Unblock via patch
+    const unblocked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ blocked: false, blockerReason: '' })
+      .expect(200);
+
+    expect(unblocked.body.todo.blocked).toBe(false);
+    expect(unblocked.body.todo.blockerReason).toBe('');
+
+    // Verify persisted after unblock
+    const afterUnblock = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(afterUnblock.body.todos[0].blocked).toBe(false);
+    expect(afterUnblock.body.todos[0].blockerReason).toBe('');
+  });
+
+  test('truncates blockerReason to 160 characters', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'truncate-user', password: 'very-secret' })
+      .expect(201);
+
+    const longReason = 'x'.repeat(200);
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Long blocker', blocked: true, blockerReason: longReason })
+      .expect(201);
+
+    expect(created.body.todo.blockerReason).toHaveLength(160);
+  });
 });

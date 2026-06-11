@@ -32,6 +32,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Copy a read-only pond snapshot for standups and demos without account credentials or edit controls
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
+- **Starter shoals** — one-click task templates for stand-ups, PR reviews, demo prep, and docs tidy-ups.
 - Clear completed tasks
 - Validate saved task data before rendering
 - Responsive layout with accessible labels

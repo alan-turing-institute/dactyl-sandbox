@@ -12,7 +12,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Change a signed-in account password and invalidate old session tokens
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
-- Add, edit, and delete tasks with optional due dates and low, medium, or high priority
+- Add, edit, and delete tasks with optional due dates, GitHub issue/PR links, and low, medium, or high priority
 - Use quick priority chips to mark the next fish as low, medium, or high tide
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
@@ -26,6 +26,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
+- Attach validated GitHub issue or PR URLs to tasks and show compact link chips plus report links
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Copy a read-only pond snapshot for standups and demos without account credentials or edit controls
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding

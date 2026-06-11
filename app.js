@@ -140,6 +140,11 @@ const saveSmartView = document.querySelector('#save-smart-view');
 const smartViewList = document.querySelector('#smart-view-list');
 const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
+const undoToast = document.querySelector('#undo-toast');
+const undoToastMessage = document.querySelector('#undo-toast-message');
+const undoToastAction = document.querySelector('#undo-toast-action');
+const undoToastDismiss = document.querySelector('#undo-toast-dismiss');
+const undoToastProgress = document.querySelector('#undo-toast-progress');
 const stockPond = document.querySelector('#stock-pond');
 const releaseDemo = document.querySelector('#release-demo');
 const pastePond = document.querySelector('#paste-pond');
@@ -258,8 +263,6 @@ const activityLogToggle = document.querySelector('#activity-log-toggle');
 const activityLogPanel = document.querySelector('#activity-log-panel');
 const activityLogClose = document.querySelector('#activity-log-close');
 const activityLogList = document.querySelector('#activity-log-list');
-const activityLogUndo = document.querySelector('#activity-log-undo');
-const activityUndoBtn = document.querySelector('#activity-undo-btn');
 const shoalInput = document.querySelector('#shoal-input');
 const shoalDatalist = document.querySelector('#shoal-datalist');
 const shoalFilterSelect = document.querySelector('#shoal-filter-select');
@@ -314,6 +317,7 @@ let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
+let undoToastFocused = false;
 let activityLog = [];
 let pendingRestore = null;
 let buttonHelpReturnFocus = null;
@@ -412,7 +416,54 @@ function clearStorageError() {
 
 function clearUndoAction() {
   if (lastUndoAction?.timeoutId) window.clearTimeout(lastUndoAction.timeoutId);
+  undoToast.hidden = true;
+  undoToast.classList.remove('paused');
+  undoToastProgress.style.animation = '';
   lastUndoAction = null;
+}
+
+function pauseUndoToastTimer() {
+  if (!lastUndoAction?.timeoutId) return;
+  window.clearTimeout(lastUndoAction.timeoutId);
+  lastUndoAction.timeoutId = null;
+  lastUndoAction.remainingMs = Math.max(0, lastUndoAction.remainingMs - (Date.now() - lastUndoAction.startedAt));
+  undoToast.classList.add('paused');
+}
+
+function scheduleUndoToastDismiss() {
+  if (!lastUndoAction || undoToastFocused) return;
+  if (lastUndoAction.timeoutId) window.clearTimeout(lastUndoAction.timeoutId);
+  lastUndoAction.startedAt = Date.now();
+  lastUndoAction.timeoutId = window.setTimeout(() => {
+    if (lastUndoAction) clearUndoAction();
+  }, lastUndoAction.remainingMs);
+  undoToast.classList.remove('paused');
+}
+
+function showUndoToast() {
+  if (!lastUndoAction) return;
+  undoToastMessage.textContent = lastUndoAction.message;
+  undoToast.hidden = false;
+  undoToastProgress.style.animation = 'none';
+  void undoToastProgress.offsetHeight; // Restart the progress animation.
+  undoToastProgress.style.animation = `undo-toast-progress ${lastUndoAction.remainingMs}ms linear forwards`;
+  scheduleUndoToastDismiss();
+}
+
+function setUndoAction({ todos: previousTodos, focusedTodoId: previousFocus, selectedTodoIds: previousSelection, netMode: previousNetMode, message, confirmation }) {
+  clearUndoAction();
+  lastUndoAction = {
+    todos: previousTodos,
+    focusedTodoId: previousFocus,
+    selectedTodoIds: previousSelection,
+    netMode: previousNetMode,
+    message,
+    confirmation,
+    timeoutId: null,
+    remainingMs: 5000,
+    startedAt: 0,
+  };
+  showUndoToast();
 }
 
 function showPondMessage(message, options = {}) {
@@ -896,7 +947,6 @@ function renderActivityLog() {
       activityLogList.append(li);
     });
   }
-  if (activityLogUndo) activityLogUndo.hidden = !lastUndoAction;
 }
 
 function saveFocusedTodoId(value) {
@@ -3635,45 +3685,40 @@ function restoreUndoAction() {
   showPondMessage(undoAction.confirmation);
 }
 
+function prepareUndoSnapshot() {
+  return {
+    todos: normaliseTodos(todos),
+    focusedTodoId,
+    selectedTodoIds: [...selectedTodoIds],
+    netMode,
+  };
+}
+
+function applyUndoableTodoChange(snapshot, message, confirmation) {
+  saveTodos();
+  render();
+  setUndoAction({
+    ...snapshot,
+    message,
+    confirmation,
+  });
+}
+
 function removeTodosWithUndo(predicate, message) {
-  const previousTodos = normaliseTodos(todos);
+  const snapshot = prepareUndoSnapshot();
+  const previousTodos = snapshot.todos;
   const removedTodos = previousTodos.filter(predicate);
   if (removedTodos.length === 0) return false;
 
-  clearUndoAction();
-  const previousFocus = focusedTodoId;
-  const previousSelection = [...selectedTodoIds];
-  const previousNetMode = netMode;
-
   todos = previousTodos.filter((todo) => !predicate(todo));
-  if (previousFocus && removedTodos.some((todo) => todo.id === previousFocus)) {
+  if (snapshot.focusedTodoId && removedTodos.some((todo) => todo.id === snapshot.focusedTodoId)) {
     cancelCurrentFocusSprint('Focus sprint cancelled because that fish left the pond.');
     saveFocusedTodoId('');
   }
-  selectedTodoIds = new Set(previousSelection.filter((id) => todos.some((todo) => todo.id === id)));
-  saveTodos();
-  render();
+  selectedTodoIds = new Set(snapshot.selectedTodoIds.filter((id) => todos.some((todo) => todo.id === id)));
 
   const undoMessage = message(removedTodos.length);
-  const undoAction = {
-    todos: previousTodos,
-    focusedTodoId: previousFocus,
-    selectedTodoIds: previousSelection,
-    netMode: previousNetMode,
-    confirmation: `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`,
-    timeoutId: null,
-  };
-  undoAction.timeoutId = window.setTimeout(() => {
-    if (lastUndoAction === undoAction) {
-      lastUndoAction = null;
-      showPondMessage(undoMessage);
-    }
-  }, 9000);
-  lastUndoAction = undoAction;
-  showPondMessage(undoMessage, {
-    preserveUndo: true,
-    action: { label: 'Undo', onClick: restoreUndoAction },
-  });
+  applyUndoableTodoChange(snapshot, undoMessage, `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`);
   return true;
 }
 
@@ -3783,6 +3828,7 @@ function deleteTodo(id) {
 }
 
 function archiveTodo(id) {
+  const snapshot = prepareUndoSnapshot();
   const archivedAt = new Date().toISOString();
   const todoToArchive = todos.find((todo) => todo.id === id);
   todos = todos.map((todo) => (
@@ -3794,14 +3840,13 @@ function archiveTodo(id) {
   }
   selectedTodoIds.delete(id);
   if (todoToArchive) logActivity('Archived', todoToArchive.text);
-  saveTodos();
-  showPondMessage('Moved 1 completed fish to the reef archive.');
-  render();
+  applyUndoableTodoChange(snapshot, 'Moved 1 completed fish to the reef archive.', 'Restored 1 fish from the reef archive.');
 }
 
 function archiveCompletedTodos() {
   const completedIds = liveTodos().filter((todo) => todo.completed).map((todo) => todo.id);
   if (completedIds.length === 0) return;
+  const snapshot = prepareUndoSnapshot();
   const archivedAt = new Date().toISOString();
   const completedIdSet = new Set(completedIds);
   todos = todos.map((todo) => (
@@ -3812,9 +3857,11 @@ function archiveCompletedTodos() {
     saveFocusedTodoId('');
   }
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => !completedIdSet.has(id)));
-  saveTodos();
-  showPondMessage(`Moved ${pluralise(completedIds.length, 'completed fish', 'completed fish')} to the reef archive.`);
-  render();
+  applyUndoableTodoChange(
+    snapshot,
+    `Moved ${pluralise(completedIds.length, 'completed fish', 'completed fish')} to the reef archive.`,
+    `Restored ${pluralise(completedIds.length, 'fish', 'fish')} from the reef archive.`,
+  );
 }
 
 function restoreArchivedTodo(id) {
@@ -3884,15 +3931,15 @@ function moveSelectedToShoal() {
   const selectedCount = effectiveIds.size;
   const shoal = bulkShoalInput.value.trim().slice(0, 40);
   if (selectedCount === 0) return;
+  const snapshot = prepareUndoSnapshot();
   todos = todos.map((todo) => (
     effectiveIds.has(todo.id) ? { ...todo, shoal } : todo
   ));
   if (bulkShoalInput) bulkShoalInput.value = '';
-  saveTodos();
-  showPondMessage(shoal
+  applyUndoableTodoChange(snapshot, shoal
     ? `Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${shoal} shoal.`
-    : `Cleared shoal grouping for ${pluralise(selectedCount, 'selected fish', 'selected fish')}.`);
-  render();
+    : `Cleared shoal grouping for ${pluralise(selectedCount, 'selected fish', 'selected fish')}.`,
+  `Restored previous shoals for ${pluralise(selectedCount, 'fish', 'fish')}.`);
 }
 
 function completeFocusedTodo(source = 'focus_button') {
@@ -3977,10 +4024,9 @@ function releaseDemoFish() {
 function snoozeTodo(id, days) {
   const today = todayKey();
   const newDueDate = addDays(today, days);
+  const snapshot = prepareUndoSnapshot();
   todos = todos.map((todo) => (todo.id === id ? { ...todo, dueDate: newDueDate } : todo));
-  saveTodos();
-  showPondMessage(`Snoozed 1 task until ${formatDateKey(newDueDate)}.`);
-  render();
+  applyUndoableTodoChange(snapshot, `Snoozed 1 task until ${formatDateKey(newDueDate)}.`, 'Restored previous due date.');
 }
 
 function renderGhostNet() {
@@ -4568,11 +4614,18 @@ prefTextBadges.addEventListener('change', () => {
 moreActionsToggle.addEventListener('click', () => setMoreActionsOpen(moreActionsPanel.hidden));
 activityLogToggle.addEventListener('click', () => setActivityLogOpen(activityLogPanel.hidden));
 activityLogClose.addEventListener('click', () => setActivityLogOpen(false));
-activityUndoBtn.addEventListener('click', () => {
-  if (lastUndoAction) {
-    restoreUndoAction();
-    logActivity('Undone', '');
-  }
+undoToastAction.addEventListener('click', () => {
+  restoreUndoAction();
+  logActivity('Undone', '');
+});
+undoToastDismiss.addEventListener('click', clearUndoAction);
+undoToast.addEventListener('focusin', () => {
+  undoToastFocused = true;
+  pauseUndoToastTimer();
+});
+undoToast.addEventListener('focusout', () => {
+  undoToastFocused = false;
+  scheduleUndoToastDismiss();
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);

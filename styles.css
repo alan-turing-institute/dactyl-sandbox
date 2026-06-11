@@ -473,6 +473,46 @@ kbd {
   font-size: 1.25rem;
 }
 
+.focus-sprint {
+  display: grid;
+  gap: .8rem;
+  margin: 1rem 0;
+  padding: .9rem;
+  border: 1px solid rgb(141 212 255 / 18%);
+  border-radius: 1rem;
+  background: rgb(141 212 255 / 8%);
+}
+
+.focus-sprint-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.focus-sprint h3 {
+  margin: 0;
+}
+
+.focus-sprint-status {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.focus-sprint-presets,
+.focus-sprint-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.focus-sprint-preset.active {
+  color: #07111a;
+  background: var(--accent);
+}
+
 .pond-tour p {
   margin: 0;
   color: var(--muted);

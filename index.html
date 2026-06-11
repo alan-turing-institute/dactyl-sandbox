@@ -182,6 +182,22 @@
         <p class="eyebrow">Feed the fish</p>
         <h2 id="focus-title">No fish selected</h2>
         <p id="focus-meta" class="focus-meta"></p>
+        <div class="focus-sprint" aria-labelledby="focus-sprint-title">
+          <div>
+            <h3 id="focus-sprint-title">Focus sprint</h3>
+            <p id="focus-sprint-status" class="focus-sprint-status" role="timer" aria-live="polite">Ready when you are.</p>
+          </div>
+          <div class="focus-sprint-presets" role="group" aria-label="Focus sprint length">
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="15">15 min</button>
+            <button class="focus-sprint-preset" type="button" data-sprint-minutes="25">25 min</button>
+          </div>
+          <div class="focus-sprint-actions">
+            <button id="start-focus-sprint" type="button">Start sprint</button>
+            <button id="pause-focus-sprint" class="secondary-action" type="button">Pause</button>
+            <button id="cancel-focus-sprint" class="secondary-action" type="button">Cancel</button>
+            <button id="complete-focus-sprint" class="secondary-action" type="button">Mark fed after sprint</button>
+          </div>
+        </div>
         <button id="complete-focus" type="button">Mark fed</button>
       </section>
 

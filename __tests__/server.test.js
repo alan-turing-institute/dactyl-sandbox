@@ -195,6 +195,41 @@ describe('auth and task API', () => {
       .expect(200);
   });
 
+  test('rejects passwords longer than the bounded scrypt input length', async () => {
+    app = makeApp();
+    const longPassword = 'p'.repeat(129);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'long-signup', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'bounded-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'bounded-user', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ currentPassword: 'very-secret', newPassword: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('New password must be 8-128 characters.');
+      });
+  });
+
   test('malformed password hashes fail login without crashing', async () => {
     app = makeApp();
 

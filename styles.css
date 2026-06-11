@@ -254,6 +254,38 @@ h1 {
   color: var(--success);
 }
 
+.shared-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.shared-task-list {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shared-task,
+.shared-empty {
+  display: grid;
+  gap: .35rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 18%);
+  border-radius: 1rem;
+  background: rgb(141 212 255 / 7%);
+}
+
+.shared-task span,
+.shared-empty {
+  color: var(--muted);
+}
+
+.shared-task a {
+  color: var(--accent);
+}
+
 .undo-action {
   margin-left: .35rem;
   padding: .3rem .65rem;

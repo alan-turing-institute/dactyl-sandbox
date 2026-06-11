@@ -153,14 +153,24 @@
         </div>
         <p class="button-help-note">A quick map for TODO-app developers swimming through the fishy UI.</p>
         <dl class="button-help-list">
-          <div><dt>➕ Add</dt><dd>Type a task, optional due date, GitHub link, and tide priority, then add a new fish to the pond.</dd></div>
-          <div><dt>✓ Complete</dt><dd>Tick a fish when it is fed. Completed fish can be archived or celebrated in reports.</dd></div>
-          <div><dt>× Delete</dt><dd>Release a fish from the pond. Bulk release uses the Cast net controls and keeps an undo line where available.</dd></div>
-          <div><dt>🌊 Filters</dt><dd>All, Active, Tide, Ghost net, Week ahead, and Archive reshape the visible shoal without changing hidden tasks.</dd></div>
-          <div><dt>🎯 Feed</dt><dd>Pin one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
-          <div><dt>📝 Details/Edit</dt><dd>Edit changes the core task fields; Details opens private notes and checklist items for the selected fish.</dd></div>
-          <div><dt>🕸 Cast net</dt><dd>Select visible fish for safe bulk release or priority-shoal moves. Hidden tasks stay out of the net.</dd></div>
-          <div><dt>⌨ Shortcuts</dt><dd>Open Pond shortcuts for keyboard commands; Escape closes pop-up panels and leaves net mode.</dd></div>
+          <div><dt>➕ Add task</dt><dd>Adds a new TODO fish with optional due date, GitHub link, priority, and quick-add hints. Requires sign-in.</dd></div>
+          <div><dt>✓ Complete</dt><dd>Marks a fish fed/completed. This is reversible by editing state before archive; recurring fish schedule the next occurrence.</dd></div>
+          <div><dt>× Delete / Release</dt><dd>Removes a fish. Archive release can be permanent; Cast net bulk release shows an undo affordance where supported.</dd></div>
+          <div><dt>🌊 Filters</dt><dd>All, Active, Tide, Ghost net, Week ahead, and Archive are view changes only; hidden fish are not modified.</dd></div>
+          <div><dt>🐟 Stock / Release demo fish</dt><dd>Seeds or removes sample tasks so new users can explore the pond. It never touches your own non-demo fish.</dd></div>
+          <div><dt>📋 Paste to pond</dt><dd>Turns pasted bullets or checkbox notes into tasks. Preview first; importing creates real fish in your account.</dd></div>
+          <div><dt>💾 Export / Restore pond</dt><dd>Export downloads a backup. Restore can merge or replace task data, so read the preview before releasing that current.</dd></div>
+          <div><dt>📣 Copy reports</dt><dd>Copy pond report, snapshot, or stand-up draft writes text to your clipboard. Nothing is posted externally by the app.</dd></div>
+          <div><dt>🎣 Daily Catch</dt><dd>Suggests a small focus list from due, priority, and feeding signals. Pinning changes only the local planning catch.</dd></div>
+          <div><dt>🩺 Pond health</dt><dd>Shows lightweight diagnostics and can copy a privacy-preserving summary for debugging.</dd></div>
+          <div><dt>🏆 Tide trophies</dt><dd>Displays progress badges. This is read-only and just reflects your current task pond.</dd></div>
+          <div><dt>🔕 Quiet hours</dt><dd>Configures due-date reminder timing. Notifications are opt-in and stay in the browser.</dd></div>
+          <div><dt>🫧 Calm Water</dt><dd>Adjusts visual preferences like reduced celebration intensity and text-first badges. It is a local display preference.</dd></div>
+          <div><dt>🐠 Aquarium view</dt><dd>Opens a visual showcase of active fish. It is decorative and does not change task state.</dd></div>
+          <div><dt>🎯 Feed</dt><dd>Pins one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
+          <div><dt>📝 Details / Edit</dt><dd>Edit changes core task fields. Details opens private notes and checklist items for the selected fish.</dd></div>
+          <div><dt>🕸 Cast net</dt><dd>Selects visible fish for bulk release or priority-shoal moves. Hidden tasks stay out of the net.</dd></div>
+          <div><dt>⌨ Shortcuts / Triage</dt><dd>Pond shortcuts lists keyboard commands; Triage mode clears one active fish at a time with keyboard actions.</dd></div>
         </dl>
       </section>
 

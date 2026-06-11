@@ -65,8 +65,9 @@
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
-        <button id="copy-pond-report" class="secondary-action" type="button">Copy pond report</button>
+        <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
+        <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
         <label id="shoal-control" class="shoal-control" hidden>
@@ -78,6 +79,25 @@
           </select>
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
+      </section>
+
+      <section id="shortcut-help" class="shortcut-help" aria-labelledby="shortcut-help-title" hidden>
+        <div class="shortcut-help-header">
+          <div>
+            <p class="eyebrow">Keyboard help</p>
+            <h2 id="shortcut-help-title">Pond shortcuts</h2>
+          </div>
+          <button id="shortcut-help-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p class="shortcut-help-note">Shortcuts run when you are not typing in a field or using a control.</p>
+        <dl class="shortcut-list">
+          <div><dt><kbd>?</kbd></dt><dd>Open or close this help card.</dd></div>
+          <div><dt><kbd>/</kbd></dt><dd>Focus the task input.</dd></div>
+          <div><dt><kbd>T</kbd></dt><dd>Switch to Tide mode.</dd></div>
+          <div><dt><kbd>A</kbd></dt><dd>Switch back to All tasks.</dd></div>
+          <div><dt><kbd>R</kbd></dt><dd>Copy the pond report.</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Close this help card and leave net mode.</dd></div>
+        </dl>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>
@@ -141,10 +161,10 @@
       <section class="toolbar" aria-label="TODO filters">
         <span id="todo-count" class="count">0 tasks</span>
         <div class="filters" role="group" aria-label="Filter tasks">
-          <button type="button" class="filter active" data-filter="all">All</button>
+          <button type="button" class="filter active" data-filter="all" aria-keyshortcuts="A">All</button>
           <button type="button" class="filter" data-filter="active">Active</button>
           <button type="button" class="filter" data-filter="completed">Completed</button>
-          <button type="button" class="filter" data-filter="tide">Tide mode</button>
+          <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
         </div>
       </section>
 

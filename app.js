@@ -352,6 +352,19 @@ function visibleTodos() {
   return sortTodos(todos);
 }
 
+function visibleTodoIds() {
+  return new Set(visibleTodos().map((todo) => todo.id));
+}
+
+function selectedVisibleTodoIds() {
+  const visibleIds = visibleTodoIds();
+  return new Set([...selectedTodoIds].filter((id) => visibleIds.has(id)));
+}
+
+function syncSelectedTodosWithVisibleView() {
+  selectedTodoIds = selectedVisibleTodoIds();
+}
+
 function tideFor(todo) {
   if (todo.completed) return 'completed';
   const today = todayKey();
@@ -1004,6 +1017,7 @@ function setFilter(nextFilter) {
 function render() {
   const renderStarted = diagnosticNow();
   renderAuth();
+  syncSelectedTodosWithVisibleView();
   list.replaceChildren();
 
   if (filter === 'tide') {
@@ -1021,7 +1035,6 @@ function render() {
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
   releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
-  selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
   renderNetControls();
   renderTourPanel();
 
@@ -1208,7 +1221,13 @@ function toggleSelectedTodo(id) {
 }
 
 function releaseSelectedTodos() {
-  const selectedIds = new Set(selectedTodoIds);
+  const selectedIds = selectedVisibleTodoIds();
+  selectedTodoIds = selectedIds;
+  if (selectedIds.size === 0) {
+    render();
+    return;
+  }
+
   if (removeTodosWithUndo(
     (todo) => selectedIds.has(todo.id),
     (count) => `Released ${pluralise(count, 'selected fish', 'selected fish')} from the pond.`,
@@ -1220,10 +1239,17 @@ function releaseSelectedTodos() {
 
 function moveSelectedToShoal() {
   editingTodoId = '';
-  const selectedCount = selectedTodoIds.size;
+  const selectedIds = selectedVisibleTodoIds();
+  selectedTodoIds = selectedIds;
+  const selectedCount = selectedIds.size;
+  if (selectedCount === 0) {
+    render();
+    return;
+  }
+
   const priority = normalisePriority(shoalPriority.value);
   todos = todos.map((todo) => (
-    selectedTodoIds.has(todo.id) ? { ...todo, priority } : todo
+    selectedIds.has(todo.id) ? { ...todo, priority } : todo
   ));
   saveTodos();
   showPondMessage(`Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${priority} shoal.`);

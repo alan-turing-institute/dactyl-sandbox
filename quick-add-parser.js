@@ -55,7 +55,7 @@
     const result = { text, dueDate: '', priority: '' };
 
     for (const [phrase, priority] of [...PRIORITY_WORDS.entries()].sort((a, b) => b[0].length - a[0].length)) {
-      const pattern = new RegExp(`(?:^|\\s)${phrase.replace(' ', '\\s+')}(?=\\s|$)`, 'i');
+      const pattern = new RegExp(`(?:^|\\s)${phrase.replace(/\s+/g, '\\s+')}(?=\\s|$)`, 'i');
       if (pattern.test(text)) {
         result.priority = priority;
         text = text.replace(pattern, ' ');

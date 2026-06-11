@@ -1,10 +1,12 @@
-/* global DactylFishEmoji, DactylQuickAdd, DactylScreenState */
+/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
+const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed:v1';
+const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
@@ -15,6 +17,54 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
+const STARTER_SHOALS = [
+  {
+    name: 'Morning stand-up shoal',
+    description: 'Yesterday, today, blockers, review asks.',
+    tasks: [
+      { text: 'Note what I completed yesterday', priority: 'low' },
+      { text: 'Write today\'s focus task', priority: 'high' },
+      { text: 'Flag any blockers or waiting-ons', priority: 'medium' },
+      { text: 'Check open review requests', priority: 'medium' },
+    ],
+  },
+  {
+    name: 'PR review shoal',
+    description: 'Reproduce, inspect diff, run tests, leave review, follow up.',
+    tasks: [
+      { text: 'Reproduce the change locally', priority: 'high' },
+      { text: 'Read the diff and leave inline comments', priority: 'high' },
+      { text: 'Run the test suite', priority: 'medium' },
+      { text: 'Submit review', priority: 'medium' },
+      { text: 'Follow up on review response', priority: 'low' },
+    ],
+  },
+  {
+    name: 'Hack-week demo shoal',
+    description: 'Polish README, capture screenshot, write demo script, check deploy.',
+    tasks: [
+      { text: 'Polish README with setup steps', priority: 'high' },
+      { text: 'Capture screenshot or GIF', priority: 'medium' },
+      { text: 'Write demo script (3 min)', priority: 'high' },
+      { text: 'Verify deployment / local demo works', priority: 'high' },
+    ],
+  },
+  {
+    name: 'Docs tidy shoal',
+    description: 'Update install steps, add troubleshooting, verify commands.',
+    tasks: [
+      { text: 'Update install / setup steps', priority: 'medium' },
+      { text: 'Add troubleshooting note', priority: 'low' },
+      { text: 'Verify all documented commands work', priority: 'medium' },
+      { text: 'Review for outdated screenshots or links', priority: 'low' },
+    ],
+  },
+];
+const {
+  shouldCelebrateFirstCompletion,
+  shouldShowFirstTaskOnboarding,
+  templateForId,
+} = DactylFirstTaskOnboarding;
 const {
   normaliseScreenKey,
   screenKeyFromLocation,
@@ -47,6 +97,9 @@ const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
+const firstTaskOnboarding = document.querySelector('#first-task-onboarding');
+const firstTaskTemplateButtons = [...document.querySelectorAll('[data-first-task-template]')];
+const dismissFirstTaskOnboarding = document.querySelector('#dismiss-first-task-onboarding');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
 const taskSearch = document.querySelector('#task-search');
@@ -76,6 +129,7 @@ const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
+const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -118,6 +172,9 @@ const trophiesPanel = document.querySelector('#trophies-panel');
 const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
+const starterShoalsToggle = document.querySelector('#starter-shoals-toggle');
+const starterShoalsPanel = document.querySelector('#starter-shoals-panel');
+const starterShoalsClose = document.querySelector('#starter-shoals-close');
 const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
 const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
 const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
@@ -156,12 +213,15 @@ let quickFilter = '';
 let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
+let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
+let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
 let viewPrefs = loadViewPrefs();
 let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
+let blockingTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
@@ -371,6 +431,8 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    blocked: Boolean(todo.blocked),
+    blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
     githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
@@ -412,6 +474,22 @@ function loadFocusedTodoId() {
 function loadTourDismissed() {
   try {
     return localStorage.getItem(TOUR_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function loadFirstTaskOnboardingDismissed() {
+  try {
+    return localStorage.getItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function loadFirstCompletionCelebrated() {
+  try {
+    return localStorage.getItem(FIRST_COMPLETION_CELEBRATED_KEY) === 'true';
   } catch {
     return false;
   }
@@ -479,6 +557,26 @@ function saveTourDismissed(value) {
     else localStorage.removeItem(TOUR_DISMISSED_KEY);
   } catch {
     showStorageError('Pond tour preference changed, but could not be saved in this browser.');
+  }
+}
+
+function saveFirstTaskOnboardingDismissed(value) {
+  firstTaskOnboardingDismissed = value;
+  try {
+    if (value) localStorage.setItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY, 'true');
+    else localStorage.removeItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY);
+  } catch {
+    showStorageError('First-task guide preference changed, but could not be saved in this browser.');
+  }
+}
+
+function saveFirstCompletionCelebrated(value) {
+  firstCompletionCelebrated = value;
+  try {
+    if (value) localStorage.setItem(FIRST_COMPLETION_CELEBRATED_KEY, 'true');
+    else localStorage.removeItem(FIRST_COMPLETION_CELEBRATED_KEY);
+  } catch {
+    showStorageError('First-completion celebration changed, but could not be saved in this browser.');
   }
 }
 
@@ -1323,6 +1421,46 @@ async function copyPondProgressReport() {
   }
 }
 
+function buildStandupDraft() {
+  const today = todayKey();
+  const live = liveTodos();
+  const active = live.filter((t) => !t.completed);
+  const lines = [];
+  const focused = active.find((t) => t.id === focusedTodoId);
+  if (focused) {
+    lines.push('*Working on now:*');
+    lines.push(`• ${focused.text}${focused.blocked ? ` 🔴 Blocked${focused.blockerReason ? ': ' + focused.blockerReason : ''}` : ''}`);
+    lines.push('');
+  }
+  const dueOrOverdue = sortTodos(active.filter((t) => t.dueDate && t.dueDate <= today));
+  if (dueOrOverdue.length > 0) {
+    lines.push('*Due or overdue:*');
+    dueOrOverdue.forEach((t) => {
+      lines.push(`• ${t.text}${t.blocked ? ` 🔴 Blocked${t.blockerReason ? ': ' + t.blockerReason : ''}` : ''}`);
+    });
+    lines.push('');
+  }
+  const blockers = active.filter((t) => t.blocked && t.id !== focusedTodoId && !(t.dueDate && t.dueDate <= today));
+  if (blockers.length > 0) {
+    lines.push('*Blockers:*');
+    blockers.forEach((t) => {
+      lines.push(`• ${t.text}${t.blockerReason ? ` — ${t.blockerReason}` : ''}`);
+    });
+    lines.push('');
+  }
+  if (lines.length === 0) return 'Stand-up draft: nothing due, overdue, or blocked today.';
+  return lines.join('\n').trim();
+}
+
+async function copyStandupDraft() {
+  try {
+    await copyText(buildStandupDraft());
+    showPondMessage('Copied stand-up draft to clipboard.');
+  } catch {
+    showPondMessage('Could not copy the stand-up draft.');
+  }
+}
+
 async function copyPondSnapshotReport() {
   try {
     await copyText(buildPondSnapshot());
@@ -1576,6 +1714,12 @@ function setTrophiesOpen(open) {
   }
 }
 
+function setStarterShoalsOpen(open) {
+  starterShoalsPanel.hidden = !open;
+  starterShoalsToggle.setAttribute('aria-expanded', String(open));
+  if (open) starterShoalsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 function loadReminderPrefs() {
   const defaults = { enabled: false, quietStart: '22:00', quietEnd: '08:00' };
   try {
@@ -1766,6 +1910,8 @@ function createTodoItem(todo) {
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
+  const blockButton = item.querySelector('.block-task');
+  const blockerBadge = item.querySelector('.blocker-badge');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -1804,10 +1950,21 @@ function createTodoItem(todo) {
   restoreButton.hidden = !isArchived;
   restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
   deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
+  blockButton.hidden = todo.completed || isArchived;
+  blockButton.textContent = todo.blocked ? 'Unblock' : 'Block';
+  blockerBadge.hidden = !todo.blocked;
+  blockerBadge.textContent = todo.blocked
+    ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
+    : '';
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
     item.append(editForm);
+  }
+
+  if (todo.id === blockingTodoId && !todo.blocked) {
+    const form = createBlockForm(todo);
+    item.append(form);
   }
 
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
@@ -1817,6 +1974,14 @@ function createTodoItem(todo) {
   archiveButton.addEventListener('click', () => archiveTodo(todo.id));
   restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
+  blockButton.addEventListener('click', () => {
+    if (todo.blocked) {
+      setTodoBlocked(todo.id, false, '');
+    } else {
+      blockingTodoId = todo.id;
+      render();
+    }
+  });
 
   return item;
 }
@@ -2173,6 +2338,7 @@ function renderAuth() {
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
+  copyStandupDraftButton.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
@@ -2217,6 +2383,7 @@ function render() {
   renderAuth();
   if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
+  const visiblePond = visibleTodos();
 
   if (filter === 'tide') {
     renderTideMode();
@@ -2225,13 +2392,21 @@ function render() {
   } else if (filter === 'ghost') {
     renderGhostNet();
   } else {
-    for (const todo of visibleTodos()) {
+    for (const todo of visiblePond) {
       list.append(createTodoItem(todo));
     }
   }
 
-  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
-  const visibleCount = filter === 'tide' ? filteredTodos(liveTodos()).length : visibleTodos().length;
+  const livePond = liveTodos();
+  const activeCount = livePond.filter((todo) => !todo.completed).length;
+  const visibleCount = filter === 'tide' ? filteredTodos(livePond).length : visiblePond.length;
+  const showFirstTaskGuide = shouldShowFirstTaskOnboarding({
+    dismissed: firstTaskOnboardingDismissed,
+    filter,
+    hasActiveSearchFilter: hasActiveSearchFilter(),
+    liveCount: livePond.length,
+    visibleCount,
+  });
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : hasActiveSearchFilter()
@@ -2248,8 +2423,11 @@ function render() {
     ? filteredEmptyDescription()
     : filter === 'archive'
       ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-      : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
-  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
+      : showFirstTaskGuide
+        ? 'Start with a tiny guided task, or add your own fish in the box above.'
+        : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+  firstTaskOnboarding.hidden = !showFirstTaskGuide;
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
@@ -2285,12 +2463,93 @@ function addTodo(text, options = {}) {
   });
 
   if (!todo) return;
+  if (liveTodos().length === 0) saveFirstTaskOnboardingDismissed(true);
   todos.unshift(todo);
   saveTodos();
   render();
 }
 
+function addStarterTask(templateId) {
+  const templateTodo = templateForId(templateId);
+  if (!templateTodo) return;
+
+  addTodo(templateTodo.text, { priority: templateTodo.priority });
+  showPondMessage(`Starter fish added: ${templateTodo.text}.`);
+  input.focus();
+}
+
+function dismissFirstTaskGuide() {
+  saveFirstTaskOnboardingDismissed(true);
+  render();
+  showPondMessage('First-task guide dismissed. Add your own fish whenever you are ready.');
+  input.focus();
+}
+
+function completedTodoCount() {
+  return liveTodos().filter((todo) => todo.completed).length;
+}
+
+function celebrateFirstCompletionIfNeeded(previousCompletedCount, nextCompletedCount) {
+  if (!shouldCelebrateFirstCompletion({
+    alreadyCelebrated: firstCompletionCelebrated,
+    previousCompletedCount,
+    nextCompletedCount,
+  })) {
+    return false;
+  }
+
+  saveFirstCompletionCelebrated(true);
+  showPondMessage('First fish fed! Nice launch — the pond officially has momentum.');
+  return true;
+}
+
+function starterShoalTaskKey(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function applyStarterShoal(shoal) {
+  if (!currentUser) {
+    showPondMessage('Sign in first to stock a starter shoal.');
+    return;
+  }
+  const available = MAX_TODOS - todos.length;
+  if (available <= 0) {
+    showPondMessage('The pond is full. Release some fish first.');
+    return;
+  }
+  const existingTaskKeys = new Set(todos.map((todo) => starterShoalTaskKey(todo.text)));
+  const uniqueTasks = shoal.tasks.filter((task) => !existingTaskKeys.has(starterShoalTaskKey(task.text)));
+  const skippedCount = shoal.tasks.length - uniqueTasks.length;
+  const toAdd = uniqueTasks.slice(0, available);
+  if (toAdd.length === 0) {
+    const reason = skippedCount > 0 ? 'those tasks are already in the pond' : 'the pond is full';
+    showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
+    return;
+  }
+  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority }));
+  setStarterShoalsOpen(false);
+  const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
+  showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
+}
+
+function renderStarterShoalsList() {
+  const listEl = document.querySelector('#starter-shoals-list');
+  if (!listEl) return;
+  STARTER_SHOALS.forEach((shoal) => {
+    const li = document.createElement('li');
+    li.className = 'starter-shoal-item';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'starter-shoal-btn';
+    btn.innerHTML = `<strong>${shoal.name}</strong><span>${shoal.description}</span><span class="shoal-count">${shoal.tasks.length} tasks</span>`;
+    btn.addEventListener('click', () => applyStarterShoal(shoal));
+    li.append(btn);
+    listEl.append(li);
+  });
+}
+
 function toggleTodo(id) {
+  const previousCompletedCount = completedTodoCount();
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: !todo.completed } : todo
   ));
@@ -2300,6 +2559,7 @@ function toggleTodo(id) {
   }
   saveTodos();
   render();
+  celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
 
 function restoreUndoAction() {
@@ -2415,6 +2675,39 @@ function saveEditedTodo(id, updates) {
   saveTodos();
   showPondMessage('Updated this fish in the pond.');
   render();
+}
+
+function createBlockForm(todo) {
+  const form = document.createElement('form');
+  form.className = 'block-form';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'block-reason-input';
+  input.maxLength = 160;
+  input.placeholder = 'Blocker reason (optional)…';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'submit';
+  saveBtn.textContent = 'Save block';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => { blockingTodoId = ''; render(); });
+  form.append(input, saveBtn, cancelBtn);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    setTodoBlocked(todo.id, true, input.value.trim());
+  });
+  return form;
+}
+
+function setTodoBlocked(id, blocked, reason) {
+  todos = todos.map((todo) =>
+    todo.id === id ? normaliseTodo({ ...todo, blocked, blockerReason: reason }) : todo
+  ).filter(Boolean);
+  blockingTodoId = '';
+  saveTodos();
+  render();
+  showPondMessage(blocked ? 'Task flagged as blocked.' : 'Blocker cleared.');
 }
 
 function deleteTodo(id) {
@@ -2535,6 +2828,7 @@ function moveSelectedToShoal() {
 
 function completeFocusedTodo() {
   if (!focusedTodoId) return;
+  const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
   cancelCurrentFocusSprint('');
   todos = todos.map((todo) => (
@@ -2544,6 +2838,7 @@ function completeFocusedTodo() {
   saveTodos();
   render();
   if (completedTask) {
+    if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
   }
@@ -2591,6 +2886,7 @@ function stockDemoPond() {
   }
 
   todos = [...newTodos, ...todos].slice(0, MAX_TODOS);
+  if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
   saveTodos();
   showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
   render();
@@ -2846,11 +3142,13 @@ function handleGlobalShortcut(event) {
     if (closedShowcase) setShowcaseOpen(false);
     const closedTrophies = !trophiesPanel.hidden;
     if (closedTrophies) setTrophiesOpen(false);
+    const closedStarterShoals = !starterShoalsPanel.hidden;
+    if (closedStarterShoals) setStarterShoalsOpen(false);
     const closedReminderPrefs = !reminderPrefsPanel.hidden;
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedReminderPrefs || closedPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -2869,7 +3167,11 @@ passwordForm.addEventListener('submit', (event) => {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   const parsed = parseQuickAdd(input.value, { today: todayKey() });
-  if (!parsed.text) return;
+  if (!parsed.text) {
+    showPondMessage('Add some task text before the quick-add hints.');
+    input.focus();
+    return;
+  }
   const dueDate = dueDateInput.value || parsed.dueDate;
   const priority = priorityInput.value !== 'medium' ? priorityInput.value : (parsed.priority || priorityInput.value);
 
@@ -2938,6 +3240,10 @@ clearCompleted.addEventListener('click', () => {
 
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
+firstTaskTemplateButtons.forEach((button) => {
+  button.addEventListener('click', () => addStarterTask(button.dataset.firstTaskTemplate));
+});
+dismissFirstTaskOnboarding.addEventListener('click', dismissFirstTaskGuide);
 pastePond.addEventListener('click', () => setPastePanelOpen(pastePanel.hidden));
 pasteInput.addEventListener('input', updatePastePreview);
 addPastedTasks.addEventListener('click', importPastedTodos);
@@ -2951,6 +3257,7 @@ replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
+copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
@@ -2982,6 +3289,8 @@ showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hid
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
+starterShoalsToggle.addEventListener('click', () => setStarterShoalsOpen(starterShoalsPanel.hidden));
+starterShoalsClose.addEventListener('click', () => setStarterShoalsOpen(false));
 reminderPrefsToggle.addEventListener('click', () => setReminderPrefsOpen(reminderPrefsPanel.hidden));
 reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
 reminderEnable.addEventListener('change', () => {
@@ -3042,4 +3351,5 @@ window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
 
 applyViewPrefs();
+renderStarterShoalsList();
 restoreSession();

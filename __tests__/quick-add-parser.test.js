@@ -27,6 +27,28 @@ describe('natural-language quick add parser', () => {
     });
   });
 
+  test('parses today and next week keywords', () => {
+    expect(parseQuickAdd('Draft notes today', { today })).toEqual({
+      text: 'Draft notes',
+      dueDate: '2026-06-11',
+      priority: '',
+    });
+
+    expect(parseQuickAdd('Plan release next week high tide', { today })).toEqual({
+      text: 'Plan release',
+      dueDate: '2026-06-18',
+      priority: 'high',
+    });
+  });
+
+  test('returns empty task text for hint-only input so the UI can explain the problem', () => {
+    expect(parseQuickAdd('tomorrow high', { today })).toEqual({
+      text: '',
+      dueDate: '2026-06-12',
+      priority: 'high',
+    });
+  });
+
   test('leaves ordinary text untouched when no hints are present', () => {
     expect(parseQuickAdd('Write demo notes', { today })).toEqual({
       text: 'Write demo notes',

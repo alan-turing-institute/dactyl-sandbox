@@ -25,6 +25,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
+- Copy a read-only pond snapshot for standups and demos without account credentials or edit controls
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
 - Clear completed tasks

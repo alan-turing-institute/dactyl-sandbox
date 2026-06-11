@@ -8,7 +8,7 @@ ENV NODE_ENV=production \
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY index.html styles.css app.js analytics.js daily-catch.js fish-emoji.js first-task-onboarding.js quick-add-parser.js screen-state.js triage-mode.js server.js ./
+COPY index.html styles.css app.js analytics.js daily-catch.js fish-emoji.js first-task-onboarding.js premium-hooks.js quick-add-parser.js screen-state.js triage-mode.js server.js ./
 RUN mkdir -p /data && chown -R node:node /app /data
 
 USER node

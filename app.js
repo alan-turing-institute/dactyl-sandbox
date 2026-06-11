@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -10,6 +10,7 @@ const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
+const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
@@ -80,6 +81,7 @@ const {
 const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
+const { premiumHookForSurface } = DactylPremiumHooks;
 const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
@@ -156,6 +158,10 @@ const dailyCatchClose = document.querySelector('#daily-catch-close');
 const dailyCatchSummary = document.querySelector('#daily-catch-summary');
 const dailyCatchPinned = document.querySelector('#daily-catch-pinned');
 const dailyCatchSuggestions = document.querySelector('#daily-catch-suggestions');
+const upgradeCallout = document.querySelector('#upgrade-callout');
+const upgradeCalloutTitle = document.querySelector('#upgrade-callout-title');
+const upgradeCalloutBody = document.querySelector('#upgrade-callout-body');
+const upgradeCalloutDismiss = document.querySelector('#upgrade-callout-dismiss');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -251,6 +257,7 @@ let searchQuery = '';
 let quickFilter = '';
 let smartViews = loadSmartViews();
 let dailyCatch = loadDailyCatch();
+let premiumCalloutDismissed = loadPremiumCalloutDismissed();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
@@ -591,6 +598,24 @@ function persistSmartViews() {
   } catch {
     showPondMessage('Could not save that smart view in this browser.');
   }
+}
+
+function loadPremiumCalloutDismissed() {
+  try {
+    return localStorage.getItem(PREMIUM_CALLOUT_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function dismissPremiumCallout() {
+  premiumCalloutDismissed = true;
+  try {
+    localStorage.setItem(PREMIUM_CALLOUT_DISMISSED_KEY, 'true');
+  } catch {
+    showPondMessage('Upgrade note dismissed, but this browser could not remember it.');
+  }
+  renderUpgradeCallout();
 }
 
 function loadDailyCatch() {
@@ -1074,6 +1099,15 @@ function setPastePanelOpen(open) {
 function setShortcutHelpOpen(open) {
   shortcutHelp.hidden = !open;
   shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function renderUpgradeCallout() {
+  const hook = premiumHookForSurface('sharing');
+  const shouldShow = Boolean(currentUser) && !premiumCalloutDismissed && Boolean(hook);
+  upgradeCallout.hidden = !shouldShow;
+  if (!shouldShow || !hook) return;
+  upgradeCalloutTitle.textContent = hook.title;
+  upgradeCalloutBody.textContent = hook.body;
 }
 
 function syncPriorityChips() {
@@ -2918,6 +2952,7 @@ function render() {
   renderSearchControls();
   renderSmartViews();
   renderTourPanel();
+  renderUpgradeCallout();
 
   filterButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.filter === filter);
@@ -3831,6 +3866,7 @@ sharePond.addEventListener('click', shareVisiblePond);
 copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 dailyCatchToggle.addEventListener('click', () => setDailyCatchOpen(dailyCatchPanel.hidden));
 dailyCatchClose.addEventListener('click', () => setDailyCatchOpen(false));
+upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));

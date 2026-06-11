@@ -26,6 +26,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app
+- Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal

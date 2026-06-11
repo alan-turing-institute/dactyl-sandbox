@@ -1,5 +1,5 @@
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
-// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter.
+// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
@@ -7,6 +7,7 @@ const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
+const GHOST_STALE_DAYS = 7;
 
 const authPanel = document.querySelector('#auth-panel');
 const authForm = document.querySelector('#auth-form');
@@ -381,9 +382,26 @@ function visibleTodos() {
   return sortTodos(live);
 }
 
+function ghostNetTodos() {
+  const today = todayKey();
+  const staleThresholdMs = GHOST_STALE_DAYS * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const active = liveTodos().filter((todo) => !todo.completed);
+  const seen = new Set();
+  const ghosts = [];
+  function addIfNew(todo) {
+    if (!seen.has(todo.id)) { seen.add(todo.id); ghosts.push(todo); }
+  }
+  active.filter((todo) => todo.dueDate && todo.dueDate < today).forEach(addIfNew);
+  active.filter((todo) => !todo.dueDate && nowMs - Date.parse(todo.createdAt) > staleThresholdMs).forEach(addIfNew);
+  active.filter((todo) => todo.priority === 'high' && nowMs - Date.parse(todo.createdAt) > staleThresholdMs).forEach(addIfNew);
+  return sortTodos(ghosts);
+}
+
 function renderedTodoIds() {
   // tide renders all todos across groups (including completed); other filters match visibleTodos().
   if (filter === 'tide') return new Set(todos.map((todo) => todo.id));
+  if (filter === 'ghost') return new Set(ghostNetTodos().map((todo) => todo.id));
   return new Set(visibleTodos().map((todo) => todo.id));
 }
 
@@ -608,7 +626,9 @@ function tideCounts() {
 }
 
 function visibleTodoCount() {
-  return filter === 'tide' ? liveTodos().length : visibleTodos().length;
+  if (filter === 'tide') return liveTodos().length;
+  if (filter === 'ghost') return ghostNetTodos().length;
+  return visibleTodos().length;
 }
 
 function pondDiagnostics() {
@@ -1210,6 +1230,8 @@ function render() {
     renderTideMode();
   } else if (filter === 'week') {
     renderWeekAhead();
+  } else if (filter === 'ghost') {
+    renderGhostNet();
   } else {
     for (const todo of visibleTodos()) {
       list.append(createTodoItem(todo));
@@ -1219,14 +1241,16 @@ function render() {
   const activeCount = liveTodos().filter((todo) => !todo.completed).length;
   count.textContent = filter === 'archive'
     ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+    : filter === 'ghost'
+    ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : `${pluralise(activeCount, 'task')} left`;
   emptyState.querySelector('h2').textContent = filter === 'archive' ? 'No fish in the reef archive' : 'Nothing here yet';
   emptyState.querySelector('p').textContent = filter === 'archive'
     ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
     : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
-  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
-  clearCompleted.classList.toggle('visible', filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed));
+  clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
@@ -1556,6 +1580,98 @@ function releaseDemoFish() {
   );
 }
 
+function snoozeTodo(id, days) {
+  const today = todayKey();
+  const newDueDate = addDays(today, days);
+  todos = todos.map((todo) => (todo.id === id ? { ...todo, dueDate: newDueDate } : todo));
+  saveTodos();
+  showPondMessage(`Snoozed 1 task until ${formatDateKey(newDueDate)}.`);
+  render();
+}
+
+function renderGhostNet() {
+  const ghosts = ghostNetTodos();
+
+  if (ghosts.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.className = 'ghost-group ghost-group-empty';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Clear waters — no ghost tasks';
+    const description = document.createElement('p');
+    description.textContent = 'No overdue, stale, or drifting high-priority tasks found. The pond is swimming clean.';
+    emptyItem.append(heading, description);
+    list.append(emptyItem);
+    return;
+  }
+
+  const summaryItem = document.createElement('li');
+  summaryItem.className = 'ghost-group';
+  const summaryHeading = document.createElement('h3');
+  summaryHeading.textContent = `Ghost net found ${pluralise(ghosts.length, 'task')}`;
+  const summaryDescription = document.createElement('p');
+  summaryDescription.textContent = `Review active fish that are overdue, unscheduled for more than ${GHOST_STALE_DAYS} days, or high priority and drifting.`;
+  summaryItem.append(summaryHeading, summaryDescription);
+  list.append(summaryItem);
+
+  for (const todo of ghosts) {
+    const item = document.createElement('li');
+    item.className = 'ghost-item';
+    item.dataset.priority = todo.priority;
+    item.dataset.todoId = todo.id;
+
+    const info = document.createElement('div');
+    info.className = 'ghost-info';
+
+    const textEl = document.createElement('span');
+    textEl.className = 'ghost-text';
+    textEl.textContent = todo.text;
+
+    const metaEl = document.createElement('span');
+    metaEl.className = 'ghost-meta';
+    const mood = moodFor(todo);
+    metaEl.textContent = `${mood.emoji} ${mood.text} · ${dueLabelFor(todo)} · ${priorityLabelFor(todo)}`;
+
+    info.append(textEl, metaEl);
+
+    const actions = document.createElement('div');
+    actions.className = 'ghost-actions';
+
+    const focusBtn = document.createElement('button');
+    focusBtn.type = 'button';
+    focusBtn.className = 'secondary-action';
+    focusBtn.textContent = 'Focus';
+    focusBtn.setAttribute('aria-label', `Focus on ${todo.text}`);
+    focusBtn.addEventListener('click', () => focusTodo(todo.id));
+
+    const snoozeTomorrowBtn = document.createElement('button');
+    snoozeTomorrowBtn.type = 'button';
+    snoozeTomorrowBtn.className = 'secondary-action';
+    snoozeTomorrowBtn.textContent = 'Snooze tomorrow';
+    snoozeTomorrowBtn.setAttribute('aria-label', `Snooze ${todo.text} to tomorrow`);
+    snoozeTomorrowBtn.disabled = !currentUser;
+    snoozeTomorrowBtn.addEventListener('click', () => snoozeTodo(todo.id, 1));
+
+    const snoozeWeekBtn = document.createElement('button');
+    snoozeWeekBtn.type = 'button';
+    snoozeWeekBtn.className = 'secondary-action';
+    snoozeWeekBtn.textContent = 'Snooze 1 week';
+    snoozeWeekBtn.setAttribute('aria-label', `Snooze ${todo.text} by one week`);
+    snoozeWeekBtn.disabled = !currentUser;
+    snoozeWeekBtn.addEventListener('click', () => snoozeTodo(todo.id, 7));
+
+    const releaseBtn = document.createElement('button');
+    releaseBtn.type = 'button';
+    releaseBtn.className = 'ghost-release';
+    releaseBtn.textContent = '×';
+    releaseBtn.setAttribute('aria-label', `Release ${todo.text}`);
+    releaseBtn.addEventListener('click', () => deleteTodo(todo.id));
+
+    actions.append(focusBtn, snoozeTomorrowBtn, snoozeWeekBtn, releaseBtn);
+    item.append(info, actions);
+    list.append(item);
+  }
+}
+
 async function authenticate(mode) {
   if (!authForm.reportValidity()) return;
 
@@ -1669,6 +1785,12 @@ function handleGlobalShortcut(event) {
   if (event.key.toLowerCase() === 't') {
     event.preventDefault();
     setFilter('tide');
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'g') {
+    event.preventDefault();
+    setFilter('ghost');
     return;
   }
 

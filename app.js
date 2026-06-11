@@ -5,6 +5,7 @@ const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
+const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
 const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed:v1';
 const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
@@ -268,6 +269,8 @@ let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
 let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
+let notifiedTodayIds = loadNotifiedTodayIds();
+let notificationIntervalId = null;
 let triageOpen = false;
 let triageIndex = 0;
 let viewPrefs = loadViewPrefs();
@@ -680,6 +683,29 @@ function saveTourDismissed(value) {
     else localStorage.removeItem(TOUR_DISMISSED_KEY);
   } catch {
     showStorageError('Pond tour preference changed, but could not be saved in this browser.');
+  }
+}
+
+function loadNotifiedTodayIds() {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_TODAY_KEY);
+    if (!raw) return new Set();
+    const data = JSON.parse(raw);
+    if (data.date !== todayKey()) return new Set();
+    return new Set(Array.isArray(data.ids) ? data.ids : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveNotifiedTodayIds() {
+  try {
+    localStorage.setItem(NOTIFIED_TODAY_KEY, JSON.stringify({
+      date: todayKey(),
+      ids: [...notifiedTodayIds],
+    }));
+  } catch {
+    // Ignore: this cache only suppresses duplicate reminders for the current day.
   }
 }
 
@@ -2043,7 +2069,7 @@ function getNotificationApi() {
 function canNotifyNow(prefs) {
   const notificationApi = getNotificationApi();
   if (!prefs.enabled || !notificationApi) return false;
-  if (notificationApi.permission === 'denied') return false;
+  if (notificationApi.permission !== 'granted') return false;
   return !isInQuietHours(prefs);
 }
 
@@ -2053,14 +2079,16 @@ function renderReminderPrefs() {
   quietStart.value = prefs.quietStart;
   quietEnd.value = prefs.quietEnd;
   const notificationApi = getNotificationApi();
-  const denied = notificationApi?.permission === 'denied';
+  const permission = notificationApi?.permission;
   let statusText;
   if (!prefs.enabled) {
     statusText = 'Reminders are off.';
   } else if (!notificationApi) {
     statusText = 'Notifications are not supported in this browser.';
-  } else if (denied) {
+  } else if (permission === 'denied') {
     statusText = 'Notifications are blocked by the browser. Update site permissions to enable reminders.';
+  } else if (permission !== 'granted') {
+    statusText = 'Notification permission is still needed before reminders can fire.';
   } else if (!canNotifyNow(prefs)) {
     statusText = `In quiet hours (${prefs.quietStart}–${prefs.quietEnd}). Reminders paused.`;
   } else {
@@ -2763,6 +2791,58 @@ function renderFocusPanel() {
     checklistProgress(focusedTodo),
   ].filter(Boolean).join(' · ');
   renderFocusSprint();
+}
+
+function reminderNotificationsActive() {
+  const notificationApi = getNotificationApi();
+  const prefs = loadReminderPrefs();
+  return Boolean(currentUser)
+    && prefs.enabled
+    && notificationApi?.permission === 'granted'
+    && !isInQuietHours(prefs);
+}
+
+function checkDueNotifications() {
+  const notificationApi = getNotificationApi();
+  if (!notificationApi || !reminderNotificationsActive() || todos.length === 0) return;
+
+  const today = todayKey();
+  const newlyDue = todos.filter(
+    (todo) => !todo.completed && todo.dueDate && todo.dueDate <= today && !notifiedTodayIds.has(todo.id),
+  );
+
+  newlyDue.forEach((todo) => {
+    new notificationApi('Dactyl TODO', {
+      body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
+      tag: `dactyl-due-${todo.id}`,
+    });
+    notifiedTodayIds.add(todo.id);
+  });
+
+  if (newlyDue.length > 0) saveNotifiedTodayIds();
+}
+
+function startNotificationInterval() {
+  if (notificationIntervalId) return;
+  notificationIntervalId = window.setInterval(checkDueNotifications, 60_000);
+}
+
+function stopNotificationInterval() {
+  if (notificationIntervalId) {
+    window.clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
+}
+
+function syncNotificationInterval() {
+  const prefs = loadReminderPrefs();
+  const notificationApi = getNotificationApi();
+  if (currentUser && prefs.enabled && notificationApi?.permission === 'granted') {
+    startNotificationInterval();
+    checkDueNotifications();
+  } else {
+    stopNotificationInterval();
+  }
 }
 
 function renderAuth() {
@@ -3635,6 +3715,7 @@ async function authenticate(mode) {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Loaded tasks for the current session.');
+    syncNotificationInterval();
     passwordInput.value = '';
     clearStorageError();
     hidePondMessage();
@@ -3680,6 +3761,7 @@ async function changePassword() {
 }
 
 function logout() {
+  stopNotificationInterval();
   saveAuthToken('');
   currentUser = null;
   todos = [];
@@ -3707,6 +3789,7 @@ async function restoreSession() {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Restored the signed-in task pond.');
+    syncNotificationInterval();
   } catch {
     saveAuthToken('');
     currentUser = null;
@@ -4006,21 +4089,25 @@ reminderEnable.addEventListener('change', () => {
   if (enabling && notificationApi?.permission === 'default') {
     notificationApi.requestPermission().then(() => {
       saveReminderPrefs({ ...prefs, enabled: true });
+      syncNotificationInterval();
       renderReminderPrefs();
     });
   } else {
     saveReminderPrefs({ ...prefs, enabled: enabling });
+    syncNotificationInterval();
     renderReminderPrefs();
   }
 });
 quietStart.addEventListener('change', () => {
   const prefs = loadReminderPrefs();
   saveReminderPrefs({ ...prefs, quietStart: quietStart.value });
+  syncNotificationInterval();
   renderReminderPrefs();
 });
 quietEnd.addEventListener('change', () => {
   const prefs = loadReminderPrefs();
   saveReminderPrefs({ ...prefs, quietEnd: quietEnd.value });
+  syncNotificationInterval();
   renderReminderPrefs();
 });
 prefsToggle.addEventListener('click', () => setPrefsOpen(prefsPanel.hidden));

@@ -13,6 +13,7 @@ const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
+const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
 
 const authPanel = document.querySelector('#auth-panel');
 const authTitle = document.querySelector('#auth-title');
@@ -105,6 +106,13 @@ const trophiesPanel = document.querySelector('#trophies-panel');
 const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
+const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
+const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
+const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
+const reminderPrefsStatus = document.querySelector('#reminder-prefs-status');
+const reminderEnable = document.querySelector('#reminder-enable');
+const quietStart = document.querySelector('#quiet-start');
+const quietEnd = document.querySelector('#quiet-end');
 const prefsToggle = document.querySelector('#prefs-toggle');
 const prefsPanel = document.querySelector('#prefs-panel');
 const prefsClose = document.querySelector('#prefs-close');
@@ -1468,6 +1476,83 @@ function setTrophiesOpen(open) {
   }
 }
 
+function loadReminderPrefs() {
+  const defaults = { enabled: false, quietStart: '22:00', quietEnd: '08:00' };
+  try {
+    const raw = localStorage.getItem(REMINDER_PREFS_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw);
+    const enabled = typeof parsed.enabled === 'boolean' ? parsed.enabled : false;
+    const quietStartVal = /^\d{2}:\d{2}$/.test(parsed.quietStart) ? parsed.quietStart : defaults.quietStart;
+    const quietEndVal = /^\d{2}:\d{2}$/.test(parsed.quietEnd) ? parsed.quietEnd : defaults.quietEnd;
+    return { enabled, quietStart: quietStartVal, quietEnd: quietEndVal };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveReminderPrefs(prefs) {
+  try {
+    localStorage.setItem(REMINDER_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    showStorageError('Could not save reminder preferences.');
+  }
+}
+
+function isInQuietHours(prefs) {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [startH, startM] = prefs.quietStart.split(':').map(Number);
+  const [endH, endM] = prefs.quietEnd.split(':').map(Number);
+  const start = startH * 60 + startM;
+  const end = endH * 60 + endM;
+  if (start <= end) return currentMinutes >= start && currentMinutes < end;
+  // Crosses midnight (e.g. 22:00 – 08:00)
+  return currentMinutes >= start || currentMinutes < end;
+}
+
+function getNotificationApi() {
+  return window.Notification || null;
+}
+
+function canNotifyNow(prefs) {
+  const notificationApi = getNotificationApi();
+  if (!prefs.enabled || !notificationApi) return false;
+  if (notificationApi.permission === 'denied') return false;
+  return !isInQuietHours(prefs);
+}
+
+function renderReminderPrefs() {
+  const prefs = loadReminderPrefs();
+  reminderEnable.checked = prefs.enabled;
+  quietStart.value = prefs.quietStart;
+  quietEnd.value = prefs.quietEnd;
+  const notificationApi = getNotificationApi();
+  const denied = notificationApi?.permission === 'denied';
+  let statusText;
+  if (!prefs.enabled) {
+    statusText = 'Reminders are off.';
+  } else if (!notificationApi) {
+    statusText = 'Notifications are not supported in this browser.';
+  } else if (denied) {
+    statusText = 'Notifications are blocked by the browser. Update site permissions to enable reminders.';
+  } else if (!canNotifyNow(prefs)) {
+    statusText = `In quiet hours (${prefs.quietStart}–${prefs.quietEnd}). Reminders paused.`;
+  } else {
+    statusText = 'Reminders active. Notifications will fire when a task is due.';
+  }
+  reminderPrefsStatus.textContent = statusText;
+}
+
+function setReminderPrefsOpen(open) {
+  reminderPrefsPanel.hidden = !open;
+  reminderPrefsToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderReminderPrefs();
+    reminderPrefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 function createEditField(labelText, control) {
   const label = document.createElement('label');
   const labelSpan = document.createElement('span');
@@ -2056,6 +2141,7 @@ function render() {
   renderPondHealth();
   renderShowcase();
   renderTrophies();
+  if (!reminderPrefsPanel.hidden) renderReminderPrefs();
 }
 
 function addTodo(text, options = {}) {
@@ -2628,9 +2714,11 @@ function handleGlobalShortcut(event) {
     if (closedShowcase) setShowcaseOpen(false);
     const closedTrophies = !trophiesPanel.hidden;
     if (closedTrophies) setTrophiesOpen(false);
+    const closedReminderPrefs = !reminderPrefsPanel.hidden;
+    if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -2755,6 +2843,32 @@ showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hid
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
+reminderPrefsToggle.addEventListener('click', () => setReminderPrefsOpen(reminderPrefsPanel.hidden));
+reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
+reminderEnable.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  const enabling = reminderEnable.checked;
+  const notificationApi = getNotificationApi();
+  if (enabling && notificationApi?.permission === 'default') {
+    notificationApi.requestPermission().then(() => {
+      saveReminderPrefs({ ...prefs, enabled: true });
+      renderReminderPrefs();
+    });
+  } else {
+    saveReminderPrefs({ ...prefs, enabled: enabling });
+    renderReminderPrefs();
+  }
+});
+quietStart.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  saveReminderPrefs({ ...prefs, quietStart: quietStart.value });
+  renderReminderPrefs();
+});
+quietEnd.addEventListener('change', () => {
+  const prefs = loadReminderPrefs();
+  saveReminderPrefs({ ...prefs, quietEnd: quietEnd.value });
+  renderReminderPrefs();
+});
 prefsToggle.addEventListener('click', () => setPrefsOpen(prefsPanel.hidden));
 prefsClose.addEventListener('click', () => setPrefsOpen(false));
 prefReducedMotion.addEventListener('change', () => {

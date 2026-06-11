@@ -1,6 +1,8 @@
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
+const NOTIFICATIONS_KEY = 'dactyl.notificationsEnabled:v1';
+const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -61,6 +63,7 @@ const focusPanel = document.querySelector('#focus-panel');
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const completeFocus = document.querySelector('#complete-focus');
+const notificationToggle = document.querySelector('#notification-toggle');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -83,6 +86,9 @@ let filter = 'all';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
+let notificationsEnabled = loadNotificationsEnabled();
+let notifiedTodayIds = loadNotifiedTodayIds();
+let notificationIntervalId = null;
 let netMode = false;
 let editingTodoId = '';
 let pendingEditFocusId = '';
@@ -266,6 +272,45 @@ function saveTourDismissed(value) {
   } catch {
     showStorageError('Pond tour preference changed, but could not be saved in this browser.');
   }
+}
+
+function loadNotificationsEnabled() {
+  try {
+    return localStorage.getItem(NOTIFICATIONS_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveNotificationsEnabled(value) {
+  notificationsEnabled = value;
+  try {
+    if (value) localStorage.setItem(NOTIFICATIONS_KEY, 'true');
+    else localStorage.removeItem(NOTIFICATIONS_KEY);
+  } catch {
+    showStorageError('Notification preference changed, but could not be saved in this browser.');
+  }
+}
+
+function loadNotifiedTodayIds() {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_TODAY_KEY);
+    if (!raw) return new Set();
+    const data = JSON.parse(raw);
+    if (data.date !== todayKey()) return new Set();
+    return new Set(Array.isArray(data.ids) ? data.ids : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveNotifiedTodayIds() {
+  try {
+    localStorage.setItem(NOTIFIED_TODAY_KEY, JSON.stringify({
+      date: todayKey(),
+      ids: [...notifiedTodayIds],
+    }));
+  } catch {}
 }
 
 function saveFocusedTodoId(value) {
@@ -972,6 +1017,73 @@ function renderFocusPanel() {
   focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
 }
 
+function checkDueNotifications() {
+  if (!notificationsEnabled || Notification.permission !== 'granted') return;
+  if (!currentUser || todos.length === 0) return;
+
+  const today = todayKey();
+  const newlyDue = todos.filter(
+    (todo) => !todo.completed && todo.dueDate && todo.dueDate <= today && !notifiedTodayIds.has(todo.id),
+  );
+
+  newlyDue.forEach((todo) => {
+    new Notification('Dactyl TODO', {
+      body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
+      tag: `dactyl-due-${todo.id}`,
+    });
+    notifiedTodayIds.add(todo.id);
+  });
+
+  if (newlyDue.length > 0) saveNotifiedTodayIds();
+}
+
+async function enableNotifications() {
+  if (!('Notification' in window)) {
+    showPondMessage('This browser does not support notifications.');
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    saveNotificationsEnabled(true);
+    startNotificationInterval();
+    checkDueNotifications();
+    render();
+    showPondMessage('Due-date notifications enabled. Overdue tasks will notify you once a day.');
+  } else {
+    showPondMessage('Notification permission was not granted. You can enable it in your browser settings.');
+  }
+}
+
+function disableNotifications() {
+  saveNotificationsEnabled(false);
+  stopNotificationInterval();
+  render();
+  showPondMessage('Due-date notifications disabled.');
+}
+
+function startNotificationInterval() {
+  if (notificationIntervalId) return;
+  notificationIntervalId = window.setInterval(checkDueNotifications, 60_000);
+}
+
+function stopNotificationInterval() {
+  if (notificationIntervalId) {
+    window.clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
+}
+
+function renderNotificationToggle() {
+  if (!('Notification' in window)) {
+    notificationToggle.hidden = true;
+    return;
+  }
+  const enabled = notificationsEnabled && Notification.permission === 'granted';
+  notificationToggle.hidden = !currentUser;
+  notificationToggle.textContent = enabled ? 'Notifications on' : 'Enable notifications';
+  notificationToggle.setAttribute('aria-pressed', String(enabled));
+}
+
 function renderAuth() {
   const signedIn = Boolean(currentUser);
   authPanel.classList.toggle('signed-in', signedIn);
@@ -1024,6 +1136,7 @@ function render() {
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
   renderNetControls();
   renderTourPanel();
+  renderNotificationToggle();
 
   filterButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.filter === filter);
@@ -1315,6 +1428,8 @@ async function authenticate(mode) {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Loaded tasks for the current session.');
+    if (notificationsEnabled && Notification.permission === 'granted') startNotificationInterval();
+    checkDueNotifications();
     passwordInput.value = '';
     clearStorageError();
     hidePondMessage();
@@ -1332,6 +1447,7 @@ function logout() {
   netMode = false;
   tourForcedVisible = false;
   saveFocusedTodoId('');
+  stopNotificationInterval();
   markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
   render();
@@ -1347,6 +1463,8 @@ async function restoreSession() {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Restored the signed-in task pond.');
+    if (notificationsEnabled && Notification.permission === 'granted') startNotificationInterval();
+    checkDueNotifications();
   } catch {
     saveAuthToken('');
     currentUser = null;
@@ -1479,6 +1597,11 @@ dismissPondTour.addEventListener('click', () => {
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
 });
 completeFocus.addEventListener('click', completeFocusedTodo);
+notificationToggle.addEventListener('click', () => {
+  const enabled = notificationsEnabled && Notification.permission === 'granted';
+  if (enabled) disableNotifications();
+  else enableNotifications();
+});
 
 document.addEventListener('keydown', handleGlobalShortcut);
 

@@ -1,4 +1,4 @@
-/* global DactylScreenState */
+/* global DactylFishEmoji, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -20,6 +20,7 @@ const {
   screenKeyFromLocation,
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
+const { fishEmojiFor } = DactylFishEmoji;
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -750,14 +751,15 @@ function tideFor(todo) {
 
 function moodFor(todo) {
   const tide = tideFor(todo);
-  if (todo.completed) return { emoji: '🐚', text: 'Resting shell', className: 'mood-resting' };
+  const emojiSeed = todo.id || todo.text;
+  if (todo.completed) return { emoji: fishEmojiFor('resting', emojiSeed), text: 'Resting shell', className: 'mood-resting' };
   if (tide === 'washed' && todo.priority === 'high') {
-    return { emoji: '🦑', text: 'Tentacular emergency', className: 'mood-emergency' };
+    return { emoji: fishEmojiFor('emergency', emojiSeed), text: 'Tentacular emergency', className: 'mood-emergency' };
   }
-  if (todo.priority === 'high') return { emoji: '🐡', text: 'Puffed up', className: 'mood-high' };
-  if (!todo.dueDate) return { emoji: '🧜', text: 'Mythical commitment', className: 'mood-mythical' };
-  if (todo.priority === 'medium') return { emoji: '🦀', text: 'Sideways but moving', className: 'mood-medium' };
-  return { emoji: '🐟', text: 'Swimming nicely', className: 'mood-normal' };
+  if (todo.priority === 'high') return { emoji: fishEmojiFor('high', emojiSeed), text: 'Puffed up', className: 'mood-high' };
+  if (!todo.dueDate) return { emoji: fishEmojiFor('mythical', emojiSeed), text: 'Mythical commitment', className: 'mood-mythical' };
+  if (todo.priority === 'medium') return { emoji: fishEmojiFor('medium', emojiSeed), text: 'Sideways but moving', className: 'mood-medium' };
+  return { emoji: fishEmojiFor('normal', emojiSeed), text: 'Swimming nicely', className: 'mood-normal' };
 }
 
 function dueLabelFor(todo) {

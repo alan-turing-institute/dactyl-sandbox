@@ -1208,7 +1208,10 @@ function renderTourPanel() {
   const shouldShow = Boolean(currentUser) && (tourForcedVisible || shouldAutoShow);
   pondTour.hidden = !shouldShow;
   showPondTour.hidden = !currentUser || shouldShow;
-  tourCopyReport.disabled = todos.length === 0;
+  [tourAddTask, tourStockDemo, tourPastePond, tourTideMode, tourCopyReport, dismissPondTour]
+    .forEach((button) => {
+      button.disabled = !currentUser;
+    });
   if (shouldAutoShow) saveTourDismissed(true);
 }
 
@@ -1397,6 +1400,27 @@ function setFilter(nextFilter) {
   filter = nextFilter;
   render();
 }
+
+function focusTaskInputFromTour() {
+  input.focus();
+  showPondMessage('Add one small next action, then let it swim.');
+}
+
+function openPastePanelFromTour() {
+  setPastePanelOpen(true);
+}
+
+function switchToTideModeFromTour() {
+  setFilter('tide');
+}
+
+function dismissTour() {
+  tourForcedVisible = false;
+  saveTourDismissed(true);
+  render();
+  showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
+}
+
 
 function render() {
   const renderStarted = diagnosticNow();
@@ -2064,23 +2088,12 @@ showPondTour.addEventListener('click', () => {
   pondTour.focus({ preventScroll: true });
   pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 });
-tourAddTask.addEventListener('click', () => {
-  input.focus();
-  showPondMessage('Add one small next action, then let it swim.');
-});
+tourAddTask.addEventListener('click', focusTaskInputFromTour);
 tourStockDemo.addEventListener('click', stockDemoPond);
-tourPastePond.addEventListener('click', () => setPastePanelOpen(true));
-tourTideMode.addEventListener('click', () => {
-  filter = 'tide';
-  render();
-});
+tourPastePond.addEventListener('click', openPastePanelFromTour);
+tourTideMode.addEventListener('click', switchToTideModeFromTour);
 tourCopyReport.addEventListener('click', copyPondProgressReport);
-dismissPondTour.addEventListener('click', () => {
-  tourForcedVisible = false;
-  saveTourDismissed(true);
-  render();
-  showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
-});
+dismissPondTour.addEventListener('click', dismissTour);
 focusSprintPresets.forEach((button) => {
   button.addEventListener('click', () => selectFocusSprintLength(Number(button.dataset.sprintMinutes)));
 });

@@ -131,6 +131,7 @@
         <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U">Triage mode</button>
+        <button id="command-palette-toggle" class="secondary-action" type="button" aria-keyshortcuts="Control+K Meta+K">Command palette</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
         <label id="shoal-control" class="shoal-control" hidden>
@@ -201,6 +202,7 @@
           <div><dt><kbd>J</kbd>/<kbd>K</kbd></dt><dd>Move next/previous in triage mode.</dd></div>
           <div><dt><kbd>C</kbd>/<kbd>E</kbd>/<kbd>P</kbd></dt><dd>Complete, archive, or cycle priority in triage mode.</dd></div>
           <div><dt><kbd>[</kbd>/<kbd>]</kbd></dt><dd>Nudge the triaged task due date earlier/later.</dd></div>
+          <div><dt><kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd></dt><dd>Open or close the command palette.</dd></div>
           <div><dt><kbd>Esc</kbd></dt><dd>Close this help card and leave net mode.</dd></div>
         </dl>
       </section>
@@ -520,6 +522,14 @@
         </div>
         <button id="complete-focus" type="button">Mark fed</button>
       </section>
+
+    <div id="command-palette" class="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" hidden>
+      <div class="command-palette-inner">
+        <h2 id="command-palette-title" class="sr-only">Command palette</h2>
+        <input id="command-search" class="command-search" type="search" autocomplete="off" placeholder="Search commands…" aria-label="Search commands" aria-controls="command-list" aria-autocomplete="list" />
+        <ul id="command-list" class="command-list" role="listbox" aria-label="Commands"></ul>
+      </div>
+    </div>
 
     </main>
 

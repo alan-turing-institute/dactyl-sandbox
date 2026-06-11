@@ -209,12 +209,21 @@ h1 {
 
 .todo-form {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(14rem, auto) minmax(12rem, auto) minmax(8rem, auto) auto;
+  grid-template-columns: minmax(12rem, 1fr) auto auto;
   gap: .75rem;
   margin-bottom: 1rem;
 }
 
 .todo-form.disabled { opacity: .65; }
+
+.advanced-add-fields {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(9rem, auto) minmax(14rem, auto) minmax(12rem, auto) minmax(9rem, auto) minmax(9rem, auto);
+  gap: .75rem;
+}
+
+.advanced-add-fields[hidden] { display: none; }
 
 .todo-form input,
 .todo-form select {

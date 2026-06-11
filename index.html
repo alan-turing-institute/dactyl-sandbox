@@ -72,41 +72,44 @@
           placeholder="Add a task…"
           required
         />
-        <label class="sr-only" for="due-date-input">Due date</label>
-        <input id="due-date-input" name="due-date" type="date" placeholder="Due date (optional)" />
-        <label class="sr-only" for="github-url-input">GitHub issue or PR URL</label>
-        <input
-          id="github-url-input"
-          name="github-url"
-          type="url"
-          inputmode="url"
-          placeholder="GitHub issue or PR URL"
-        />
-        <label class="sr-only" for="priority-input">Priority</label>
-        <label for="priority-input" class="form-field-label">Priority</label>
-        <div class="priority-picker">
-          <select id="priority-input" name="priority" aria-label="Priority">
-            <option value="low">Low tide</option>
-            <option value="medium" selected>Medium tide</option>
-            <option value="high">High tide</option>
-          </select>
+        <button type="submit">Add</button>
+        <button id="advanced-add-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="advanced-add-fields">+ more options</button>
+        <div id="advanced-add-fields" class="advanced-add-fields" hidden>
+          <label class="sr-only" for="due-date-input">Due date</label>
+          <input id="due-date-input" name="due-date" type="date" placeholder="Due date (optional)" />
+          <label class="sr-only" for="github-url-input">GitHub issue or PR URL</label>
+          <input
+            id="github-url-input"
+            name="github-url"
+            type="url"
+            inputmode="url"
+            placeholder="GitHub issue or PR URL"
+          />
+          <label class="sr-only" for="priority-input">Priority</label>
+          <label for="priority-input" class="form-field-label">Priority</label>
+          <div class="priority-picker">
+            <select id="priority-input" name="priority" aria-label="Priority">
+              <option value="low">Low tide</option>
+              <option value="medium" selected>Medium tide</option>
+              <option value="high">High tide</option>
+            </select>
           <div class="priority-chips" role="group" aria-label="Quick priority">
             <button type="button" data-priority="low" aria-pressed="false">Low</button>
             <button type="button" data-priority="medium" aria-pressed="true">Medium</button>
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
-        <label class="sr-only" for="shoal-input">Shoal (optional grouping)</label>
-        <input id="shoal-input" name="shoal" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" />
-        <datalist id="shoal-datalist"></datalist>
-        <label class="sr-only" for="recurrence-input">Repeat</label>
-        <select id="recurrence-input" name="recurrence" aria-label="Repeat">
-          <option value="none" selected>No repeat</option>
-          <option value="daily">Repeat daily</option>
-          <option value="weekly">Repeat weekly</option>
-          <option value="monthly">Repeat monthly</option>
-        </select>
-        <button type="submit">Add</button>
+          <label class="sr-only" for="shoal-input">Shoal (optional grouping)</label>
+          <input id="shoal-input" name="shoal" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" />
+          <datalist id="shoal-datalist"></datalist>
+          <label class="sr-only" for="recurrence-input">Repeat</label>
+          <select id="recurrence-input" name="recurrence" aria-label="Repeat">
+            <option value="none" selected>No repeat</option>
+            <option value="daily">Repeat daily</option>
+            <option value="weekly">Repeat weekly</option>
+            <option value="monthly">Repeat monthly</option>
+          </select>
+        </div>
       </form>
 
       <p id="storage-error" class="storage-error" role="status" aria-live="polite" hidden></p>

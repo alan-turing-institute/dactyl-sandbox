@@ -23,7 +23,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
-- Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`
+- Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`; expand `+ more options` only when you need due date, GitHub URL, recurrence, or priority fields
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app

@@ -112,6 +112,8 @@ const newPasswordInput = document.querySelector('#new-password-input');
 const changePasswordButton = document.querySelector('#change-password-button');
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
+const advancedAddToggle = document.querySelector('#advanced-add-toggle');
+const advancedAddFields = document.querySelector('#advanced-add-fields');
 const dueDateInput = document.querySelector('#due-date-input');
 const githubUrlInput = document.querySelector('#github-url-input');
 const priorityInput = document.querySelector('#priority-input');
@@ -751,7 +753,7 @@ function saveFirstCompletionCelebrated(value) {
 
 function loadViewPrefs() {
   const systemReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const defaults = { reducedMotion: systemReducedMotion, highContrast: false, compact: false, textBadges: false };
+  const defaults = { reducedMotion: systemReducedMotion, highContrast: false, compact: false, textBadges: false, addFormAdvanced: false };
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return defaults;
@@ -761,6 +763,7 @@ function loadViewPrefs() {
       highContrast: typeof saved.highContrast === 'boolean' ? saved.highContrast : false,
       compact: typeof saved.compact === 'boolean' ? saved.compact : false,
       textBadges: typeof saved.textBadges === 'boolean' ? saved.textBadges : false,
+      addFormAdvanced: typeof saved.addFormAdvanced === 'boolean' ? saved.addFormAdvanced : false,
     };
   } catch {
     return defaults;
@@ -781,6 +784,30 @@ function applyViewPrefs() {
   root.dataset.contrast = viewPrefs.highContrast ? 'high' : 'default';
   root.dataset.density = viewPrefs.compact ? 'compact' : 'default';
   root.dataset.badges = viewPrefs.textBadges ? 'text-first' : 'default';
+  renderAddFormMode();
+}
+
+function setAddFormAdvanced(expanded) {
+  if (!expanded) resetAdvancedAddFields();
+  viewPrefs = { ...viewPrefs, addFormAdvanced: Boolean(expanded) };
+  saveViewPrefs();
+  renderAddFormMode();
+}
+
+function resetAdvancedAddFields() {
+  dueDateInput.value = '';
+  githubUrlInput.value = '';
+  priorityInput.value = 'medium';
+  recurrenceInput.value = 'none';
+  syncPriorityChips();
+}
+
+function renderAddFormMode() {
+  if (!advancedAddToggle || !advancedAddFields) return;
+  const expanded = Boolean(viewPrefs.addFormAdvanced);
+  advancedAddFields.hidden = !expanded;
+  advancedAddToggle.setAttribute('aria-expanded', String(expanded));
+  advancedAddToggle.textContent = expanded ? '− fewer options' : '+ more options';
 }
 
 function setPrefsOpen(open) {
@@ -4230,6 +4257,7 @@ filterButtons.forEach((button) => {
 });
 
 priorityInput.addEventListener('change', syncPriorityChips);
+advancedAddToggle.addEventListener('click', () => setAddFormAdvanced(!viewPrefs.addFormAdvanced));
 priorityChips.forEach((chip) => {
   chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));
 });

@@ -7,6 +7,7 @@ const express = require('express');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MAX_SHARE_TITLE_LENGTH = 80;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 const USERNAME_PATTERN = /^[a-z0-9_.-]{3,32}$/;
@@ -110,6 +111,15 @@ function normaliseTodo(todo) {
 
 function toPublicUser(row) {
   return { id: row.id, username: row.username };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function userTokenVersion(row) {
@@ -216,6 +226,22 @@ function createApp(options = {}) {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (id, user_id)
     );
+    CREATE TABLE IF NOT EXISTS shared_ponds (
+      token TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS shared_pond_tasks (
+      share_token TEXT NOT NULL REFERENCES shared_ponds(token) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      completed INTEGER NOT NULL DEFAULT 0,
+      due_date TEXT NOT NULL DEFAULT '',
+      priority TEXT NOT NULL DEFAULT 'medium',
+      github_url TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (share_token, position)
+    );
   `);
 
   const todoColumns = db.prepare('PRAGMA table_info(todos)').all().map((column) => column.name);
@@ -317,6 +343,102 @@ function createApp(options = {}) {
       new Date().toISOString(),
     );
     return normalised;
+  }
+
+  function shareUrl(req, token) {
+    return `${req.protocol}://${req.get('host')}/share/${token}`;
+  }
+
+  function createSharedPond(user, payload) {
+    const requestedIds = Array.isArray(payload?.todoIds)
+      ? payload.todoIds.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_TODOS)
+      : [];
+    const requestedIdSet = new Set(requestedIds);
+    const sourceTasks = listTodos(user.id).filter((todo) => (
+      requestedIds.length === 0 || requestedIdSet.has(todo.id)
+    ));
+    const orderedTasks = requestedIds.length === 0
+      ? sourceTasks
+      : requestedIds.map((id) => sourceTasks.find((todo) => todo.id === id)).filter(Boolean);
+    const title = String(payload?.title || `${user.username}'s shared pond`)
+      .trim()
+      .slice(0, MAX_SHARE_TITLE_LENGTH) || `${user.username}'s shared pond`;
+    const token = crypto.randomBytes(18).toString('base64url');
+    const createdAt = new Date().toISOString();
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO shared_ponds (token, owner_id, title, created_at) VALUES (?, ?, ?, ?)')
+        .run(token, user.id, title, createdAt);
+      const insertTask = db.prepare(`
+        INSERT INTO shared_pond_tasks (share_token, position, text, completed, due_date, priority, github_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      orderedTasks.forEach((todo, index) => {
+        insertTask.run(token, index, todo.text, todo.completed ? 1 : 0, todo.dueDate, todo.priority, todo.githubUrl);
+      });
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return { token, title, createdAt, tasks: orderedTasks };
+  }
+
+  function getSharedPond(token) {
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(String(token || ''))) return null;
+    const share = db.prepare(`
+      SELECT shared_ponds.token, shared_ponds.title, shared_ponds.created_at AS createdAt, users.username AS ownerUsername
+      FROM shared_ponds
+      JOIN users ON users.id = shared_ponds.owner_id
+      WHERE shared_ponds.token = ?
+    `).get(token);
+    if (!share) return null;
+    const tasks = db.prepare(`
+      SELECT text, completed, due_date AS dueDate, priority, github_url AS githubUrl
+      FROM shared_pond_tasks
+      WHERE share_token = ?
+      ORDER BY position ASC
+    `).all(token).map((todo) => ({ ...todo, completed: Boolean(todo.completed) }));
+    return {
+      token: share.token,
+      title: share.title,
+      createdAt: share.createdAt,
+      owner: { username: share.ownerUsername },
+      tasks,
+    };
+  }
+
+  function renderSharedPondPage(share) {
+    const taskItems = share.tasks.length === 0
+      ? '<li class="shared-empty">No tasks were included in this shared planning view.</li>'
+      : share.tasks.map((todo) => {
+        const meta = [todo.completed ? 'completed' : 'active', todo.dueDate || 'no due date', `${todo.priority} priority`]
+          .map(escapeHtml)
+          .join(' · ');
+        const github = todo.githubUrl
+          ? ` <a href="${escapeHtml(todo.githubUrl)}" rel="noreferrer">GitHub</a>`
+          : '';
+        return `<li class="shared-task" data-priority="${escapeHtml(todo.priority)}"><strong>${escapeHtml(todo.text)}</strong><span>${meta}${github}</span></li>`;
+      }).join('');
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(share.title)} · Dactyl shared pond</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app shared-view" aria-labelledby="shared-title">
+      <p class="eyebrow">Read-only shared pond</p>
+      <h1 id="shared-title">${escapeHtml(share.title)}</h1>
+      <p class="subtitle">${escapeHtml(share.owner.username)} shared this planning view. Private tasks that were not selected for this view stay hidden.</p>
+      <ul class="shared-task-list">${taskItems}</ul>
+    </main>
+  </body>
+</html>`;
   }
 
   app.post('/api/signup', authRateLimiter, (req, res) => {
@@ -421,6 +543,31 @@ function createApp(options = {}) {
     const result = db.prepare('DELETE FROM todos WHERE user_id = ? AND id = ?').run(req.user.id, req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Task not found.' });
     return res.status(204).send();
+  });
+
+  app.post('/api/shared-ponds', requireAuth, (req, res) => {
+    const share = createSharedPond(req.user, req.body);
+    return res.status(201).json({
+      share: {
+        token: share.token,
+        title: share.title,
+        createdAt: share.createdAt,
+        taskCount: share.tasks.length,
+        url: shareUrl(req, share.token),
+      },
+    });
+  });
+
+  app.get('/api/shared-ponds/:token', (req, res) => {
+    const share = getSharedPond(req.params.token);
+    if (!share) return res.status(404).json({ error: 'Shared pond not found.' });
+    return res.json({ share });
+  });
+
+  app.get('/share/:token', (req, res) => {
+    const share = getSharedPond(req.params.token);
+    if (!share) return res.status(404).send('Shared pond not found.');
+    return res.type('html').send(renderSharedPondPage(share));
   });
 
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));

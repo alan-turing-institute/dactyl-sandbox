@@ -132,6 +132,7 @@ const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
+const sharePond = document.querySelector('#share-pond');
 const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
@@ -1478,6 +1479,39 @@ async function copyPondSnapshotReport() {
   }
 }
 
+async function shareVisiblePond() {
+  if (!currentUser) {
+    showPondMessage('Sign in first to create a shared planning view.');
+    return;
+  }
+
+  const visibleIds = visibleTodos()
+    .filter((todo) => !todo.archivedAt)
+    .map((todo) => todo.id);
+  const viewName = filter === 'all' ? 'pond' : `${filter} pond`;
+  sharePond.disabled = true;
+  try {
+    const body = await apiRequest('/api/shared-ponds', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: `${currentUser.username}'s ${viewName} view`,
+        todoIds: visibleIds,
+      }),
+    });
+    const url = body.share.url;
+    try {
+      await copyText(url);
+      showPondMessage(`Copied a read-only shared pond link with ${pluralise(body.share.taskCount, 'visible task')}. Private tasks outside this view stay hidden.`);
+    } catch {
+      showPondMessage(`Shared pond link: ${url}`);
+    }
+  } catch (error) {
+    showPondMessage(`Could not create a shared pond: ${error.message}`);
+  } finally {
+    sharePond.disabled = !currentUser;
+  }
+}
+
 async function copyDiagnosticsReport() {
   try {
     await copyText(buildPondDiagnostics());
@@ -2346,6 +2380,7 @@ function renderAuth() {
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
+  sharePond.disabled = !signedIn;
   copyStandupDraftButton.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
@@ -3279,6 +3314,7 @@ replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
+sharePond.addEventListener('click', shareVisiblePond);
 copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));

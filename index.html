@@ -35,6 +35,19 @@
             <button id="logout-button" class="secondary-action" type="button" hidden>Log out</button>
           </div>
         </form>
+        <form id="password-form" class="password-form" autocomplete="on" hidden>
+          <p class="eyebrow">Security</p>
+          <h3>Change password</h3>
+          <label>
+            <span>Current password</span>
+            <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" required />
+          </label>
+          <label>
+            <span>New password</span>
+            <input id="new-password-input" name="new-password" type="password" autocomplete="new-password" minlength="8" required />
+          </label>
+          <button id="change-password-button" class="secondary-action" type="submit">Update password</button>
+        </form>
       </section>
 
       <form id="todo-form" class="todo-form" autocomplete="off">
@@ -223,6 +236,7 @@
         </label>
         <div class="todo-actions">
           <button class="focus-task" type="button">Feed</button>
+          <button class="edit-task" type="button">Edit</button>
           <button class="delete" type="button" aria-label="Delete task">×</button>
         </div>
       </li>

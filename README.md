@@ -24,6 +24,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
+- **Custom shoals** — group tasks into named shoals (project, workstream, demo, etc.) and filter by shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data

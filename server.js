@@ -83,6 +83,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    shoal: typeof todo.shoal === 'string' ? todo.shoal.trim().slice(0, 40) : '',
   };
 }
 
@@ -196,6 +197,9 @@ function createApp(options = {}) {
   if (!todoColumns.includes('archived_at')) {
     db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('shoal')) {
+    db.exec("ALTER TABLE todos ADD COLUMN shoal TEXT NOT NULL DEFAULT ''");
+  }
 
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
   if (!userColumns.includes('token_version')) {
@@ -244,7 +248,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, shoal
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -255,14 +259,15 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, shoal, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
         archived_at = excluded.archived_at,
+        shoal = excluded.shoal,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -273,6 +278,7 @@ function createApp(options = {}) {
       normalised.dueDate,
       normalised.priority,
       normalised.archivedAt,
+      normalised.shoal,
       new Date().toISOString(),
     );
     return normalised;

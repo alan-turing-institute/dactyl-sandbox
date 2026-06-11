@@ -120,6 +120,9 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const shoalInput = document.querySelector('#shoal-input');
+const shoalDatalist = document.querySelector('#shoal-datalist');
+const shoalFilterSelect = document.querySelector('#shoal-filter-select');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -141,6 +144,7 @@ let todos = [];
 let filter = 'all';
 let searchQuery = '';
 let quickFilter = '';
+let shoalFilter = '';
 let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
@@ -284,6 +288,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    shoal: typeof todo.shoal === 'string' ? todo.shoal.trim().slice(0, 40) : '',
   };
 }
 
@@ -569,8 +574,34 @@ function filteredTodos(items) {
 }
 
 function visibleTodos() {
-  const filtered = filterTodos(baseVisibleTodos());
+  let filtered = filterTodos(baseVisibleTodos());
+  if (shoalFilter) filtered = filtered.filter((todo) => todo.shoal === shoalFilter);
   return filter === 'archive' ? sortArchivedTodos(filtered) : sortTodos(filtered);
+}
+
+function setShoalFilter(name) {
+  shoalFilter = name;
+  if (shoalFilterSelect) shoalFilterSelect.value = name;
+  render();
+}
+
+function updateShoalDatalist() {
+  if (!shoalDatalist) return;
+  const names = [...new Set(todos.map((t) => t.shoal).filter(Boolean))].sort();
+  shoalDatalist.replaceChildren(...names.map((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    return opt;
+  }));
+  if (shoalFilterSelect) {
+    const currentVal = shoalFilterSelect.value;
+    shoalFilterSelect.replaceChildren(
+      Object.assign(document.createElement('option'), { value: '', textContent: 'All shoals' }),
+      ...names.map((name) => Object.assign(document.createElement('option'), { value: name, textContent: name })),
+    );
+    shoalFilterSelect.value = names.includes(currentVal) ? currentVal : '';
+    if (shoalFilterSelect.value !== currentVal) shoalFilter = '';
+  }
 }
 
 function ghostNetTodos() {
@@ -1039,6 +1070,19 @@ function buildPondReport() {
     lines.push('Next due:');
     nextDueTodos.forEach((todo) => {
       lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  const shoaledTodos = sortTodos(activeTodos.filter((t) => t.shoal));
+  if (shoaledTodos.length > 0) {
+    const byShoal = new Map();
+    shoaledTodos.forEach((t) => {
+      if (!byShoal.has(t.shoal)) byShoal.set(t.shoal, []);
+      byShoal.get(t.shoal).push(t);
+    });
+    lines.push('By shoal:');
+    byShoal.forEach((tasks, shoal) => {
+      lines.push(`  ${shoal}: ${tasks.map((t) => t.text).join(', ')}`);
     });
   }
 
@@ -1667,6 +1711,15 @@ function createTodoItem(todo) {
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
+  const shoalChip = item.querySelector('.shoal-chip');
+  if (shoalChip) {
+    if (todo.shoal) {
+      shoalChip.hidden = false;
+      shoalChip.textContent = todo.shoal;
+    } else {
+      shoalChip.hidden = true;
+    }
+  }
   focusButton.hidden = isArchived;
   focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
@@ -2137,6 +2190,7 @@ function render() {
 
   renderFocusPanel();
   focusPendingEditField();
+  updateShoalDatalist();
   recordRenderDuration(renderStarted);
   renderPondHealth();
   renderShowcase();
@@ -2152,6 +2206,7 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    shoal: options.shoal ?? '',
   });
 
   if (!todo) return;
@@ -2742,9 +2797,11 @@ form.addEventListener('submit', (event) => {
   addTodo(text, {
     dueDate: dueDateInput.value,
     priority: priorityInput.value,
+    shoal: shoalInput ? shoalInput.value.trim() : '',
   });
   form.reset();
   priorityInput.value = 'medium';
+  if (shoalInput) shoalInput.value = '';
   syncPriorityChips();
   input.focus();
 });
@@ -2783,6 +2840,8 @@ quickFilterButtons.forEach((button) => {
     render();
   });
 });
+
+shoalFilterSelect?.addEventListener('change', () => setShoalFilter(shoalFilterSelect.value));
 
 saveSmartView.addEventListener('click', saveCurrentSmartView);
 smartViewName.addEventListener('keydown', (event) => {

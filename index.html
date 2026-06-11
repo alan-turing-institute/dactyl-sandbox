@@ -77,6 +77,9 @@
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
+        <label class="sr-only" for="shoal-input">Shoal (optional grouping)</label>
+        <input id="shoal-input" name="shoal" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" />
+        <datalist id="shoal-datalist"></datalist>
         <button type="submit">Add</button>
       </form>
 
@@ -359,6 +362,9 @@
           <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
           <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
+          <select id="shoal-filter-select" class="shoal-filter-select" aria-label="Filter by shoal">
+            <option value="">All shoals</option>
+          </select>
         </div>
       </section>
 
@@ -383,6 +389,7 @@
               <span class="mood-badge"></span>
               <span class="due-label"></span>
               <span class="priority-label"></span>
+              <span class="shoal-chip" hidden></span>
             </span>
           </span>
         </label>

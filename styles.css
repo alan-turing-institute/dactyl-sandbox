@@ -214,6 +214,7 @@ h1 {
 .storage-error[hidden],
 .pond-message[hidden],
 .paste-panel[hidden],
+.pond-tour[hidden],
 .focus-panel[hidden],
 .shoal-control[hidden],
 .secondary-action[hidden] { display: none; }
@@ -319,6 +320,7 @@ h1 {
   background: var(--accent-strong);
 }
 
+.pond-tour,
 .focus-panel {
   margin-bottom: 1rem;
   padding: 1rem;
@@ -327,10 +329,56 @@ h1 {
   background: rgb(141 212 255 / 9%);
 }
 
+.pond-tour h2,
 .focus-panel h2 {
   margin: 0 0 .35rem;
   font-size: 1.25rem;
 }
+
+.pond-tour p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.tour-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tour-steps li {
+  display: grid;
+  gap: .25rem;
+  padding: .8rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 5%);
+}
+
+.tour-steps span {
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.tour-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.tour-actions button {
+  padding: .65rem .9rem;
+}
+
+.tour-actions > button:first-child {
+  color: #07111a;
+  background: var(--accent);
+}
+
+.tour-actions > button:first-child:hover { background: var(--accent-strong); }
 
 .focus-meta {
   margin: 0 0 .85rem;
@@ -529,7 +577,8 @@ h1 {
 @media (max-width: 44rem) {
   body { padding: 1rem; }
   .auth-panel,
-  .todo-form { grid-template-columns: 1fr; }
+  .todo-form,
+  .tour-steps { grid-template-columns: 1fr; }
   .todo-form button { width: 100%; }
   .todo-item,
   .todo-actions { align-items: stretch; }

@@ -6,6 +6,7 @@ const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const NOTIFICATIONS_KEY = 'dactyl.notificationsEnabled:v1';
 const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
+const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
@@ -107,6 +108,13 @@ const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
 const notificationToggle = document.querySelector('#notification-toggle');
+const prefsToggle = document.querySelector('#prefs-toggle');
+const prefsPanel = document.querySelector('#prefs-panel');
+const prefsClose = document.querySelector('#prefs-close');
+const prefReducedMotion = document.querySelector('#pref-reduced-motion');
+const prefHighContrast = document.querySelector('#pref-high-contrast');
+const prefCompact = document.querySelector('#pref-compact');
+const prefTextBadges = document.querySelector('#pref-text-badges');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -135,6 +143,7 @@ let tourForcedVisible = false;
 let notificationsEnabled = loadNotificationsEnabled();
 let notifiedTodayIds = loadNotifiedTodayIds();
 let notificationIntervalId = null;
+let viewPrefs = loadViewPrefs();
 let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
@@ -421,6 +430,52 @@ function saveNotifiedTodayIds() {
     }));
   } catch {
     // Ignore: this cache only suppresses duplicate reminders for the current day.
+  }
+}
+
+function loadViewPrefs() {
+  const systemReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const defaults = { reducedMotion: systemReducedMotion, highContrast: false, compact: false, textBadges: false };
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return defaults;
+    const saved = JSON.parse(raw);
+    return {
+      reducedMotion: typeof saved.reducedMotion === 'boolean' ? saved.reducedMotion : defaults.reducedMotion,
+      highContrast: typeof saved.highContrast === 'boolean' ? saved.highContrast : false,
+      compact: typeof saved.compact === 'boolean' ? saved.compact : false,
+      textBadges: typeof saved.textBadges === 'boolean' ? saved.textBadges : false,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveViewPrefs() {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(viewPrefs));
+  } catch {
+    showStorageError('Preferences changed, but could not be saved in this browser.');
+  }
+}
+
+function applyViewPrefs() {
+  const root = document.documentElement;
+  root.dataset.motion = viewPrefs.reducedMotion ? 'reduced' : 'full';
+  root.dataset.contrast = viewPrefs.highContrast ? 'high' : 'default';
+  root.dataset.density = viewPrefs.compact ? 'compact' : 'default';
+  root.dataset.badges = viewPrefs.textBadges ? 'text-first' : 'default';
+}
+
+function setPrefsOpen(open) {
+  prefsPanel.hidden = !open;
+  prefsToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    prefReducedMotion.checked = viewPrefs.reducedMotion;
+    prefHighContrast.checked = viewPrefs.highContrast;
+    prefCompact.checked = viewPrefs.compact;
+    prefTextBadges.checked = viewPrefs.textBadges;
+    prefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 }
 
@@ -2693,7 +2748,9 @@ function handleGlobalShortcut(event) {
     if (closedShowcase) setShowcaseOpen(false);
     const closedTrophies = !trophiesPanel.hidden;
     if (closedTrophies) setTrophiesOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies) event.preventDefault();
+    const closedPrefs = !prefsPanel.hidden;
+    if (closedPrefs) setPrefsOpen(false);
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedPrefs) event.preventDefault();
   }
 }
 
@@ -2823,8 +2880,31 @@ showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hid
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
+prefsToggle.addEventListener('click', () => setPrefsOpen(prefsPanel.hidden));
+prefsClose.addEventListener('click', () => setPrefsOpen(false));
+prefReducedMotion.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, reducedMotion: prefReducedMotion.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefHighContrast.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, highContrast: prefHighContrast.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefCompact.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, compact: prefCompact.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefTextBadges.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, textBadges: prefTextBadges.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
 
 document.addEventListener('keydown', handleGlobalShortcut);
 syncPriorityChips();
 
+applyViewPrefs();
 restoreSession();

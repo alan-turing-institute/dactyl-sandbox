@@ -1,4 +1,4 @@
-/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState */
+/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -75,6 +75,12 @@ const {
 } = DactylScreenState;
 const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
+const {
+  clampTriageIndex,
+  nextPriority: nextTriagePriority,
+  nextTriageIndex,
+  triageCandidates: getTriageCandidates,
+} = DactylTriageMode;
 
 const authScreen = document.querySelector('#auth-screen');
 const pondScreen = document.querySelector('#pond-screen');
@@ -144,6 +150,19 @@ const showPondTour = document.querySelector('#show-pond-tour');
 const shortcutHelpToggle = document.querySelector('#shortcut-help-toggle');
 const shortcutHelp = document.querySelector('#shortcut-help');
 const shortcutHelpClose = document.querySelector('#shortcut-help-close');
+const triageToggle = document.querySelector('#triage-toggle');
+const triagePanel = document.querySelector('#triage-panel');
+const triageClose = document.querySelector('#triage-close');
+const triageStatus = document.querySelector('#triage-status');
+const triageTaskTitle = document.querySelector('#triage-task-title');
+const triageTaskMeta = document.querySelector('#triage-task-meta');
+const triagePrev = document.querySelector('#triage-prev');
+const triageNext = document.querySelector('#triage-next');
+const triageComplete = document.querySelector('#triage-complete');
+const triageArchive = document.querySelector('#triage-archive');
+const triagePriority = document.querySelector('#triage-priority');
+const triageDueEarlier = document.querySelector('#triage-due-earlier');
+const triageDueLater = document.querySelector('#triage-due-later');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
@@ -220,6 +239,8 @@ let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
 let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
+let triageOpen = false;
+let triageIndex = 0;
 let viewPrefs = loadViewPrefs();
 let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
@@ -2385,6 +2406,7 @@ function renderAuth() {
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
+  triageToggle.disabled = !signedIn;
   castNet.disabled = !signedIn;
   saveSmartView.disabled = !signedIn;
   smartViewName.disabled = !signedIn;
@@ -2418,6 +2440,109 @@ function dismissTour() {
   saveTourDismissed(true);
   render();
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
+}
+
+function triageTasks() {
+  return getTriageCandidates(todos);
+}
+
+function currentTriageTodo() {
+  const tasks = triageTasks();
+  triageIndex = clampTriageIndex(triageIndex, tasks.length);
+  return tasks[triageIndex] || null;
+}
+
+function setTriageOpen(open) {
+  if (open && !currentUser) {
+    showPondMessage('Sign in first to use triage mode.');
+    return;
+  }
+  if (open && triageTasks().length === 0) {
+    showPondMessage('No active fish to triage right now.');
+    return;
+  }
+  triageOpen = open;
+  triageToggle.setAttribute('aria-expanded', String(triageOpen));
+  render();
+  if (triageOpen) triagePanel.focus({ preventScroll: true });
+}
+
+function renderTriagePanel() {
+  triagePanel.hidden = !triageOpen;
+  triageToggle.setAttribute('aria-expanded', String(triageOpen));
+  if (!triageOpen) return;
+
+  const tasks = triageTasks();
+  triageIndex = clampTriageIndex(triageIndex, tasks.length);
+  const todo = tasks[triageIndex];
+  const hasTodo = Boolean(todo);
+  triageStatus.textContent = hasTodo
+    ? `${triageIndex + 1} of ${tasks.length} active fish. J/K move, C completes, E archives, P cycles priority, [ and ] nudge due date.`
+    : 'No active fish to triage right now.';
+  triageTaskTitle.textContent = todo?.text || 'No active task selected';
+  triageTaskMeta.textContent = todo
+    ? [moodFor(todo).text, dueLabelFor(todo), priorityLabelFor(todo)].filter(Boolean).join(' · ')
+    : 'Add or restore a task to keep triaging.';
+  [triagePrev, triageNext, triageComplete, triageArchive, triagePriority, triageDueEarlier, triageDueLater]
+    .forEach((button) => { button.disabled = !hasTodo; });
+}
+
+function moveTriage(delta) {
+  const tasks = triageTasks();
+  triageIndex = nextTriageIndex(triageIndex, tasks.length, delta);
+  render();
+}
+
+function completeTriageTodo() {
+  const todo = currentTriageTodo();
+  if (!todo) return;
+  const previousCompletedCount = completedTodoCount();
+  todos = todos.map((item) => (
+    item.id === todo.id ? { ...item, completed: true } : item
+  ));
+  saveTodos();
+  showPondMessage(`Completed from triage: ${todo.text}.`);
+  celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
+  render();
+}
+
+function archiveTriageTodo() {
+  const todo = currentTriageTodo();
+  if (!todo) return;
+  const archivedAt = new Date().toISOString();
+  todos = todos.map((item) => (
+    item.id === todo.id ? { ...item, completed: true, archivedAt } : item
+  ));
+  selectedTodoIds.delete(todo.id);
+  if (todo.id === focusedTodoId) saveFocusedTodoId('');
+  saveTodos();
+  showPondMessage(`Archived from triage: ${todo.text}.`);
+  render();
+}
+
+function cycleTriagePriority() {
+  const todo = currentTriageTodo();
+  if (!todo) return;
+  const priority = nextTriagePriority(todo.priority);
+  todos = todos.map((item) => (
+    item.id === todo.id ? { ...item, priority } : item
+  ));
+  saveTodos();
+  showPondMessage(`Triage set ${todo.text} to ${priority} priority.`);
+  render();
+}
+
+function nudgeTriageDueDate(days) {
+  const todo = currentTriageTodo();
+  if (!todo) return;
+  const baseDate = todo.dueDate || todayKey();
+  const dueDate = addDays(baseDate, days);
+  todos = todos.map((item) => (
+    item.id === todo.id ? { ...item, dueDate } : item
+  ));
+  saveTodos();
+  showPondMessage(`Triage moved ${todo.text} to ${formatDateKey(dueDate)}.`);
+  render();
 }
 
 
@@ -2489,6 +2614,7 @@ function render() {
   focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
+  renderTriagePanel();
   renderShowcase();
   renderTrophies();
   if (!reminderPrefsPanel.hidden) renderReminderPrefs();
@@ -3155,6 +3281,50 @@ function handleGlobalShortcut(event) {
     return;
   }
 
+  if (triageOpen) {
+    const key = event.key.toLowerCase();
+    if (key === 'j' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveTriage(1);
+      return;
+    }
+    if (key === 'k' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveTriage(-1);
+      return;
+    }
+    if (key === 'c') {
+      event.preventDefault();
+      completeTriageTodo();
+      return;
+    }
+    if (key === 'e') {
+      event.preventDefault();
+      archiveTriageTodo();
+      return;
+    }
+    if (key === 'p') {
+      event.preventDefault();
+      cycleTriagePriority();
+      return;
+    }
+    if (event.key === '[') {
+      event.preventDefault();
+      nudgeTriageDueDate(-1);
+      return;
+    }
+    if (event.key === ']') {
+      event.preventDefault();
+      nudgeTriageDueDate(1);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setTriageOpen(false);
+      return;
+    }
+  }
+
   if (event.key === '?') {
     event.preventDefault();
     toggleShortcutHelp();
@@ -3191,6 +3361,12 @@ function handleGlobalShortcut(event) {
     return;
   }
 
+  if (event.key.toLowerCase() === 'u') {
+    event.preventDefault();
+    setTriageOpen(true);
+    return;
+  }
+
   if (event.key === 'Escape') {
     const helpWasOpen = !shortcutHelp.hidden;
     setShortcutHelpOpen(false);
@@ -3201,11 +3377,13 @@ function handleGlobalShortcut(event) {
     if (closedTrophies) setTrophiesOpen(false);
     const closedStarterShoals = !starterShoalsPanel.hidden;
     if (closedStarterShoals) setStarterShoalsOpen(false);
+    const closedTriage = triageOpen;
+    if (closedTriage) setTriageOpen(false);
     const closedReminderPrefs = !reminderPrefsPanel.hidden;
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedReminderPrefs || closedPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -3318,6 +3496,15 @@ sharePond.addEventListener('click', shareVisiblePond);
 copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
+triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));
+triageClose.addEventListener('click', () => setTriageOpen(false));
+triagePrev.addEventListener('click', () => moveTriage(-1));
+triageNext.addEventListener('click', () => moveTriage(1));
+triageComplete.addEventListener('click', completeTriageTodo);
+triageArchive.addEventListener('click', archiveTriageTodo);
+triagePriority.addEventListener('click', cycleTriagePriority);
+triageDueEarlier.addEventListener('click', () => nudgeTriageDueDate(-1));
+triageDueLater.addEventListener('click', () => nudgeTriageDueDate(1));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
 copyPondDiagnostics.addEventListener('click', copyDiagnosticsReport);
 castNet.addEventListener('click', toggleNetMode);

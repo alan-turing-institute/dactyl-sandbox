@@ -819,7 +819,7 @@ function renderWeekAhead() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'week-group week-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Clear waters ahead';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Clear waters ahead';
     const description = document.createElement('p');
     description.textContent = hasActiveSearchFilter()
       ? filteredEmptyDescription()
@@ -861,7 +861,7 @@ function renderTideMode() {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'tide-group tide-group-empty';
     const heading = document.createElement('h3');
-    heading.textContent = 'Still waters (0)';
+    heading.textContent = hasActiveSearchFilter() ? filteredEmptyHeading() : 'Still waters (0)';
     const description = document.createElement('p');
     description.textContent = hasActiveSearchFilter()
       ? filteredEmptyDescription()

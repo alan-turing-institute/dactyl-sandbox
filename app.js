@@ -344,14 +344,14 @@ function sortTodos(items) {
 }
 
 function baseVisibleTodos() {
-  if (filter === 'active') return sortTodos(todos.filter((todo) => !todo.completed));
-  if (filter === 'completed') return sortTodos(todos.filter((todo) => todo.completed));
+  if (filter === 'active') return todos.filter((todo) => !todo.completed);
+  if (filter === 'completed') return todos.filter((todo) => todo.completed);
   if (filter === 'week') {
     const today = todayKey();
     const weekEnd = addDays(today, 6);
-    return sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
+    return todos.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd);
   }
-  return sortTodos(todos);
+  return todos;
 }
 
 function matchesSearch(todo) {
@@ -1237,11 +1237,17 @@ async function authenticate(mode) {
   }
 }
 
+function clearSearchState() {
+  searchQuery = '';
+  quickFilter = '';
+}
+
 function logout() {
   saveAuthToken('');
   currentUser = null;
   todos = [];
   selectedTodoIds.clear();
+  clearSearchState();
   netMode = false;
   tourForcedVisible = false;
   saveFocusedTodoId('');

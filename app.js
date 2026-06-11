@@ -58,6 +58,7 @@ const mergeRestore = document.querySelector('#merge-restore');
 const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
+const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -905,6 +906,49 @@ function buildPondReport() {
   return lines.join('\n');
 }
 
+function buildPondSnapshot() {
+  const visiblePond = liveTodos();
+  const activeTodos = visiblePond.filter((todo) => !todo.completed);
+  const completedCount = visiblePond.length - activeTodos.length;
+  const highPriorityTodos = activeTodos.filter((todo) => todo.priority === 'high');
+  const today = todayKey();
+  const overdueTodos = activeTodos.filter((todo) => todo.dueDate && todo.dueDate < today);
+  const upcomingTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate && todo.dueDate >= today)).slice(0, 5);
+  const focusTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
+  const generatedAt = new Date().toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  const lines = [
+    'Read-only pond snapshot',
+    `Generated: ${generatedAt}`,
+    `Tasks: ${visiblePond.length} total · ${activeTodos.length} active · ${completedCount} completed · ${archivedTodos().length} archived`,
+    `Priority: ${highPriorityTodos.length} high tide · ${overdueTodos.length} overdue`,
+  ];
+
+  if (focusTodo) lines.push(`Focus fish: ${focusTodo.text}`);
+  else lines.push('Focus fish: none selected');
+
+  if (overdueTodos.length > 0) {
+    lines.push('Overdue fish:');
+    sortTodos(overdueTodos).slice(0, 5).forEach((todo) => {
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  if (upcomingTodos.length > 0) {
+    lines.push('Upcoming fish:');
+    upcomingTodos.forEach((todo) => {
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+    });
+  }
+
+  if (activeTodos.length === 0) lines.push('No active fish need attention.');
+
+  lines.push('Snapshot is read-only and excludes account credentials, tokens, and diagnostics.');
+  return lines.join('\n');
+}
+
 function tideCounts() {
   return tideGroups.reduce((counts, group) => ({
     ...counts,
@@ -1037,6 +1081,15 @@ async function copyPondProgressReport() {
     showPondMessage('Copied a Slack-friendly pond report to the clipboard.');
   } catch {
     showPondMessage('Could not copy the pond report. Select the tasks and try again?');
+  }
+}
+
+async function copyPondSnapshotReport() {
+  try {
+    await copyText(buildPondSnapshot());
+    showPondMessage('Copied a read-only pond snapshot for standups and demos.');
+  } catch {
+    showPondMessage('Could not copy the pond snapshot. Try the pond report instead?');
   }
 }
 
@@ -1741,6 +1794,7 @@ function renderAuth() {
   exportPond.disabled = !signedIn;
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
+  copyPondSnapshot.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
@@ -2491,6 +2545,7 @@ mergeRestore.addEventListener('click', () => applyRestore('merge'));
 replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
+copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));

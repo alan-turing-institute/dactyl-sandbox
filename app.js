@@ -1983,8 +1983,20 @@ function renderFocusPanel() {
   renderFocusSprint();
 }
 
+function supportsNotifications() {
+  return 'Notification' in window;
+}
+
+function notificationPermission() {
+  return supportsNotifications() ? window.Notification.permission : 'unsupported';
+}
+
+function notificationsActive() {
+  return notificationsEnabled && notificationPermission() === 'granted';
+}
+
 function checkDueNotifications() {
-  if (!notificationsEnabled || window.Notification.permission !== 'granted') return;
+  if (!notificationsActive()) return;
   if (!currentUser || todos.length === 0) return;
 
   const today = todayKey();
@@ -2004,7 +2016,7 @@ function checkDueNotifications() {
 }
 
 async function enableNotifications() {
-  if (!('Notification' in window)) {
+  if (!supportsNotifications()) {
     showPondMessage('This browser does not support notifications.');
     return;
   }
@@ -2040,11 +2052,11 @@ function stopNotificationInterval() {
 }
 
 function renderNotificationToggle() {
-  if (!('Notification' in window)) {
+  if (!supportsNotifications()) {
     notificationToggle.hidden = true;
     return;
   }
-  const enabled = notificationsEnabled && window.Notification.permission === 'granted';
+  const enabled = notificationsActive();
   notificationToggle.hidden = !currentUser;
   notificationToggle.textContent = enabled ? 'Notifications on' : 'Enable notifications';
   notificationToggle.setAttribute('aria-pressed', String(enabled));
@@ -2608,7 +2620,7 @@ async function authenticate(mode) {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Loaded tasks for the current session.');
-    if (notificationsEnabled && window.Notification.permission === 'granted') startNotificationInterval();
+    if (notificationsActive()) startNotificationInterval();
     checkDueNotifications();
     passwordInput.value = '';
     clearStorageError();
@@ -2680,7 +2692,7 @@ async function restoreSession() {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Restored the signed-in task pond.');
-    if (notificationsEnabled && window.Notification.permission === 'granted') startNotificationInterval();
+    if (notificationsActive()) startNotificationInterval();
     checkDueNotifications();
   } catch {
     saveAuthToken('');
@@ -2762,8 +2774,7 @@ authForm.addEventListener('submit', (event) => {
 signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
 notificationToggle.addEventListener('click', () => {
-  const enabled = notificationsEnabled && window.Notification.permission === 'granted';
-  if (enabled) disableNotifications();
+  if (notificationsActive()) disableNotifications();
   else enableNotifications();
 });
 passwordForm.addEventListener('submit', (event) => {

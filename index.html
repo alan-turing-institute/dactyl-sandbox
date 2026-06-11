@@ -66,6 +66,7 @@
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
+        <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
@@ -98,6 +99,19 @@
           <div><dt><kbd>R</kbd></dt><dd>Copy the pond report.</dd></div>
           <div><dt><kbd>Esc</kbd></dt><dd>Close this help card and leave net mode.</dd></div>
         </dl>
+      </section>
+
+      <section id="pond-health-panel" class="pond-health-panel" aria-labelledby="pond-health-title" aria-live="polite" hidden>
+        <div class="pond-health-header">
+          <div>
+            <p class="eyebrow">Diagnostics</p>
+            <h2 id="pond-health-title">Pond health</h2>
+          </div>
+          <button id="copy-pond-diagnostics" class="secondary-action" type="button">Copy diagnostics</button>
+        </div>
+        <p id="pond-health-summary" class="pond-health-summary">Open pond health to review lightweight diagnostics.</p>
+        <dl id="pond-health-metrics" class="pond-health-metrics"></dl>
+        <ul id="pond-health-hints" class="pond-health-hints"></ul>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>

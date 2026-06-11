@@ -1,3 +1,5 @@
+// AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
+// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter.
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
@@ -350,6 +352,12 @@ function visibleTodos() {
     return sortTodos(todos.filter((todo) => !todo.completed && todo.dueDate && todo.dueDate <= weekEnd));
   }
   return sortTodos(todos);
+}
+
+function renderedTodoIds() {
+  // tide renders all todos across groups (including completed); other filters match visibleTodos().
+  if (filter === 'tide') return new Set(todos.map((todo) => todo.id));
+  return new Set(visibleTodos().map((todo) => todo.id));
 }
 
 function tideFor(todo) {
@@ -997,6 +1005,8 @@ function renderAuth() {
 }
 
 function setFilter(nextFilter) {
+  // Clear selection when filter changes so hidden tasks can't be affected by bulk actions.
+  selectedTodoIds.clear();
   filter = nextFilter;
   render();
 }
@@ -1021,7 +1031,7 @@ function render() {
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && visibleTodos().length === 0);
   clearCompleted.classList.toggle('visible', todos.some((todo) => todo.completed));
   releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
-  selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
+  selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();
   renderTourPanel();
 
@@ -1208,7 +1218,8 @@ function toggleSelectedTodo(id) {
 }
 
 function releaseSelectedTodos() {
-  const selectedIds = new Set(selectedTodoIds);
+  // Constrain to rendered todos only, so tasks hidden by the current filter are never released.
+  const selectedIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   if (removeTodosWithUndo(
     (todo) => selectedIds.has(todo.id),
     (count) => `Released ${pluralise(count, 'selected fish', 'selected fish')} from the pond.`,
@@ -1220,10 +1231,12 @@ function releaseSelectedTodos() {
 
 function moveSelectedToShoal() {
   editingTodoId = '';
-  const selectedCount = selectedTodoIds.size;
+  // Constrain to rendered todos only, so tasks hidden by the current filter are never moved.
+  const effectiveIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
+  const selectedCount = effectiveIds.size;
   const priority = normalisePriority(shoalPriority.value);
   todos = todos.map((todo) => (
-    selectedTodoIds.has(todo.id) ? { ...todo, priority } : todo
+    effectiveIds.has(todo.id) ? { ...todo, priority } : todo
   ));
   saveTodos();
   showPondMessage(`Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${priority} shoal.`);

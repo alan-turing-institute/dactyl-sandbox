@@ -242,6 +242,7 @@ h1 {
 .shortcut-help[hidden],
 .pond-health-panel[hidden],
 .trophies-panel[hidden],
+.prefs-panel[hidden],
 .paste-panel[hidden],
 .restore-panel[hidden],
 .pond-tour[hidden],
@@ -1216,6 +1217,66 @@ kbd {
 
 .trophy-status.earned { color: var(--warning); }
 .trophy-status.locked { color: var(--muted); }
+
+.prefs-panel {
+  display: grid;
+  gap: .85rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(200 220 255 / 20%);
+  border-radius: 1.25rem;
+  background: rgb(200 220 255 / 6%);
+}
+
+.prefs-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.prefs-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.prefs-note {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+.prefs-options {
+  display: grid;
+  gap: .65rem;
+}
+
+.pref-option {
+  display: flex;
+  gap: .65rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: .92rem;
+}
+
+.pref-option strong {
+  display: block;
+}
+
+.pref-option span span {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+[data-motion="reduced"] * {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+}
+
+[data-contrast="high"] { --muted: var(--text); }
+
+[data-density="compact"] .todo-item { padding: .2rem .5rem; }
+[data-density="compact"] .pond-actions { gap: .35rem; }
 
 @media (max-width: 44rem) {
   body { padding: 1rem; }

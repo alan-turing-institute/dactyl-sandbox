@@ -85,6 +85,7 @@
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel">Tide trophies</button>
+        <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
@@ -144,6 +145,47 @@
           <button id="trophies-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
         </div>
         <ul id="trophies-list" class="trophies-list" aria-label="Trophy progress"></ul>
+      </section>
+
+      <section id="prefs-panel" class="prefs-panel" aria-labelledby="prefs-title" hidden>
+        <div class="prefs-header">
+          <div>
+            <p class="eyebrow">Calm Water</p>
+            <h2 id="prefs-title">Accessibility preferences</h2>
+          </div>
+          <button id="prefs-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p class="prefs-note">Preferences are saved locally in this browser and do not sync.</p>
+        <div class="prefs-options">
+          <label class="pref-option">
+            <input id="pref-reduced-motion" type="checkbox" />
+            <span>
+              <strong>Reduced motion</strong>
+              <span>Disable animations and transitions in the pond.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-high-contrast" type="checkbox" />
+            <span>
+              <strong>High contrast</strong>
+              <span>Increase text and border contrast throughout.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-compact" type="checkbox" />
+            <span>
+              <strong>Compact layout</strong>
+              <span>Reduce spacing between tasks and panels.</span>
+            </span>
+          </label>
+          <label class="pref-option">
+            <input id="pref-text-badges" type="checkbox" />
+            <span>
+              <strong>Text-first badges</strong>
+              <span>Show tide labels instead of colour dots on tasks.</span>
+            </span>
+          </label>
+        </div>
       </section>
 
       <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>

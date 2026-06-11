@@ -99,6 +99,13 @@ const trophiesPanel = document.querySelector('#trophies-panel');
 const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
+const prefsToggle = document.querySelector('#prefs-toggle');
+const prefsPanel = document.querySelector('#prefs-panel');
+const prefsClose = document.querySelector('#prefs-close');
+const prefReducedMotion = document.querySelector('#pref-reduced-motion');
+const prefHighContrast = document.querySelector('#pref-high-contrast');
+const prefCompact = document.querySelector('#pref-compact');
+const prefTextBadges = document.querySelector('#pref-text-badges');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -123,6 +130,7 @@ let quickFilter = '';
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let tourForcedVisible = false;
+let viewPrefs = loadViewPrefs();
 let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
@@ -2439,7 +2447,9 @@ function handleGlobalShortcut(event) {
     if (closedShowcase) setShowcaseOpen(false);
     const closedTrophies = !trophiesPanel.hidden;
     if (closedTrophies) setTrophiesOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies) event.preventDefault();
+    const closedPrefs = !prefsPanel.hidden;
+    if (closedPrefs) setPrefsOpen(false);
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedPrefs) event.preventDefault();
   }
 }
 
@@ -2549,6 +2559,28 @@ showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hid
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
+prefsToggle.addEventListener('click', () => setPrefsOpen(prefsPanel.hidden));
+prefsClose.addEventListener('click', () => setPrefsOpen(false));
+prefReducedMotion.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, reducedMotion: prefReducedMotion.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefHighContrast.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, highContrast: prefHighContrast.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefCompact.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, compact: prefCompact.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
+prefTextBadges.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, textBadges: prefTextBadges.checked };
+  saveViewPrefs();
+  applyViewPrefs();
+});
 
 document.addEventListener('keydown', handleGlobalShortcut);
 

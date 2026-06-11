@@ -64,6 +64,7 @@
       <section class="pond-actions" aria-label="Pond actions">
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
+        <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button">Copy pond report</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
@@ -76,6 +77,23 @@
           </select>
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
+      </section>
+
+      <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>
+        <div class="paste-panel-header">
+          <div>
+            <p class="eyebrow">Bulk import</p>
+            <h2 id="paste-title">Paste to pond</h2>
+          </div>
+          <button id="cancel-paste" class="secondary-action" type="button">Cancel</button>
+        </div>
+        <label for="paste-input">Paste Slack bullets, checklists, or plain text notes.</label>
+        <textarea id="paste-input" rows="6" maxlength="6000" placeholder="- [high] Follow up with Dactyl due:2026-06-12&#10;• Draft demo notes&#10;1. [ ] Check CI bubbles"></textarea>
+        <p id="paste-preview" class="paste-preview" role="status" aria-live="polite">Paste notes to preview tasks.</p>
+        <div class="paste-actions">
+          <button id="add-pasted-tasks" type="button" disabled>Add tasks</button>
+          <button id="clear-paste" class="secondary-action" type="button">Clear</button>
+        </div>
       </section>
 
       <section id="focus-panel" class="focus-panel" aria-live="polite" hidden>

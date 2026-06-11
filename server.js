@@ -228,11 +228,17 @@ function createApp(options = {}) {
   app.put('/api/tasks', requireAuth, (req, res) => {
     if (!Array.isArray(req.body?.todos)) return res.status(400).json({ error: 'Expected a todos array.' });
     const normalised = req.body.todos.map(normaliseTodo).filter(Boolean).slice(0, MAX_TODOS);
-    const replace = db.transaction((todos) => {
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
       db.prepare('DELETE FROM todos WHERE user_id = ?').run(req.user.id);
-      todos.forEach((todo) => upsertTodo(req.user.id, todo));
-    });
-    replace(normalised);
+      normalised.forEach((todo) => upsertTodo(req.user.id, todo));
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
     return res.json({ todos: listTodos(req.user.id) });
   });
 

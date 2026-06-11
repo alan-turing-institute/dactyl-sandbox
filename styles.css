@@ -213,6 +213,7 @@ h1 {
 
 .storage-error[hidden],
 .pond-message[hidden],
+.paste-panel[hidden],
 .focus-panel[hidden],
 .shoal-control[hidden],
 .secondary-action[hidden] { display: none; }
@@ -250,6 +251,72 @@ h1 {
   border-radius: 999px;
   background: var(--card-strong);
   color: var(--text);
+}
+
+.paste-panel {
+  display: grid;
+  gap: .75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 24%);
+  border-radius: 1.25rem;
+  background: rgb(141 212 255 / 8%);
+}
+
+.paste-panel-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.paste-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.paste-panel label,
+.paste-preview {
+  color: var(--muted);
+  font-size: .92rem;
+  font-weight: 700;
+}
+
+.paste-panel textarea {
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  padding: .9rem 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+}
+
+.paste-panel textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
+}
+
+.paste-preview {
+  margin: 0;
+}
+
+.paste-actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.paste-actions button:first-child {
+  padding: .75rem 1rem;
+  color: #07111a;
+  background: var(--accent);
+}
+
+.paste-actions button:first-child:hover:not(:disabled) {
+  background: var(--accent-strong);
 }
 
 .focus-panel {

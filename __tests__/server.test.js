@@ -82,6 +82,45 @@ describe('auth and task API', () => {
     expect(secondTasks.body.todos).toEqual([]);
   });
 
+  test('replaces a user task list with PUT /api/tasks', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'put-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Old task' })
+      .expect(201);
+
+    const replacement = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        todos: [
+          { id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' },
+          { id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' },
+        ],
+      })
+      .expect(200);
+
+    expect(replacement.body.todos).toHaveLength(2);
+    expect(replacement.body.todos).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' }),
+      expect.objectContaining({ id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' }),
+    ]));
+
+    const tasks = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .expect(200);
+
+    expect(tasks.body.todos.map((todo) => todo.text)).not.toContain('Old task');
+  });
+
   test('rejects invalid task patches with 400', async () => {
     app = makeApp();
 

@@ -1232,6 +1232,8 @@ kbd {
 
 .checklist-badge { border: 1px solid rgb(141 255 202 / 22%); }
 
+.recurrence-badge { border: 1px solid rgb(255 210 141 / 24%); }
+
 .edit-task {
   padding: .5rem .75rem;
   background: rgb(255 255 255 / 8%);

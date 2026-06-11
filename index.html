@@ -89,6 +89,13 @@
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
+        <label class="sr-only" for="recurrence-input">Repeat</label>
+        <select id="recurrence-input" name="recurrence" aria-label="Repeat">
+          <option value="none" selected>No repeat</option>
+          <option value="daily">Repeat daily</option>
+          <option value="weekly">Repeat weekly</option>
+          <option value="monthly">Repeat monthly</option>
+        </select>
         <button type="submit">Add</button>
       </form>
 
@@ -505,6 +512,7 @@
     <script src="screen-state.js"></script>
     <script src="fish-emoji.js"></script>
     <script src="first-task-onboarding.js"></script>
+    <script src="recurrence.js"></script>
     <script src="quick-add-parser.js"></script>
     <script src="triage-mode.js"></script>
     <script src="app.js"></script>

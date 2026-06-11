@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -82,6 +82,7 @@ const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
 const { premiumHookForSurface } = DactylPremiumHooks;
+const { normaliseRecurrence, recurrenceLabel, nextRecurrenceDate } = DactylRecurrence;
 const analytics = DactylAnalytics.createAnalytics();
 const {
   clampTriageIndex,
@@ -113,6 +114,7 @@ const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
 const githubUrlInput = document.querySelector('#github-url-input');
 const priorityInput = document.querySelector('#priority-input');
+const recurrenceInput = document.querySelector('#recurrence-input');
 const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
@@ -511,6 +513,7 @@ function normaliseTodo(todo) {
     githubUrl: normaliseGithubUrl(todo.githubUrl),
     notes: typeof todo.notes === 'string' ? todo.notes.trim().slice(0, MAX_NOTES_LENGTH) : '',
     checklist: normaliseChecklist(todo.checklist),
+    recurrence: normaliseRecurrence(todo.recurrence),
   };
 }
 
@@ -995,6 +998,10 @@ function priorityLabelFor(todo) {
   return `${todo.priority[0].toUpperCase()}${todo.priority.slice(1)} priority`;
 }
 
+function recurrenceLabelFor(todo) {
+  return recurrenceLabel(todo.recurrence);
+}
+
 function pluralise(countValue, singular, plural = `${singular}s`) {
   return `${countValue} ${countValue === 1 ? singular : plural}`;
 }
@@ -1377,7 +1384,7 @@ function buildPondReport() {
 }
 
 function reportTodoText(todo) {
-  const details = [checklistProgress(todo), todo.githubUrl].filter(Boolean);
+  const details = [recurrenceLabelFor(todo), checklistProgress(todo), todo.githubUrl].filter(Boolean);
   return details.length > 0 ? `${todo.text} (${details.join(' · ')})` : todo.text;
 }
 
@@ -1635,7 +1642,7 @@ function createDailyCatchItem(todo, action) {
   const title = document.createElement('strong');
   title.textContent = todo.text;
   const meta = document.createElement('span');
-  meta.textContent = [dueLabelFor(todo), priorityLabelFor(todo), checklistProgress(todo)].filter(Boolean).join(' · ');
+  meta.textContent = [dueLabelFor(todo), priorityLabelFor(todo), recurrenceLabelFor(todo), checklistProgress(todo)].filter(Boolean).join(' · ');
   copy.append(title, meta);
 
   const buttons = document.createElement('div');
@@ -2109,6 +2116,21 @@ function createTodoEditForm(todo) {
   });
   prioritySelect.value = todo.priority;
 
+  const recurrenceSelect = document.createElement('select');
+  recurrenceSelect.name = 'recurrence';
+  [
+    ['none', 'No repeat'],
+    ['daily', 'Repeat daily'],
+    ['weekly', 'Repeat weekly'],
+    ['monthly', 'Repeat monthly'],
+  ].forEach(([value, label]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    recurrenceSelect.append(option);
+  });
+  recurrenceSelect.value = normaliseRecurrence(todo.recurrence);
+
   const actions = document.createElement('div');
   actions.className = 'edit-task-actions';
   const saveButton = document.createElement('button');
@@ -2125,6 +2147,7 @@ function createTodoEditForm(todo) {
     createEditField('Due date', dueInput),
     createEditField('GitHub URL', githubInput),
     createEditField('Priority', prioritySelect),
+    createEditField('Repeat', recurrenceSelect),
     actions,
   );
 
@@ -2135,6 +2158,7 @@ function createTodoEditForm(todo) {
       dueDate: dueInput.value,
       githubUrl: githubInput.value,
       priority: prioritySelect.value,
+      recurrence: recurrenceSelect.value,
     });
   });
   formElement.addEventListener('keydown', (event) => {
@@ -2314,6 +2338,13 @@ function createTodoItem(todo) {
   priorityLabel.textContent = priorityLabelFor(todo);
   const githubChip = createGithubChip(todo);
   if (githubChip) metadata.append(githubChip);
+  const recurrenceText = recurrenceLabelFor(todo);
+  if (recurrenceText) {
+    const recurrenceBadge = document.createElement('span');
+    recurrenceBadge.className = 'recurrence-badge';
+    recurrenceBadge.textContent = recurrenceText;
+    metadata.append(recurrenceBadge);
+  }
   const progressText = checklistProgress(todo);
   if (progressText) {
     const progressBadge = document.createElement('span');
@@ -2718,6 +2749,7 @@ function renderFocusPanel() {
     moodFor(focusedTodo).text,
     dueLabelFor(focusedTodo),
     priorityLabelFor(focusedTodo),
+    recurrenceLabelFor(focusedTodo),
     githubLinkInfo(focusedTodo.githubUrl)?.label,
     checklistProgress(focusedTodo),
   ].filter(Boolean).join(' · ');
@@ -2829,7 +2861,7 @@ function renderTriagePanel() {
     : 'No active fish to triage right now.';
   triageTaskTitle.textContent = todo?.text || 'No active task selected';
   triageTaskMeta.textContent = todo
-    ? [moodFor(todo).text, dueLabelFor(todo), priorityLabelFor(todo)].filter(Boolean).join(' · ')
+    ? [moodFor(todo).text, dueLabelFor(todo), priorityLabelFor(todo), recurrenceLabelFor(todo)].filter(Boolean).join(' · ')
     : 'Add or restore a task to keep triaging.';
   [triagePrev, triageNext, triageComplete, triageArchive, triagePriority, triageDueEarlier, triageDueLater]
     .forEach((button) => { button.disabled = !hasTodo; });
@@ -2845,11 +2877,15 @@ function completeTriageTodo() {
   const todo = currentTriageTodo();
   if (!todo) return;
   const previousCompletedCount = completedTodoCount();
+  const generatedTodo = nextRecurringTodo(todo);
   todos = todos.map((item) => (
     item.id === todo.id ? { ...item, completed: true } : item
   ));
+  if (generatedTodo) todos = [generatedTodo, ...todos];
   saveTodos();
-  showPondMessage(`Completed from triage: ${todo.text}.`);
+  showPondMessage(generatedTodo
+    ? `Completed from triage and scheduled the next ${normaliseRecurrence(todo.recurrence)} fish.`
+    : `Completed from triage: ${todo.text}.`);
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
   render();
 }
@@ -2978,6 +3014,7 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    recurrence: options.recurrence ?? 'none',
     githubUrl: options.githubUrl ?? '',
     notes: options.notes ?? '',
     checklist: options.checklist ?? [],
@@ -2990,6 +3027,7 @@ function addTodo(text, options = {}) {
     priority: todo.priority,
     hasDueDate: Boolean(todo.dueDate),
     hasGithubLink: Boolean(todo.githubUrl),
+    recurrence: todo.recurrence,
     source: options.source || 'form',
   });
   saveTodos();
@@ -3014,6 +3052,29 @@ function dismissFirstTaskGuide() {
 
 function completedTodoCount() {
   return liveTodos().filter((todo) => todo.completed).length;
+}
+
+function nextRecurringTodo(todo) {
+  if (!todo || normaliseRecurrence(todo.recurrence) === 'none' || todos.length >= MAX_TODOS) return null;
+  const nextDueDate = nextRecurrenceDate(todo.dueDate, todo.recurrence, todayKey());
+  const alreadyScheduled = todos.some((candidate) => candidate.id !== todo.id
+    && !candidate.completed
+    && !candidate.archivedAt
+    && candidate.text === todo.text
+    && normaliseRecurrence(candidate.recurrence) === normaliseRecurrence(todo.recurrence)
+    && candidate.dueDate === nextDueDate);
+  if (alreadyScheduled) return null;
+  return normaliseTodo({
+    ...todo,
+    id: crypto.randomUUID(),
+    completed: false,
+    createdAt: new Date().toISOString(),
+    dueDate: nextDueDate,
+    archivedAt: '',
+    blocked: false,
+    blockerReason: '',
+    checklist: normaliseChecklist(todo.checklist).map((item) => ({ ...item, id: crypto.randomUUID(), completed: false })),
+  });
 }
 
 function celebrateFirstCompletionIfNeeded(previousCompletedCount, nextCompletedCount) {
@@ -3077,9 +3138,14 @@ function renderStarterShoalsList() {
 
 function toggleTodo(id) {
   const previousCompletedCount = completedTodoCount();
-  todos = todos.map((todo) => (
-    todo.id === id ? { ...todo, completed: !todo.completed } : todo
-  ));
+  let generatedTodo = null;
+  todos = todos.map((todo) => {
+    if (todo.id !== id) return todo;
+    const completed = !todo.completed;
+    if (completed) generatedTodo = nextRecurringTodo(todo);
+    return { ...todo, completed };
+  });
+  if (generatedTodo) todos = [generatedTodo, ...todos];
   if (id === focusedTodoId && todos.find((todo) => todo.id === id)?.completed) {
     cancelCurrentFocusSprint('Focus sprint cancelled because this fish was completed.');
     saveFocusedTodoId('');
@@ -3089,6 +3155,7 @@ function toggleTodo(id) {
   const toggledTodo = todos.find((todo) => todo.id === id);
   if (toggledTodo?.completed) {
     trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
+    if (generatedTodo) showPondMessage(`Scheduled next ${normaliseRecurrence(toggledTodo.recurrence)} fish for ${dueLabelFor(generatedTodo).toLowerCase()}.`);
   }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
@@ -3192,6 +3259,7 @@ function saveEditedTodo(id, updates) {
     dueDate: updates.dueDate,
     githubUrl: updates.githubUrl,
     priority: updates.priority,
+    recurrence: updates.recurrence,
   });
 
   if (!updatedTodo) {
@@ -3362,17 +3430,21 @@ function completeFocusedTodo(source = 'focus_button') {
   if (!focusedTodoId) return;
   const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
+  const generatedTodo = nextRecurringTodo(completedTask);
   cancelCurrentFocusSprint('');
   todos = todos.map((todo) => (
     todo.id === focusedTodoId ? { ...todo, completed: true } : todo
   ));
+  if (generatedTodo) todos = [generatedTodo, ...todos];
   saveFocusedTodoId('');
   saveTodos();
   render();
   if (completedTask) {
     trackProductEvent('task_completed', { priority: completedTask.priority, source });
     if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
-    const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
+    const celebration = generatedTodo
+      ? `Fed the recurring fish and scheduled the next ${normaliseRecurrence(completedTask.recurrence)} occurrence.`
+      : celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
   }
 }
@@ -3482,7 +3554,7 @@ function renderGhostNet() {
     const metaEl = document.createElement('span');
     metaEl.className = 'ghost-meta';
     const mood = moodFor(todo);
-    metaEl.textContent = `${mood.emoji} ${mood.text} · ${dueLabelFor(todo)} · ${priorityLabelFor(todo)}`;
+    metaEl.textContent = [mood.emoji, mood.text, dueLabelFor(todo), priorityLabelFor(todo), recurrenceLabelFor(todo)].filter(Boolean).join(' · ');
 
     info.append(textEl, metaEl);
 
@@ -3782,6 +3854,7 @@ form.addEventListener('submit', (event) => {
   addTodo(parsed.text, {
     dueDate,
     priority,
+    recurrence: recurrenceInput.value,
     githubUrl: githubUrlInput.value,
     source: parsed.dueDate || parsed.priority ? 'quick_add' : 'form',
   });
@@ -3791,6 +3864,7 @@ form.addEventListener('submit', (event) => {
   }
   form.reset();
   priorityInput.value = 'medium';
+  recurrenceInput.value = 'none';
   syncPriorityChips();
   input.focus();
 });

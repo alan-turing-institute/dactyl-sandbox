@@ -314,6 +314,7 @@ let blockingTodoId = '';
 let detailsTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
+let pendingTodoFocusTarget = null;
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
@@ -2610,9 +2611,10 @@ function createGithubChip(todo) {
   return chip;
 }
 
-function updateTodoDetails(id, updates, message = 'Updated task details.') {
+function updateTodoDetails(id, updates, message = 'Updated task details.', options = {}) {
   const existingTodo = todos.find((todo) => todo.id === id);
   if (!existingTodo) return;
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const updatedTodo = normaliseTodo({ ...existingTodo, ...updates });
   if (!updatedTodo) return;
   todos = todos.map((todo) => (todo.id === id ? updatedTodo : todo));
@@ -2840,6 +2842,79 @@ function createTodoItem(todo) {
     } else {
       blockingTodoId = todo.id;
       render();
+    }
+  });
+
+  // Keyboard-first action strip
+  const actionsDiv = item.querySelector('.todo-actions');
+  actionsDiv.setAttribute('aria-label', `Actions for ${todo.text}`);
+
+  // Toolbar buttons are not in the tab order — navigate with arrow keys
+  actionsDiv.querySelectorAll('button').forEach((btn) => btn.setAttribute('tabindex', '-1'));
+
+  function visibleStripButtons() {
+    return Array.from(actionsDiv.querySelectorAll('button')).filter(
+      (btn) => !btn.hidden && !btn.disabled
+    );
+  }
+
+  function actionButtonAvailable(button) {
+    return Boolean(button && !button.hidden && !button.disabled);
+  }
+
+  function handleStripShortcut(e) {
+    if (e.key === 'c' || e.key === 'C') {
+      if (!checkbox.disabled) {
+        e.preventDefault();
+        toggleTodo(todo.id, { refocusRow: true });
+      }
+    } else if (e.key === 'a' || e.key === 'A') {
+      if (actionButtonAvailable(archiveButton)) {
+        e.preventDefault();
+        archiveTodo(todo.id, { refocusRow: true });
+      }
+    } else if (e.key === 'e' || e.key === 'E') {
+      if (actionButtonAvailable(editButton)) {
+        e.preventDefault();
+        startEditingTodo(todo.id);
+      }
+    } else if (e.key === 'p' || e.key === 'P') {
+      if (!isArchived && todo.id !== editingTodoId) {
+        e.preventDefault();
+        const order = ['', 'low', 'medium', 'high'];
+        const next = order[(order.indexOf(todo.priority || '') + 1) % order.length] || null;
+        updateTodoDetails(todo.id, { priority: next }, 'Tide level updated.', { refocusRow: true });
+      }
+    }
+  }
+
+  // Arrow-key navigation + shortcut keys within the toolbar
+  actionsDiv.addEventListener('keydown', (e) => {
+    const btns = visibleStripButtons();
+    const idx = btns.indexOf(document.activeElement);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (btns.length) btns[(idx + 1) % btns.length].focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (btns.length) btns[(idx - 1 + btns.length) % btns.length].focus();
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      item.focus();
+    } else {
+      handleStripShortcut(e);
+    }
+  });
+
+  // Enter/ArrowRight on the <li> itself enters the toolbar; single-letter shortcuts act immediately
+  item.addEventListener('keydown', (e) => {
+    if (document.activeElement !== item) return;
+    if (e.key === 'Enter' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const btns = visibleStripButtons();
+      if (btns.length) btns[0].focus();
+    } else {
+      handleStripShortcut(e);
     }
   });
 
@@ -3522,6 +3597,7 @@ function render() {
   renderFocusPanel();
   syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
+  focusPendingTodoRow();
   updateShoalDatalist();
   recordRenderDuration(renderStarted);
   renderDailyCatch();
@@ -3664,7 +3740,8 @@ function renderStarterShoalsList() {
   });
 }
 
-function toggleTodo(id) {
+function toggleTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const previousCompletedCount = completedTodoCount();
   let generatedTodo = null;
   todos = todos.map((todo) => {
@@ -3740,6 +3817,33 @@ function removeTodosWithUndo(predicate, message) {
   const undoMessage = message(removedTodos.length);
   applyUndoableTodoChange(snapshot, undoMessage, `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`);
   return true;
+}
+
+function queueTodoFocusAfterRender(id) {
+  const visibleIds = visibleTodos().map((todo) => todo.id);
+  const currentIndex = visibleIds.indexOf(id);
+  const fallbackIds = currentIndex === -1
+    ? []
+    : [...visibleIds.slice(currentIndex + 1), ...visibleIds.slice(0, currentIndex).reverse()];
+  pendingTodoFocusTarget = { id, fallbackIds };
+}
+
+function findRenderedTodoItemById(id) {
+  return Array.from(list.querySelectorAll('.todo-item')).find((item) => item.dataset.todoId === id) || null;
+}
+
+function focusPendingTodoRow() {
+  if (!pendingTodoFocusTarget) return;
+  const targetIds = [pendingTodoFocusTarget.id, ...pendingTodoFocusTarget.fallbackIds];
+  pendingTodoFocusTarget = null;
+  for (const id of targetIds) {
+    const item = findRenderedTodoItemById(id);
+    if (item) {
+      item.focus();
+      return;
+    }
+  }
+  input.focus();
 }
 
 function focusPendingEditField() {
@@ -3847,7 +3951,8 @@ function deleteTodo(id) {
   );
 }
 
-function archiveTodo(id) {
+function archiveTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const snapshot = prepareUndoSnapshot();
   const archivedAt = new Date().toISOString();
   const todoToArchive = todos.find((todo) => todo.id === id);

@@ -601,7 +601,7 @@
     </main>
 
     <template id="todo-template">
-      <li class="todo-item">
+      <li class="todo-item" tabindex="0">
         <input class="net-select" type="checkbox" aria-label="Select task" hidden />
         <label>
           <input class="toggle" type="checkbox" />
@@ -616,7 +616,7 @@
             </span>
           </span>
         </label>
-        <div class="todo-actions">
+        <div class="todo-actions" role="toolbar" aria-label="Task actions">
           <button class="focus-task" type="button">Feed</button>
           <button class="edit-task" type="button">Edit</button>
           <button class="details-task secondary-action" type="button" aria-expanded="false">Details</button>

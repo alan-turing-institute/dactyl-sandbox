@@ -9,6 +9,7 @@ const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed
 const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
+const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
@@ -220,6 +221,7 @@ const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
 const prefCompact = document.querySelector('#pref-compact');
 const prefTextBadges = document.querySelector('#pref-text-badges');
+const dailyCatchProgress = document.querySelector('#daily-catch-progress');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -239,6 +241,7 @@ let authToken = loadAuthToken();
 let currentUser = null;
 let todos = [];
 let filter = 'all';
+let dailyCatch = loadDailyCatch();
 let searchQuery = '';
 let quickFilter = '';
 let smartViews = loadSmartViews();
@@ -584,6 +587,67 @@ function persistSmartViews() {
   }
 }
 
+function loadDailyCatch() {
+  try {
+    const raw = localStorage.getItem(DAILY_CATCH_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.date === todayKey()) {
+        return {
+          date: parsed.date,
+          pinnedIds: Array.isArray(parsed.pinnedIds) ? parsed.pinnedIds.filter((id) => typeof id === 'string') : [],
+        };
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return { date: todayKey(), pinnedIds: [] };
+}
+
+function saveDailyCatch() {
+  try {
+    localStorage.setItem(DAILY_CATCH_KEY, JSON.stringify(dailyCatch));
+  } catch {
+    showPondMessage('Could not save Daily Catch state in this browser.');
+  }
+}
+
+function scoreTodoForCatch(todo, todayStr) {
+  if (todo.completed || todo.archivedAt) return -1;
+  let score = 0;
+  if (todo.dueDate && todo.dueDate < todayStr) score += 5;
+  else if (todo.dueDate === todayStr) score += 4;
+  if (todo.priority === 'high') score += 3;
+  else if (todo.priority === 'medium') score += 2;
+  if (todo.id === focusedTodoId) score += 1;
+  return score;
+}
+
+function getDailyCatchIds() {
+  const todayStr = todayKey();
+  const active = liveTodos().filter((todo) => !todo.completed);
+  const scored = active
+    .map((todo) => ({ id: todo.id, score: scoreTodoForCatch(todo, todayStr) }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => b.score - a.score);
+  const top5 = scored.slice(0, 5).map((entry) => entry.id);
+  const pinned = dailyCatch.pinnedIds.filter((id) => active.some((t) => t.id === id));
+  const merged = [...new Set([...top5, ...pinned])].slice(0, 7);
+  return merged;
+}
+
+function toggleDailyCatchPin(id) {
+  const idx = dailyCatch.pinnedIds.indexOf(id);
+  if (idx === -1) {
+    dailyCatch.pinnedIds.push(id);
+  } else {
+    dailyCatch.pinnedIds.splice(idx, 1);
+  }
+  saveDailyCatch();
+  render();
+}
+
 function loadFocusSprintMinutes() {
   try {
     const storedMinutes = Number(localStorage.getItem(SPRINT_LENGTH_KEY));
@@ -845,6 +909,7 @@ function renderedTodoIds() {
   // Tide renders filtered live todos across groups; Ghost net uses its own review set.
   if (filter === 'tide') return new Set(filteredTodos(liveTodos()).map((todo) => todo.id));
   if (filter === 'ghost') return new Set(ghostNetTodos().map((todo) => todo.id));
+  if (filter === 'daily-catch') return new Set(getDailyCatchIds());
   return new Set(visibleTodos().map((todo) => todo.id));
 }
 
@@ -2128,6 +2193,7 @@ function createTodoItem(todo) {
   const deleteButton = item.querySelector('.delete');
   const blockButton = item.querySelector('.block-task');
   const blockerBadge = item.querySelector('.blocker-badge');
+  const pinButton = item.querySelector('.daily-catch-pin');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -2184,6 +2250,17 @@ function createTodoItem(todo) {
   blockerBadge.textContent = todo.blocked
     ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
     : '';
+
+  if (pinButton) {
+    const isDailyCatch = filter === 'daily-catch';
+    const isPinned = dailyCatch.pinnedIds.includes(todo.id);
+    pinButton.hidden = !isDailyCatch || isArchived;
+    if (isDailyCatch) {
+      pinButton.textContent = isPinned ? 'Unpin' : 'Pin to catch';
+      pinButton.setAttribute('aria-label', isPinned ? `Unpin ${todo.text} from Daily Catch` : `Pin ${todo.text} to Daily Catch`);
+      pinButton.addEventListener('click', () => toggleDailyCatchPin(todo.id));
+    }
+  }
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
@@ -2747,6 +2824,14 @@ function render() {
     renderWeekAhead();
   } else if (filter === 'ghost') {
     renderGhostNet();
+  } else if (filter === 'daily-catch') {
+    const catchIds = getDailyCatchIds();
+    const catchTodos = catchIds
+      .map((id) => liveTodos().find((t) => t.id === id))
+      .filter(Boolean);
+    for (const todo of catchTodos) {
+      list.append(createTodoItem(todo));
+    }
   } else {
     for (const todo of visiblePond) {
       list.append(createTodoItem(todo));
@@ -2765,27 +2850,44 @@ function render() {
   });
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
-    : hasActiveSearchFilter()
-      ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
-      : filter === 'archive'
-        ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
-        : `${pluralise(activeCount, 'task')} left`;
+    : filter === 'daily-catch'
+      ? `${pluralise(getDailyCatchIds().length, 'task')} in today's catch`
+      : hasActiveSearchFilter()
+        ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
+        : filter === 'archive'
+          ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+          : `${pluralise(activeCount, 'task')} left`;
   emptyState.querySelector('h2').textContent = hasActiveSearchFilter()
     ? filteredEmptyHeading()
     : filter === 'archive'
       ? 'No fish in the reef archive'
-      : 'Nothing here yet';
+      : filter === 'daily-catch'
+        ? 'No tasks in today\'s catch'
+        : 'Nothing here yet';
   emptyState.querySelector('p').textContent = hasActiveSearchFilter()
     ? filteredEmptyDescription()
     : filter === 'archive'
       ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-      : showFirstTaskGuide
-        ? 'Start with a tiny guided task, or add your own fish in the box above.'
-        : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+      : filter === 'daily-catch'
+        ? 'Add tasks to your pond and they will appear here as your top suggestions for today.'
+        : showFirstTaskGuide
+          ? 'Start with a tiny guided task, or add your own fish in the box above.'
+          : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
-  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && filter !== 'daily-catch' && visiblePond.length === 0);
+  if (dailyCatchProgress) {
+    dailyCatchProgress.hidden = filter !== 'daily-catch';
+    if (filter === 'daily-catch') {
+      const catchIds = getDailyCatchIds();
+      const completedCount = catchIds.filter((id) => {
+        const t = livePond.find((x) => x.id === id);
+        return t && t.completed;
+      }).length;
+      dailyCatchProgress.textContent = `${completedCount} of ${catchIds.length} done today`;
+    }
+  }
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
-  clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
+  clearCompleted.classList.toggle('visible', filter !== 'ghost' && filter !== 'daily-catch' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   renderNetControls();

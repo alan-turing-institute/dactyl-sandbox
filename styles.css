@@ -1479,6 +1479,18 @@ kbd {
 
 .ghost-release:hover { background: rgb(255 141 141 / 22%); }
 
+/* ── Daily Catch ─────────────────────────────────────────── */
+.daily-catch-progress {
+  margin: 0 0 .5rem;
+  font-size: .88rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.daily-catch-pin {
+  font-size: .8rem;
+}
+
 /* ── Tide trophies ───────────────────────────────────────── */
 .trophies-panel {
   display: grid;

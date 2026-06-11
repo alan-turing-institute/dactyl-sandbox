@@ -393,8 +393,11 @@
           <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
           <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
+          <button class="filter" data-filter="daily-catch" type="button" aria-pressed="false">Daily Catch</button>
         </div>
       </section>
+
+      <p id="daily-catch-progress" class="daily-catch-progress" aria-live="polite" hidden></p>
 
       <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
 
@@ -460,6 +463,7 @@
           <button class="edit-task" type="button">Edit</button>
           <button class="details-task secondary-action" type="button" aria-expanded="false">Details</button>
           <button class="block-task secondary-action" type="button">Block</button>
+          <button class="daily-catch-pin secondary-action" type="button" hidden>Pin to catch</button>
           <button class="archive-task secondary-action" type="button" hidden>Archive</button>
           <button class="restore-task secondary-action" type="button" hidden>Restore</button>
           <button class="delete" type="button" aria-label="Delete task">×</button>

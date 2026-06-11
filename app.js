@@ -1,3 +1,4 @@
+/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylQuickAdd, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -6,17 +7,79 @@ const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const NOTIFICATIONS_KEY = 'dactyl.notificationsEnabled:v1';
 const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
+const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed:v1';
+const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
+const USERNAME_PATTERN = /^[a-z0-9_.-]{3,32}$/i;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
+const STARTER_SHOALS = [
+  {
+    name: 'Morning stand-up shoal',
+    description: 'Yesterday, today, blockers, review asks.',
+    tasks: [
+      { text: 'Note what I completed yesterday', priority: 'low' },
+      { text: 'Write today\'s focus task', priority: 'high' },
+      { text: 'Flag any blockers or waiting-ons', priority: 'medium' },
+      { text: 'Check open review requests', priority: 'medium' },
+    ],
+  },
+  {
+    name: 'PR review shoal',
+    description: 'Reproduce, inspect diff, run tests, leave review, follow up.',
+    tasks: [
+      { text: 'Reproduce the change locally', priority: 'high' },
+      { text: 'Read the diff and leave inline comments', priority: 'high' },
+      { text: 'Run the test suite', priority: 'medium' },
+      { text: 'Submit review', priority: 'medium' },
+      { text: 'Follow up on review response', priority: 'low' },
+    ],
+  },
+  {
+    name: 'Hack-week demo shoal',
+    description: 'Polish README, capture screenshot, write demo script, check deploy.',
+    tasks: [
+      { text: 'Polish README with setup steps', priority: 'high' },
+      { text: 'Capture screenshot or GIF', priority: 'medium' },
+      { text: 'Write demo script (3 min)', priority: 'high' },
+      { text: 'Verify deployment / local demo works', priority: 'high' },
+    ],
+  },
+  {
+    name: 'Docs tidy shoal',
+    description: 'Update install steps, add troubleshooting, verify commands.',
+    tasks: [
+      { text: 'Update install / setup steps', priority: 'medium' },
+      { text: 'Add troubleshooting note', priority: 'low' },
+      { text: 'Verify all documented commands work', priority: 'medium' },
+      { text: 'Review for outdated screenshots or links', priority: 'low' },
+    ],
+  },
+];
+const {
+  shouldCelebrateFirstCompletion,
+  shouldShowFirstTaskOnboarding,
+  templateForId,
+} = DactylFirstTaskOnboarding;
+const {
+  normaliseScreenKey,
+  screenKeyFromLocation,
+  desiredScreenKey: chooseScreenKey,
+} = DactylScreenState;
+const { fishEmojiFor } = DactylFishEmoji;
+const { parseQuickAdd } = DactylQuickAdd;
 
+const authScreen = document.querySelector('#auth-screen');
+const pondScreen = document.querySelector('#pond-screen');
 const authPanel = document.querySelector('#auth-panel');
 const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
@@ -32,12 +95,16 @@ const changePasswordButton = document.querySelector('#change-password-button');
 const form = document.querySelector('#todo-form');
 const input = document.querySelector('#todo-input');
 const dueDateInput = document.querySelector('#due-date-input');
+const githubUrlInput = document.querySelector('#github-url-input');
 const priorityInput = document.querySelector('#priority-input');
 const priorityChips = [...document.querySelectorAll('.priority-chips button')];
 const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
+const firstTaskOnboarding = document.querySelector('#first-task-onboarding');
+const firstTaskTemplateButtons = [...document.querySelectorAll('[data-first-task-template]')];
+const dismissFirstTaskOnboarding = document.querySelector('#dismiss-first-task-onboarding');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
 const taskSearch = document.querySelector('#task-search');
@@ -67,6 +134,7 @@ const replaceRestore = document.querySelector('#replace-restore');
 const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const copyPondSnapshot = document.querySelector('#copy-pond-snapshot');
+const copyStandupDraftButton = document.querySelector('#copy-standup-draft');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
 const pondHealthSummary = document.querySelector('#pond-health-summary');
@@ -90,6 +158,7 @@ const tourTideMode = document.querySelector('#tour-tide-mode');
 const tourCopyReport = document.querySelector('#tour-copy-report');
 const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
+const screenRoots = { auth: authScreen, pond: pondScreen, focus: focusPanel };
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const focusSprintStatus = document.querySelector('#focus-sprint-status');
@@ -109,6 +178,9 @@ const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
 const notificationToggle = document.querySelector('#notification-toggle');
+const starterShoalsToggle = document.querySelector('#starter-shoals-toggle');
+const starterShoalsPanel = document.querySelector('#starter-shoals-panel');
+const starterShoalsClose = document.querySelector('#starter-shoals-close');
 const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
 const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
 const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
@@ -147,6 +219,8 @@ let quickFilter = '';
 let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
+let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
+let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
 let notificationsEnabled = loadNotificationsEnabled();
 let notifiedTodayIds = loadNotifiedTodayIds();
@@ -156,6 +230,7 @@ let focusSprint = createFocusSprint();
 let focusSprintTimerId = null;
 let netMode = false;
 let editingTodoId = '';
+let blockingTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
@@ -163,6 +238,8 @@ let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
 let pendingRestore = null;
+let currentScreen = '';
+let suppressScreenHistory = false;
 let lastSync = {
   state: 'never synced',
   at: '',
@@ -170,6 +247,52 @@ let lastSync = {
 };
 let lastRenderDuration = 0;
 let renderDurations = [];
+
+
+function requestedScreenKey() {
+  return screenKeyFromLocation(window.location);
+}
+
+function desiredScreenKey() {
+  return chooseScreenKey({
+    signedIn: Boolean(currentUser),
+    requestedScreen: requestedScreenKey(),
+    hasFocusedTodo: Boolean(selectedFocusTodo()),
+  });
+}
+
+function focusScreenEntry(screenKey) {
+  const target = screenKey === 'auth'
+    ? usernameInput
+    : screenKey === 'focus'
+      ? focusPanel
+      : input;
+  if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+}
+
+function setScreen(nextScreen, options = {}) {
+  const screenKey = normaliseScreenKey(nextScreen) || 'auth';
+  const changed = currentScreen !== screenKey;
+  const updateUrl = options.updateUrl !== false;
+  const hash = `#${screenKey}`;
+
+  currentScreen = screenKey;
+  Object.entries(screenRoots).forEach(([key, root]) => {
+    if (root) root.hidden = key !== screenKey;
+  });
+  document.body.dataset.screen = screenKey;
+
+  if (updateUrl && window.location.hash !== hash) {
+    const method = options.replace ? 'replaceState' : 'pushState';
+    window.history[method]({ screen: screenKey }, '', hash);
+  }
+
+  if (changed || options.focus) focusScreenEntry(screenKey);
+}
+
+function syncScreen(options = {}) {
+  setScreen(desiredScreenKey(), options);
+}
 
 function diagnosticNow() {
   return window.performance?.now ? window.performance.now() : Date.now();
@@ -270,6 +393,33 @@ function normaliseTimestamp(value) {
   return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
 }
 
+function normaliseGithubUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') return '';
+
+  let parsed;
+  try {
+    parsed = new window.URL(value.trim());
+  } catch {
+    return '';
+  }
+
+  const [owner, repo, type, number] = parsed.pathname.split('/').filter(Boolean);
+  const validPath = owner && repo && ['issues', 'pull'].includes(type) && /^[1-9]\d*$/.test(number);
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || !validPath) return '';
+  return `https://github.com/${owner}/${repo}/${type}/${number}`;
+}
+
+function githubLinkInfo(url) {
+  const normalised = normaliseGithubUrl(url);
+  if (!normalised) return null;
+  const [, , type, number] = new window.URL(normalised).pathname.split('/').filter(Boolean);
+  return {
+    url: normalised,
+    label: `#${number} ${type === 'pull' ? 'PR' : 'issue'}`,
+  };
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -290,6 +440,9 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    blocked: Boolean(todo.blocked),
+    blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
+    githubUrl: normaliseGithubUrl(todo.githubUrl),
   };
 }
 
@@ -330,6 +483,22 @@ function loadFocusedTodoId() {
 function loadTourDismissed() {
   try {
     return localStorage.getItem(TOUR_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function loadFirstTaskOnboardingDismissed() {
+  try {
+    return localStorage.getItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function loadFirstCompletionCelebrated() {
+  try {
+    return localStorage.getItem(FIRST_COMPLETION_CELEBRATED_KEY) === 'true';
   } catch {
     return false;
   }
@@ -441,6 +610,26 @@ function saveNotifiedTodayIds() {
   }
 }
 
+function saveFirstTaskOnboardingDismissed(value) {
+  firstTaskOnboardingDismissed = value;
+  try {
+    if (value) localStorage.setItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY, 'true');
+    else localStorage.removeItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY);
+  } catch {
+    showStorageError('First-task guide preference changed, but could not be saved in this browser.');
+  }
+}
+
+function saveFirstCompletionCelebrated(value) {
+  firstCompletionCelebrated = value;
+  try {
+    if (value) localStorage.setItem(FIRST_COMPLETION_CELEBRATED_KEY, 'true');
+    else localStorage.removeItem(FIRST_COMPLETION_CELEBRATED_KEY);
+  } catch {
+    showStorageError('First-completion celebration changed, but could not be saved in this browser.');
+  }
+}
+
 function loadViewPrefs() {
   const systemReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const defaults = { reducedMotion: systemReducedMotion, highContrast: false, compact: false, textBadges: false };
@@ -508,7 +697,12 @@ async function apiRequest(path, options = {}) {
   });
   if (response.status === 204) return null;
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'The server could not complete that request.');
+  if (!response.ok) {
+    const error = new Error(body.error || 'The server could not complete that request.');
+    error.field = body.field || '';
+    error.code = body.code || '';
+    throw error;
+  }
   return body;
 }
 
@@ -711,14 +905,15 @@ function tideFor(todo) {
 
 function moodFor(todo) {
   const tide = tideFor(todo);
-  if (todo.completed) return { emoji: '🐚', text: 'Resting shell', className: 'mood-resting' };
+  const emojiSeed = todo.id || todo.text;
+  if (todo.completed) return { emoji: fishEmojiFor('resting', emojiSeed), text: 'Resting shell', className: 'mood-resting' };
   if (tide === 'washed' && todo.priority === 'high') {
-    return { emoji: '🦑', text: 'Tentacular emergency', className: 'mood-emergency' };
+    return { emoji: fishEmojiFor('emergency', emojiSeed), text: 'Tentacular emergency', className: 'mood-emergency' };
   }
-  if (todo.priority === 'high') return { emoji: '🐡', text: 'Puffed up', className: 'mood-high' };
-  if (!todo.dueDate) return { emoji: '🧜', text: 'Mythical commitment', className: 'mood-mythical' };
-  if (todo.priority === 'medium') return { emoji: '🦀', text: 'Sideways but moving', className: 'mood-medium' };
-  return { emoji: '🐟', text: 'Swimming nicely', className: 'mood-normal' };
+  if (todo.priority === 'high') return { emoji: fishEmojiFor('high', emojiSeed), text: 'Puffed up', className: 'mood-high' };
+  if (!todo.dueDate) return { emoji: fishEmojiFor('mythical', emojiSeed), text: 'Mythical commitment', className: 'mood-mythical' };
+  if (todo.priority === 'medium') return { emoji: fishEmojiFor('medium', emojiSeed), text: 'Sideways but moving', className: 'mood-medium' };
+  return { emoji: fishEmojiFor('normal', emojiSeed), text: 'Swimming nicely', className: 'mood-normal' };
 }
 
 function dueLabelFor(todo) {
@@ -771,6 +966,10 @@ function parseImportLine(line) {
   let text = stripImportPrefix(line);
   if (isImportHeading(text, line)) return null;
 
+  const githubMatch = text.match(/https:\/\/github\.com\/[^\s)]+\/[^\s)]+\/(?:issues|pull)\/[1-9]\d*(?:[^\s)]*)?/i);
+  const githubUrl = githubMatch ? normaliseGithubUrl(githubMatch[0]) : '';
+  if (githubMatch) text = text.replace(githubMatch[0], '').trim();
+
   const dueMatch = text.match(/\bdue:\s*(\d{4}-\d{2}-\d{2})\b/i);
   const dueDate = dueMatch && isValidDateKey(dueMatch[1]) ? dueMatch[1] : '';
   text = text.replace(/\bdue:\s*\d{4}-\d{2}-\d{2}\b/ig, '').trim();
@@ -788,7 +987,7 @@ function parseImportLine(line) {
     .trim();
 
   if (!text) return null;
-  return { text, priority, dueDate };
+  return { text, priority, dueDate, githubUrl };
 }
 
 function parsePastedTodos(value) {
@@ -866,6 +1065,7 @@ function exportedTodo(todo) {
     createdAt: todo.createdAt,
     dueDate: todo.dueDate,
     priority: todo.priority,
+    githubUrl: todo.githubUrl,
     archivedAt: todo.archivedAt,
   };
 }
@@ -924,6 +1124,7 @@ function normaliseBackupTask(task, seenIds) {
     dueDate: task.dueDate,
     priority: task.priority,
     archivedAt: task.archivedAt,
+    githubUrl: task.githubUrl,
   });
 }
 
@@ -1035,6 +1236,7 @@ function importPastedTodos() {
       createdAt: new Date(Date.now() - index).toISOString(),
       dueDate: todo.dueDate,
       priority: todo.priority,
+      githubUrl: todo.githubUrl,
     }))
     .filter(Boolean);
 
@@ -1073,23 +1275,27 @@ function buildPondReport() {
   lines.push(`Pond report: ${headlineParts.join(' — ')}.`);
 
   const focusedTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
-  if (focusedTodo) lines.push(`Focus fish: ${focusedTodo.text}.`);
+  if (focusedTodo) lines.push(`Focus fish: ${reportTodoText(focusedTodo)}.`);
 
   const highPriorityTodos = sortTodos(activeTodos.filter((todo) => todo.priority === 'high')).slice(0, 3);
   if (highPriorityTodos.length > 0) {
     lines.push('High-priority active:');
-    highPriorityTodos.forEach((todo) => lines.push(`• ${todo.text}`));
+    highPriorityTodos.forEach((todo) => lines.push(`• ${reportTodoText(todo)}`));
   }
 
   const nextDueTodos = sortTodos(activeTodos.filter((todo) => todo.dueDate)).slice(0, 3);
   if (nextDueTodos.length > 0) {
     lines.push('Next due:');
     nextDueTodos.forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
   return lines.join('\n');
+}
+
+function reportTodoText(todo) {
+  return todo.githubUrl ? `${todo.text} (${todo.githubUrl})` : todo.text;
 }
 
 function buildPondSnapshot() {
@@ -1112,20 +1318,20 @@ function buildPondSnapshot() {
     `Priority: ${highPriorityTodos.length} high tide · ${overdueTodos.length} overdue`,
   ];
 
-  if (focusTodo) lines.push(`Focus fish: ${focusTodo.text}`);
+  if (focusTodo) lines.push(`Focus fish: ${reportTodoText(focusTodo)}`);
   else lines.push('Focus fish: none selected');
 
   if (overdueTodos.length > 0) {
     lines.push('Overdue fish:');
     sortTodos(overdueTodos).slice(0, 5).forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
   if (upcomingTodos.length > 0) {
     lines.push('Upcoming fish:');
     upcomingTodos.forEach((todo) => {
-      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${todo.text}`);
+      lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
@@ -1267,6 +1473,46 @@ async function copyPondProgressReport() {
     showPondMessage('Copied a Slack-friendly pond report to the clipboard.');
   } catch {
     showPondMessage('Could not copy the pond report. Select the tasks and try again?');
+  }
+}
+
+function buildStandupDraft() {
+  const today = todayKey();
+  const live = liveTodos();
+  const active = live.filter((t) => !t.completed);
+  const lines = [];
+  const focused = active.find((t) => t.id === focusedTodoId);
+  if (focused) {
+    lines.push('*Working on now:*');
+    lines.push(`• ${focused.text}${focused.blocked ? ` 🔴 Blocked${focused.blockerReason ? ': ' + focused.blockerReason : ''}` : ''}`);
+    lines.push('');
+  }
+  const dueOrOverdue = sortTodos(active.filter((t) => t.dueDate && t.dueDate <= today));
+  if (dueOrOverdue.length > 0) {
+    lines.push('*Due or overdue:*');
+    dueOrOverdue.forEach((t) => {
+      lines.push(`• ${t.text}${t.blocked ? ` 🔴 Blocked${t.blockerReason ? ': ' + t.blockerReason : ''}` : ''}`);
+    });
+    lines.push('');
+  }
+  const blockers = active.filter((t) => t.blocked && t.id !== focusedTodoId && !(t.dueDate && t.dueDate <= today));
+  if (blockers.length > 0) {
+    lines.push('*Blockers:*');
+    blockers.forEach((t) => {
+      lines.push(`• ${t.text}${t.blockerReason ? ` — ${t.blockerReason}` : ''}`);
+    });
+    lines.push('');
+  }
+  if (lines.length === 0) return 'Stand-up draft: nothing due, overdue, or blocked today.';
+  return lines.join('\n').trim();
+}
+
+async function copyStandupDraft() {
+  try {
+    await copyText(buildStandupDraft());
+    showPondMessage('Copied stand-up draft to clipboard.');
+  } catch {
+    showPondMessage('Could not copy the stand-up draft.');
   }
 }
 
@@ -1523,6 +1769,12 @@ function setTrophiesOpen(open) {
   }
 }
 
+function setStarterShoalsOpen(open) {
+  starterShoalsPanel.hidden = !open;
+  starterShoalsToggle.setAttribute('aria-expanded', String(open));
+  if (open) starterShoalsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 function loadReminderPrefs() {
   const defaults = { enabled: false, quietStart: '22:00', quietEnd: '08:00' };
   try {
@@ -1626,6 +1878,13 @@ function createTodoEditForm(todo) {
   dueInput.type = 'date';
   dueInput.value = todo.dueDate;
 
+  const githubInput = document.createElement('input');
+  githubInput.name = 'githubUrl';
+  githubInput.type = 'url';
+  githubInput.inputMode = 'url';
+  githubInput.placeholder = 'https://github.com/owner/repo/issues/123';
+  githubInput.value = todo.githubUrl;
+
   const prioritySelect = document.createElement('select');
   prioritySelect.name = 'priority';
   [
@@ -1654,6 +1913,7 @@ function createTodoEditForm(todo) {
   formElement.append(
     createEditField('Task', textInput),
     createEditField('Due date', dueInput),
+    createEditField('GitHub URL', githubInput),
     createEditField('Priority', prioritySelect),
     actions,
   );
@@ -1663,6 +1923,7 @@ function createTodoEditForm(todo) {
     saveEditedTodo(todo.id, {
       text: textInput.value,
       dueDate: dueInput.value,
+      githubUrl: githubInput.value,
       priority: prioritySelect.value,
     });
   });
@@ -1677,6 +1938,19 @@ function createTodoEditForm(todo) {
   return formElement;
 }
 
+function createGithubChip(todo) {
+  const info = githubLinkInfo(todo.githubUrl);
+  if (!info) return null;
+  const chip = document.createElement('a');
+  chip.className = 'github-chip';
+  chip.href = info.url;
+  chip.target = '_blank';
+  chip.rel = 'noopener noreferrer';
+  chip.textContent = info.label;
+  chip.setAttribute('aria-label', `Open GitHub ${info.label} for ${todo.text}`);
+  return chip;
+}
+
 function createTodoItem(todo) {
   const item = template.content.firstElementChild.cloneNode(true);
   const netSelect = item.querySelector('.net-select');
@@ -1685,11 +1959,14 @@ function createTodoItem(todo) {
   const moodBadge = item.querySelector('.mood-badge');
   const dueLabel = item.querySelector('.due-label');
   const priorityLabel = item.querySelector('.priority-label');
+  const metadata = item.querySelector('.metadata');
   const focusButton = item.querySelector('.focus-task');
   const editButton = item.querySelector('.edit-task');
   const archiveButton = item.querySelector('.archive-task');
   const restoreButton = item.querySelector('.restore-task');
   const deleteButton = item.querySelector('.delete');
+  const blockButton = item.querySelector('.block-task');
+  const blockerBadge = item.querySelector('.blocker-badge');
   const mood = moodFor(todo);
   const tide = tideFor(todo);
   const isArchived = Boolean(todo.archivedAt);
@@ -1714,6 +1991,8 @@ function createTodoItem(todo) {
   moodBadge.setAttribute('aria-label', `Mood: ${mood.text}`);
   dueLabel.textContent = dueLabelFor(todo);
   priorityLabel.textContent = priorityLabelFor(todo);
+  const githubChip = createGithubChip(todo);
+  if (githubChip) metadata.append(githubChip);
   focusButton.hidden = isArchived;
   focusButton.disabled = todo.completed || todo.id === editingTodoId || isArchived;
   focusButton.textContent = todo.id === focusedTodoId ? 'Feeding' : 'Feed';
@@ -1726,10 +2005,21 @@ function createTodoItem(todo) {
   restoreButton.hidden = !isArchived;
   restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
   deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
+  blockButton.hidden = todo.completed || isArchived;
+  blockButton.textContent = todo.blocked ? 'Unblock' : 'Block';
+  blockerBadge.hidden = !todo.blocked;
+  blockerBadge.textContent = todo.blocked
+    ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
+    : '';
 
   if (todo.id === editingTodoId) {
     const editForm = createTodoEditForm(todo);
     item.append(editForm);
+  }
+
+  if (todo.id === blockingTodoId && !todo.blocked) {
+    const form = createBlockForm(todo);
+    item.append(form);
   }
 
   netSelect.addEventListener('change', () => toggleSelectedTodo(todo.id));
@@ -1739,6 +2029,14 @@ function createTodoItem(todo) {
   archiveButton.addEventListener('click', () => archiveTodo(todo.id));
   restoreButton.addEventListener('click', () => restoreArchivedTodo(todo.id));
   deleteButton.addEventListener('click', () => deleteTodo(todo.id));
+  blockButton.addEventListener('click', () => {
+    if (todo.blocked) {
+      setTodoBlocked(todo.id, false, '');
+    } else {
+      blockingTodoId = todo.id;
+      render();
+    }
+  });
 
   return item;
 }
@@ -2057,14 +2355,17 @@ function renderFocusPanel() {
   syncFocusSprintWithSelection();
   if (!focusedTodo) {
     saveFocusedTodoId('');
-    focusPanel.hidden = true;
     renderFocusSprint();
     return;
   }
 
-  focusPanel.hidden = false;
   focusTitle.textContent = focusedTodo.text;
-  focusMeta.textContent = `${moodFor(focusedTodo).text} · ${dueLabelFor(focusedTodo)} · ${priorityLabelFor(focusedTodo)}`;
+  focusMeta.textContent = [
+    moodFor(focusedTodo).text,
+    dueLabelFor(focusedTodo),
+    priorityLabelFor(focusedTodo),
+    githubLinkInfo(focusedTodo.githubUrl)?.label,
+  ].filter(Boolean).join(' · ');
   renderFocusSprint();
 }
 
@@ -2171,6 +2472,7 @@ function renderAuth() {
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
+  copyStandupDraftButton.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
@@ -2215,6 +2517,7 @@ function render() {
   renderAuth();
   if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
+  const visiblePond = visibleTodos();
 
   if (filter === 'tide') {
     renderTideMode();
@@ -2223,13 +2526,21 @@ function render() {
   } else if (filter === 'ghost') {
     renderGhostNet();
   } else {
-    for (const todo of visibleTodos()) {
+    for (const todo of visiblePond) {
       list.append(createTodoItem(todo));
     }
   }
 
-  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
-  const visibleCount = filter === 'tide' ? filteredTodos(liveTodos()).length : visibleTodos().length;
+  const livePond = liveTodos();
+  const activeCount = livePond.filter((todo) => !todo.completed).length;
+  const visibleCount = filter === 'tide' ? filteredTodos(livePond).length : visiblePond.length;
+  const showFirstTaskGuide = shouldShowFirstTaskOnboarding({
+    dismissed: firstTaskOnboardingDismissed,
+    filter,
+    hasActiveSearchFilter: hasActiveSearchFilter(),
+    liveCount: livePond.length,
+    visibleCount,
+  });
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : hasActiveSearchFilter()
@@ -2246,8 +2557,11 @@ function render() {
     ? filteredEmptyDescription()
     : filter === 'archive'
       ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-      : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
-  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
+      : showFirstTaskGuide
+        ? 'Start with a tiny guided task, or add your own fish in the box above.'
+        : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+  firstTaskOnboarding.hidden = !showFirstTaskGuide;
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
@@ -2263,6 +2577,7 @@ function render() {
   });
 
   renderFocusPanel();
+  syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
   recordRenderDuration(renderStarted);
   renderPondHealth();
@@ -2279,15 +2594,97 @@ function addTodo(text, options = {}) {
     createdAt: options.createdAt ?? new Date().toISOString(),
     dueDate: options.dueDate ?? '',
     priority: options.priority ?? 'medium',
+    githubUrl: options.githubUrl ?? '',
   });
 
   if (!todo) return;
+  if (liveTodos().length === 0) saveFirstTaskOnboardingDismissed(true);
   todos.unshift(todo);
   saveTodos();
   render();
 }
 
+function addStarterTask(templateId) {
+  const templateTodo = templateForId(templateId);
+  if (!templateTodo) return;
+
+  addTodo(templateTodo.text, { priority: templateTodo.priority });
+  showPondMessage(`Starter fish added: ${templateTodo.text}.`);
+  input.focus();
+}
+
+function dismissFirstTaskGuide() {
+  saveFirstTaskOnboardingDismissed(true);
+  render();
+  showPondMessage('First-task guide dismissed. Add your own fish whenever you are ready.');
+  input.focus();
+}
+
+function completedTodoCount() {
+  return liveTodos().filter((todo) => todo.completed).length;
+}
+
+function celebrateFirstCompletionIfNeeded(previousCompletedCount, nextCompletedCount) {
+  if (!shouldCelebrateFirstCompletion({
+    alreadyCelebrated: firstCompletionCelebrated,
+    previousCompletedCount,
+    nextCompletedCount,
+  })) {
+    return false;
+  }
+
+  saveFirstCompletionCelebrated(true);
+  showPondMessage('First fish fed! Nice launch — the pond officially has momentum.');
+  return true;
+}
+
+function starterShoalTaskKey(text) {
+  return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function applyStarterShoal(shoal) {
+  if (!currentUser) {
+    showPondMessage('Sign in first to stock a starter shoal.');
+    return;
+  }
+  const available = MAX_TODOS - todos.length;
+  if (available <= 0) {
+    showPondMessage('The pond is full. Release some fish first.');
+    return;
+  }
+  const existingTaskKeys = new Set(todos.map((todo) => starterShoalTaskKey(todo.text)));
+  const uniqueTasks = shoal.tasks.filter((task) => !existingTaskKeys.has(starterShoalTaskKey(task.text)));
+  const skippedCount = shoal.tasks.length - uniqueTasks.length;
+  const toAdd = uniqueTasks.slice(0, available);
+  if (toAdd.length === 0) {
+    const reason = skippedCount > 0 ? 'those tasks are already in the pond' : 'the pond is full';
+    showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
+    return;
+  }
+  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority }));
+  setStarterShoalsOpen(false);
+  const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
+  showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
+}
+
+function renderStarterShoalsList() {
+  const listEl = document.querySelector('#starter-shoals-list');
+  if (!listEl) return;
+  STARTER_SHOALS.forEach((shoal) => {
+    const li = document.createElement('li');
+    li.className = 'starter-shoal-item';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'starter-shoal-btn';
+    btn.innerHTML = `<strong>${shoal.name}</strong><span>${shoal.description}</span><span class="shoal-count">${shoal.tasks.length} tasks</span>`;
+    btn.addEventListener('click', () => applyStarterShoal(shoal));
+    li.append(btn);
+    listEl.append(li);
+  });
+}
+
 function toggleTodo(id) {
+  const previousCompletedCount = completedTodoCount();
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: !todo.completed } : todo
   ));
@@ -2297,6 +2694,7 @@ function toggleTodo(id) {
   }
   saveTodos();
   render();
+  celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
 
 function restoreUndoAction() {
@@ -2395,6 +2793,7 @@ function saveEditedTodo(id, updates) {
     ...existingTodo,
     text: updates.text,
     dueDate: updates.dueDate,
+    githubUrl: updates.githubUrl,
     priority: updates.priority,
   });
 
@@ -2411,6 +2810,39 @@ function saveEditedTodo(id, updates) {
   saveTodos();
   showPondMessage('Updated this fish in the pond.');
   render();
+}
+
+function createBlockForm(todo) {
+  const form = document.createElement('form');
+  form.className = 'block-form';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'block-reason-input';
+  input.maxLength = 160;
+  input.placeholder = 'Blocker reason (optional)…';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'submit';
+  saveBtn.textContent = 'Save block';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => { blockingTodoId = ''; render(); });
+  form.append(input, saveBtn, cancelBtn);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    setTodoBlocked(todo.id, true, input.value.trim());
+  });
+  return form;
+}
+
+function setTodoBlocked(id, blocked, reason) {
+  todos = todos.map((todo) =>
+    todo.id === id ? normaliseTodo({ ...todo, blocked, blockerReason: reason }) : todo
+  ).filter(Boolean);
+  blockingTodoId = '';
+  saveTodos();
+  render();
+  showPondMessage(blocked ? 'Task flagged as blocked.' : 'Blocker cleared.');
 }
 
 function deleteTodo(id) {
@@ -2478,6 +2910,7 @@ function focusTodo(id) {
   if (id !== focusedTodoId) resetFocusSprint(id);
   saveFocusedTodoId(id);
   hidePondMessage();
+  setScreen('focus');
   render();
 }
 
@@ -2530,6 +2963,7 @@ function moveSelectedToShoal() {
 
 function completeFocusedTodo() {
   if (!focusedTodoId) return;
+  const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
   cancelCurrentFocusSprint('');
   todos = todos.map((todo) => (
@@ -2539,6 +2973,7 @@ function completeFocusedTodo() {
   saveTodos();
   render();
   if (completedTask) {
+    if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
   }
@@ -2586,6 +3021,7 @@ function stockDemoPond() {
   }
 
   todos = [...newTodos, ...todos].slice(0, MAX_TODOS);
+  if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
   saveTodos();
   showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
   render();
@@ -2696,6 +3132,18 @@ async function authenticate(mode) {
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
 
+  if (!USERNAME_PATTERN.test(username)) {
+    authStatus.textContent = 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.';
+    usernameInput.focus();
+    return;
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    authStatus.textContent = 'Password must be 8-128 characters.';
+    passwordInput.focus();
+    return;
+  }
+
   authStatus.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
   try {
     const body = await apiRequest(`/api/${mode}`, {
@@ -2714,6 +3162,8 @@ async function authenticate(mode) {
     render();
   } catch (error) {
     authStatus.textContent = error.message;
+    if (error.field === 'username') usernameInput.focus();
+    if (error.field === 'password') passwordInput.focus();
   }
 }
 
@@ -2846,11 +3296,13 @@ function handleGlobalShortcut(event) {
     if (closedShowcase) setShowcaseOpen(false);
     const closedTrophies = !trophiesPanel.hidden;
     if (closedTrophies) setTrophiesOpen(false);
+    const closedStarterShoals = !starterShoalsPanel.hidden;
+    if (closedStarterShoals) setStarterShoalsOpen(false);
     const closedReminderPrefs = !reminderPrefsPanel.hidden;
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedReminderPrefs || closedPrefs) event.preventDefault();
+    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -2872,13 +3324,24 @@ passwordForm.addEventListener('submit', (event) => {
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
+  const parsed = parseQuickAdd(input.value, { today: todayKey() });
+  if (!parsed.text) {
+    showPondMessage('Add some task text before the quick-add hints.');
+    input.focus();
+    return;
+  }
+  const dueDate = dueDateInput.value || parsed.dueDate;
+  const priority = priorityInput.value !== 'medium' ? priorityInput.value : (parsed.priority || priorityInput.value);
 
-  addTodo(text, {
-    dueDate: dueDateInput.value,
-    priority: priorityInput.value,
+  addTodo(parsed.text, {
+    dueDate,
+    priority,
+    githubUrl: githubUrlInput.value,
   });
+  if (parsed.dueDate || parsed.priority) {
+    const hints = [parsed.dueDate ? `due ${formatDateKey(parsed.dueDate)}` : '', parsed.priority ? `${parsed.priority} priority` : ''].filter(Boolean).join(' · ');
+    showPondMessage(`Added quick task with ${hints}.`);
+  }
   form.reset();
   priorityInput.value = 'medium';
   syncPriorityChips();
@@ -2935,6 +3398,10 @@ clearCompleted.addEventListener('click', () => {
 
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
+firstTaskTemplateButtons.forEach((button) => {
+  button.addEventListener('click', () => addStarterTask(button.dataset.firstTaskTemplate));
+});
+dismissFirstTaskOnboarding.addEventListener('click', dismissFirstTaskGuide);
 pastePond.addEventListener('click', () => setPastePanelOpen(pastePanel.hidden));
 pasteInput.addEventListener('input', updatePastePreview);
 addPastedTasks.addEventListener('click', importPastedTodos);
@@ -2948,6 +3415,7 @@ replaceRestore.addEventListener('click', () => applyRestore('replace'));
 cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 copyPondSnapshot.addEventListener('click', copyPondSnapshotReport);
+copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
@@ -2979,6 +3447,8 @@ showcaseToggle.addEventListener('click', () => setShowcaseOpen(showcasePanel.hid
 showcaseClose.addEventListener('click', () => setShowcaseOpen(false));
 trophiesToggle.addEventListener('click', () => setTrophiesOpen(trophiesPanel.hidden));
 trophiesClose.addEventListener('click', () => setTrophiesOpen(false));
+starterShoalsToggle.addEventListener('click', () => setStarterShoalsOpen(starterShoalsPanel.hidden));
+starterShoalsClose.addEventListener('click', () => setStarterShoalsOpen(false));
 reminderPrefsToggle.addEventListener('click', () => setReminderPrefsOpen(reminderPrefsPanel.hidden));
 reminderPrefsClose.addEventListener('click', () => setReminderPrefsOpen(false));
 reminderEnable.addEventListener('change', () => {
@@ -3029,7 +3499,15 @@ prefTextBadges.addEventListener('change', () => {
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);
+function renderFromHistory() {
+  suppressScreenHistory = true;
+  render();
+  suppressScreenHistory = false;
+}
+window.addEventListener('popstate', renderFromHistory);
+window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
 
 applyViewPrefs();
+renderStarterShoalsList();
 restoreSession();

@@ -27,10 +27,16 @@ describe('auth and task API', () => {
     const createTask = await request(app)
       .post('/api/tasks')
       .set('Authorization', `Bearer ${token}`)
-      .send({ text: 'Sync the fish pond', dueDate: '2026-06-11', priority: 'high' })
+      .send({
+        text: 'Sync the fish pond',
+        dueDate: '2026-06-11',
+        priority: 'high',
+        githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31?from=test',
+      })
       .expect(201);
 
     expect(createTask.body.todo.text).toBe('Sync the fish pond');
+    expect(createTask.body.todo.githubUrl).toBe('https://github.com/alan-turing-institute/dactyl-sandbox/issues/31');
 
     await request(app)
       .patch(`/api/tasks/${createTask.body.todo.id}`)
@@ -44,7 +50,12 @@ describe('auth and task API', () => {
       .expect(200);
 
     expect(login.body.todos).toHaveLength(1);
-    expect(login.body.todos[0]).toMatchObject({ text: 'Sync the fish pond', completed: true, priority: 'high' });
+    expect(login.body.todos[0]).toMatchObject({
+      text: 'Sync the fish pond',
+      completed: true,
+      priority: 'high',
+      githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31',
+    });
   });
 
   test('does not expose server source files', async () => {
@@ -52,6 +63,10 @@ describe('auth and task API', () => {
 
     await request(app).get('/server.js').expect(404);
     await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
+    await request(app)
+      .get('/first-task-onboarding.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
   });
 
   test('rate limits auth routes', async () => {
@@ -80,6 +95,34 @@ describe('auth and task API', () => {
       .expect('RateLimit-Limit', '2')
       .expect(({ body }) => {
         expect(body.error).toBe('Too many authentication attempts. Please try again later.');
+      });
+  });
+
+  test('returns field-specific signup validation errors', async () => {
+    app = makeApp();
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'valid-user', password: 'short' })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          error: 'Password must be 8-128 characters.',
+          field: 'password',
+          code: 'invalid_password_length',
+        });
+      });
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'bad username', password: 'very-secret' })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.',
+          field: 'username',
+          code: 'invalid_username',
+        });
       });
   });
 
@@ -131,15 +174,17 @@ describe('auth and task API', () => {
       .send({
         todos: [
           { id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' },
-          { id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' },
+          { id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low', githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/48' },
+          { id: 'bulk-3', text: 'Invalid GitHub link', completed: false, githubUrl: 'https://example.com/not-github/issues/1' },
         ],
       })
       .expect(200);
 
-    expect(replacement.body.todos).toHaveLength(2);
+    expect(replacement.body.todos).toHaveLength(3);
     expect(replacement.body.todos).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'bulk-1', text: 'Bulk save task', completed: false, dueDate: '2026-06-12', priority: 'high' }),
-      expect.objectContaining({ id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low' }),
+      expect.objectContaining({ id: 'bulk-2', text: 'Second task', completed: true, dueDate: '', priority: 'low', githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/48' }),
+      expect.objectContaining({ id: 'bulk-3', text: 'Invalid GitHub link', githubUrl: '' }),
     ]));
 
     const tasks = await request(app)
@@ -210,6 +255,22 @@ describe('auth and task API', () => {
       .set('Authorization', `Bearer ${signup.body.token}`)
       .send({ text: '' })
       .expect(400);
+
+    const linked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/pull/66#discussion' })
+      .expect(200);
+
+    expect(linked.body.todo.githubUrl).toBe('https://github.com/alan-turing-institute/dactyl-sandbox/pull/66');
+
+    const unlinked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ githubUrl: 'https://github.example/alan-turing-institute/dactyl-sandbox/pull/66' })
+      .expect(200);
+
+    expect(unlinked.body.todo.githubUrl).toBe('');
   });
 
   test('deletes a task and enforces user isolation on delete', async () => {
@@ -356,5 +417,72 @@ describe('auth and task API', () => {
       .post('/api/login')
       .send({ username: 'broken-hash', password: 'very-secret' })
       .expect(401);
+  });
+
+  test('persists blocked and blockerReason fields through patch and list', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'blocker-user', password: 'very-secret' })
+      .expect(201);
+
+    const token = signup.body.token;
+
+    // Create a task then flag it as blocked with a reason
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Blocked fish', blocked: true, blockerReason: 'Waiting on PR review' })
+      .expect(201);
+
+    expect(created.body.todo.blocked).toBe(true);
+    expect(created.body.todo.blockerReason).toBe('Waiting on PR review');
+
+    // Verify it comes back in list
+    const list = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(list.body.todos[0].blocked).toBe(true);
+    expect(list.body.todos[0].blockerReason).toBe('Waiting on PR review');
+
+    // Unblock via patch
+    const unblocked = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ blocked: false, blockerReason: '' })
+      .expect(200);
+
+    expect(unblocked.body.todo.blocked).toBe(false);
+    expect(unblocked.body.todo.blockerReason).toBe('');
+
+    // Verify persisted after unblock
+    const afterUnblock = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(afterUnblock.body.todos[0].blocked).toBe(false);
+    expect(afterUnblock.body.todos[0].blockerReason).toBe('');
+  });
+
+  test('truncates blockerReason to 160 characters', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'truncate-user', password: 'very-secret' })
+      .expect(201);
+
+    const longReason = 'x'.repeat(200);
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Long blocker', blocked: true, blockerReason: longReason })
+      .expect(201);
+
+    expect(created.body.todo.blockerReason).toHaveLength(160);
   });
 });

@@ -5,7 +5,6 @@ const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
-const NOTIFICATIONS_KEY = 'dactyl.notificationsEnabled:v1';
 const NOTIFIED_TODAY_KEY = 'dactyl.notifiedToday:v1';
 const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed:v1';
 const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
@@ -219,7 +218,6 @@ const trophiesPanel = document.querySelector('#trophies-panel');
 const trophiesClose = document.querySelector('#trophies-close');
 const trophiesList = document.querySelector('#trophies-list');
 const trophiesSummary = document.querySelector('#trophies-summary');
-const notificationToggle = document.querySelector('#notification-toggle');
 const starterShoalsToggle = document.querySelector('#starter-shoals-toggle');
 const starterShoalsPanel = document.querySelector('#starter-shoals-panel');
 const starterShoalsClose = document.querySelector('#starter-shoals-close');
@@ -266,7 +264,6 @@ let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
 let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
-let notificationsEnabled = loadNotificationsEnabled();
 let notifiedTodayIds = loadNotifiedTodayIds();
 let notificationIntervalId = null;
 let triageOpen = false;
@@ -680,24 +677,6 @@ function saveTourDismissed(value) {
     else localStorage.removeItem(TOUR_DISMISSED_KEY);
   } catch {
     showStorageError('Pond tour preference changed, but could not be saved in this browser.');
-  }
-}
-
-function loadNotificationsEnabled() {
-  try {
-    return localStorage.getItem(NOTIFICATIONS_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function saveNotificationsEnabled(value) {
-  notificationsEnabled = value;
-  try {
-    if (value) localStorage.setItem(NOTIFICATIONS_KEY, 'true');
-    else localStorage.removeItem(NOTIFICATIONS_KEY);
-  } catch {
-    showStorageError('Notification preference changed, but could not be saved in this browser.');
   }
 }
 
@@ -2074,7 +2053,7 @@ function getNotificationApi() {
 function canNotifyNow(prefs) {
   const notificationApi = getNotificationApi();
   if (!prefs.enabled || !notificationApi) return false;
-  if (notificationApi.permission === 'denied') return false;
+  if (notificationApi.permission !== 'granted') return false;
   return !isInQuietHours(prefs);
 }
 
@@ -2084,14 +2063,16 @@ function renderReminderPrefs() {
   quietStart.value = prefs.quietStart;
   quietEnd.value = prefs.quietEnd;
   const notificationApi = getNotificationApi();
-  const denied = notificationApi?.permission === 'denied';
+  const permission = notificationApi?.permission;
   let statusText;
   if (!prefs.enabled) {
     statusText = 'Reminders are off.';
   } else if (!notificationApi) {
     statusText = 'Notifications are not supported in this browser.';
-  } else if (denied) {
+  } else if (permission === 'denied') {
     statusText = 'Notifications are blocked by the browser. Update site permissions to enable reminders.';
+  } else if (permission !== 'granted') {
+    statusText = 'Notification permission is still needed before reminders can fire.';
   } else if (!canNotifyNow(prefs)) {
     statusText = `In quiet hours (${prefs.quietStart}–${prefs.quietEnd}). Reminders paused.`;
   } else {
@@ -2771,21 +2752,18 @@ function renderFocusPanel() {
   renderFocusSprint();
 }
 
-function supportsNotifications() {
-  return 'Notification' in window;
-}
-
-function notificationPermission() {
-  return supportsNotifications() ? window.Notification.permission : 'unsupported';
-}
-
-function notificationsActive() {
-  return notificationsEnabled && notificationPermission() === 'granted';
+function reminderNotificationsActive() {
+  const notificationApi = getNotificationApi();
+  const prefs = loadReminderPrefs();
+  return Boolean(currentUser)
+    && prefs.enabled
+    && notificationApi?.permission === 'granted'
+    && !isInQuietHours(prefs);
 }
 
 function checkDueNotifications() {
-  if (!notificationsActive()) return;
-  if (!currentUser || todos.length === 0) return;
+  const notificationApi = getNotificationApi();
+  if (!notificationApi || !reminderNotificationsActive() || todos.length === 0) return;
 
   const today = todayKey();
   const newlyDue = todos.filter(
@@ -2793,7 +2771,7 @@ function checkDueNotifications() {
   );
 
   newlyDue.forEach((todo) => {
-    new window.Notification('Dactyl TODO', {
+    new notificationApi('Dactyl TODO', {
       body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
       tag: `dactyl-due-${todo.id}`,
     });
@@ -2801,30 +2779,6 @@ function checkDueNotifications() {
   });
 
   if (newlyDue.length > 0) saveNotifiedTodayIds();
-}
-
-async function enableNotifications() {
-  if (!supportsNotifications()) {
-    showPondMessage('This browser does not support notifications.');
-    return;
-  }
-  const permission = await window.Notification.requestPermission();
-  if (permission === 'granted') {
-    saveNotificationsEnabled(true);
-    startNotificationInterval();
-    checkDueNotifications();
-    render();
-    showPondMessage('Due-date notifications enabled. Overdue tasks will notify you once a day.');
-  } else {
-    showPondMessage('Notification permission was not granted. You can enable it in your browser settings.');
-  }
-}
-
-function disableNotifications() {
-  saveNotificationsEnabled(false);
-  stopNotificationInterval();
-  render();
-  showPondMessage('Due-date notifications disabled.');
 }
 
 function startNotificationInterval() {
@@ -2839,15 +2793,15 @@ function stopNotificationInterval() {
   }
 }
 
-function renderNotificationToggle() {
-  if (!supportsNotifications()) {
-    notificationToggle.hidden = true;
-    return;
+function syncNotificationInterval() {
+  const prefs = loadReminderPrefs();
+  const notificationApi = getNotificationApi();
+  if (currentUser && prefs.enabled && notificationApi?.permission === 'granted') {
+    startNotificationInterval();
+    checkDueNotifications();
+  } else {
+    stopNotificationInterval();
   }
-  const enabled = notificationsActive();
-  notificationToggle.hidden = !currentUser;
-  notificationToggle.textContent = enabled ? 'Notifications on' : 'Enable notifications';
-  notificationToggle.setAttribute('aria-pressed', String(enabled));
 }
 
 function renderAuth() {
@@ -3078,7 +3032,6 @@ function render() {
   renderSearchControls();
   renderSmartViews();
   renderTourPanel();
-  renderNotificationToggle();
   renderUpgradeCallout();
 
   filterButtons.forEach((button) => {
@@ -3681,8 +3634,7 @@ async function authenticate(mode) {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Loaded tasks for the current session.');
-    if (notificationsActive()) startNotificationInterval();
-    checkDueNotifications();
+    syncNotificationInterval();
     passwordInput.value = '';
     clearStorageError();
     hidePondMessage();
@@ -3756,8 +3708,7 @@ async function restoreSession() {
     currentUser = body.user;
     todos = normaliseTodos(body.todos);
     markSyncState('loaded', 'Restored the signed-in task pond.');
-    if (notificationsActive()) startNotificationInterval();
-    checkDueNotifications();
+    syncNotificationInterval();
   } catch {
     saveAuthToken('');
     currentUser = null;
@@ -3895,10 +3846,6 @@ authForm.addEventListener('submit', (event) => {
 
 signupButton.addEventListener('click', () => authenticate('signup'));
 logoutButton.addEventListener('click', logout);
-notificationToggle.addEventListener('click', () => {
-  if (notificationsActive()) disableNotifications();
-  else enableNotifications();
-});
 passwordForm.addEventListener('submit', (event) => {
   event.preventDefault();
   changePassword();
@@ -4055,21 +4002,25 @@ reminderEnable.addEventListener('change', () => {
   if (enabling && notificationApi?.permission === 'default') {
     notificationApi.requestPermission().then(() => {
       saveReminderPrefs({ ...prefs, enabled: true });
+      syncNotificationInterval();
       renderReminderPrefs();
     });
   } else {
     saveReminderPrefs({ ...prefs, enabled: enabling });
+    syncNotificationInterval();
     renderReminderPrefs();
   }
 });
 quietStart.addEventListener('change', () => {
   const prefs = loadReminderPrefs();
   saveReminderPrefs({ ...prefs, quietStart: quietStart.value });
+  syncNotificationInterval();
   renderReminderPrefs();
 });
 quietEnd.addEventListener('change', () => {
   const prefs = loadReminderPrefs();
   saveReminderPrefs({ ...prefs, quietEnd: quietEnd.value });
+  syncNotificationInterval();
   renderReminderPrefs();
 });
 prefsToggle.addEventListener('click', () => setPrefsOpen(prefsPanel.hidden));

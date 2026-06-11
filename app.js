@@ -159,6 +159,7 @@ const addPastedTasks = document.querySelector('#add-pasted-tasks');
 const clearPaste = document.querySelector('#clear-paste');
 const cancelPaste = document.querySelector('#cancel-paste');
 const exportPond = document.querySelector('#export-pond');
+const exportCalendarBtn = document.querySelector('#export-calendar');
 const restorePondToggle = document.querySelector('#restore-pond-toggle');
 const restorePanel = document.querySelector('#restore-panel');
 const restoreFile = document.querySelector('#restore-file');
@@ -317,6 +318,7 @@ let blockingTodoId = '';
 let detailsTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
+let pendingTodoFocusTarget = null;
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
@@ -1564,6 +1566,24 @@ function downloadJsonFile(filename, data) {
   window.URL.revokeObjectURL(url);
 }
 
+function downloadIcsFile(filename, content) {
+  const blob = new window.Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function exportCalendar() {
+  if (!currentUser) return;
+  const ics = window.CalendarExport.generateIcs(todos);
+  downloadIcsFile('dactyl-pond.ics', ics);
+}
+
 function exportPondBackup() {
   if (!currentUser) return;
   const backup = buildPondBackup();
@@ -2595,9 +2615,10 @@ function createGithubChip(todo) {
   return chip;
 }
 
-function updateTodoDetails(id, updates, message = 'Updated task details.') {
+function updateTodoDetails(id, updates, message = 'Updated task details.', options = {}) {
   const existingTodo = todos.find((todo) => todo.id === id);
   if (!existingTodo) return;
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const updatedTodo = normaliseTodo({ ...existingTodo, ...updates });
   if (!updatedTodo) return;
   todos = todos.map((todo) => (todo.id === id ? updatedTodo : todo));
@@ -2890,6 +2911,79 @@ function createTodoItem(todo) {
     } else {
       blockingTodoId = todo.id;
       render();
+    }
+  });
+
+  // Keyboard-first action strip
+  const actionsDiv = item.querySelector('.todo-actions');
+  actionsDiv.setAttribute('aria-label', `Actions for ${todo.text}`);
+
+  // Toolbar buttons are not in the tab order — navigate with arrow keys
+  actionsDiv.querySelectorAll('button').forEach((btn) => btn.setAttribute('tabindex', '-1'));
+
+  function visibleStripButtons() {
+    return Array.from(actionsDiv.querySelectorAll('button')).filter(
+      (btn) => !btn.hidden && !btn.disabled
+    );
+  }
+
+  function actionButtonAvailable(button) {
+    return Boolean(button && !button.hidden && !button.disabled);
+  }
+
+  function handleStripShortcut(e) {
+    if (e.key === 'c' || e.key === 'C') {
+      if (!checkbox.disabled) {
+        e.preventDefault();
+        toggleTodo(todo.id, { refocusRow: true });
+      }
+    } else if (e.key === 'a' || e.key === 'A') {
+      if (actionButtonAvailable(archiveButton)) {
+        e.preventDefault();
+        archiveTodo(todo.id, { refocusRow: true });
+      }
+    } else if (e.key === 'e' || e.key === 'E') {
+      if (actionButtonAvailable(editButton)) {
+        e.preventDefault();
+        startEditingTodo(todo.id);
+      }
+    } else if (e.key === 'p' || e.key === 'P') {
+      if (!isArchived && todo.id !== editingTodoId) {
+        e.preventDefault();
+        const order = ['', 'low', 'medium', 'high'];
+        const next = order[(order.indexOf(todo.priority || '') + 1) % order.length] || null;
+        updateTodoDetails(todo.id, { priority: next }, 'Tide level updated.', { refocusRow: true });
+      }
+    }
+  }
+
+  // Arrow-key navigation + shortcut keys within the toolbar
+  actionsDiv.addEventListener('keydown', (e) => {
+    const btns = visibleStripButtons();
+    const idx = btns.indexOf(document.activeElement);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (btns.length) btns[(idx + 1) % btns.length].focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (btns.length) btns[(idx - 1 + btns.length) % btns.length].focus();
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      item.focus();
+    } else {
+      handleStripShortcut(e);
+    }
+  });
+
+  // Enter/ArrowRight on the <li> itself enters the toolbar; single-letter shortcuts act immediately
+  item.addEventListener('keydown', (e) => {
+    if (document.activeElement !== item) return;
+    if (e.key === 'Enter' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const btns = visibleStripButtons();
+      if (btns.length) btns[0].focus();
+    } else {
+      handleStripShortcut(e);
     }
   });
 
@@ -3358,6 +3452,7 @@ function renderAuth() {
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
   exportPond.disabled = !signedIn;
+  exportCalendarBtn.disabled = !signedIn;
   restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   copyPondSnapshot.disabled = !signedIn;
@@ -3581,6 +3676,7 @@ function render() {
   renderFocusPanel();
   syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
+  focusPendingTodoRow();
   updateShoalDatalist();
   recordRenderDuration(renderStarted);
   renderDailyCatch();
@@ -3723,7 +3819,8 @@ function renderStarterShoalsList() {
   });
 }
 
-function toggleTodo(id) {
+function toggleTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const previousCompletedCount = completedTodoCount();
   let generatedTodo = null;
   todos = todos.map((todo) => {
@@ -3799,6 +3896,33 @@ function removeTodosWithUndo(predicate, message) {
   const undoMessage = message(removedTodos.length);
   applyUndoableTodoChange(snapshot, undoMessage, `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`);
   return true;
+}
+
+function queueTodoFocusAfterRender(id) {
+  const visibleIds = visibleTodos().map((todo) => todo.id);
+  const currentIndex = visibleIds.indexOf(id);
+  const fallbackIds = currentIndex === -1
+    ? []
+    : [...visibleIds.slice(currentIndex + 1), ...visibleIds.slice(0, currentIndex).reverse()];
+  pendingTodoFocusTarget = { id, fallbackIds };
+}
+
+function findRenderedTodoItemById(id) {
+  return Array.from(list.querySelectorAll('.todo-item')).find((item) => item.dataset.todoId === id) || null;
+}
+
+function focusPendingTodoRow() {
+  if (!pendingTodoFocusTarget) return;
+  const targetIds = [pendingTodoFocusTarget.id, ...pendingTodoFocusTarget.fallbackIds];
+  pendingTodoFocusTarget = null;
+  for (const id of targetIds) {
+    const item = findRenderedTodoItemById(id);
+    if (item) {
+      item.focus();
+      return;
+    }
+  }
+  input.focus();
 }
 
 function focusPendingEditField() {
@@ -3906,7 +4030,8 @@ function deleteTodo(id) {
   );
 }
 
-function archiveTodo(id) {
+function archiveTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const snapshot = prepareUndoSnapshot();
   const archivedAt = new Date().toISOString();
   const todoToArchive = todos.find((todo) => todo.id === id);
@@ -4547,6 +4672,7 @@ addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
 exportPond.addEventListener('click', exportPondBackup);
+exportCalendarBtn.addEventListener('click', exportCalendar);
 restorePondToggle.addEventListener('click', () => setRestorePanelOpen(restorePanel.hidden));
 restoreFile.addEventListener('change', previewRestoreFile);
 mergeRestore.addEventListener('click', () => applyRestore('merge'));

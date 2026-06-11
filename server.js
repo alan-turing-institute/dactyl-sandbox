@@ -645,6 +645,7 @@ function createApp(options = {}) {
     res.type('application/javascript').send(`window.DACTYL_ANALYTICS_CONFIG = ${JSON.stringify({ enabled: analyticsEnabled, endpoint: '/api/analytics' })};\n`);
   });
   app.get('/analytics.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'analytics.js')));
+  app.get('/calendar-export.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'calendar-export.js')));
   app.get('/contextual-empty-states.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'contextual-empty-states.js')));
   app.get('/daily-catch.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'daily-catch.js')));
   app.get('/due-nudges.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'due-nudges.js')));

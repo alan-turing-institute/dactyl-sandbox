@@ -145,6 +145,7 @@
           <p class="more-actions-label">Import / Export</p>
           <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
           <button id="export-pond" class="secondary-action" type="button">Export pond</button>
+          <button id="export-calendar" class="secondary-action" type="button">Export calendar</button>
           <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
         </div>
         <div class="more-actions-group">
@@ -600,7 +601,7 @@
     </main>
 
     <template id="todo-template">
-      <li class="todo-item">
+      <li class="todo-item" tabindex="0">
         <input class="net-select" type="checkbox" aria-label="Select task" hidden />
         <label>
           <input class="toggle" type="checkbox" />
@@ -615,7 +616,7 @@
             </span>
           </span>
         </label>
-        <div class="todo-actions">
+        <div class="todo-actions" role="toolbar" aria-label="Task actions">
           <button class="focus-task" type="button">Feed</button>
           <button class="edit-task" type="button">Edit</button>
           <button class="details-task secondary-action" type="button" aria-expanded="false">Details</button>
@@ -637,6 +638,7 @@
     <script src="fish-emoji.js"></script>
     <script src="first-task-onboarding.js"></script>
     <script src="recurrence.js"></script>
+    <script src="calendar-export.js"></script>
     <script src="quick-add-parser.js"></script>
     <script src="triage-mode.js"></script>
     <script src="app.js"></script>

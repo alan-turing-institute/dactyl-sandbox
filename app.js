@@ -1209,6 +1209,7 @@ function renderTourPanel() {
   pondTour.hidden = !shouldShow;
   showPondTour.hidden = !currentUser || shouldShow;
   tourCopyReport.disabled = todos.length === 0;
+  if (shouldAutoShow) saveTourDismissed(true);
 }
 
 function formatSprintTime(ms) {

@@ -172,6 +172,9 @@ const showPondTour = document.querySelector('#show-pond-tour');
 const shortcutHelpToggle = document.querySelector('#shortcut-help-toggle');
 const shortcutHelp = document.querySelector('#shortcut-help');
 const shortcutHelpClose = document.querySelector('#shortcut-help-close');
+const buttonHelpToggle = document.querySelector('#button-help-toggle');
+const buttonHelpPanel = document.querySelector('#button-help-panel');
+const buttonHelpClose = document.querySelector('#button-help-close');
 const triageToggle = document.querySelector('#triage-toggle');
 const triagePanel = document.querySelector('#triage-panel');
 const triageClose = document.querySelector('#triage-close');
@@ -1099,6 +1102,12 @@ function setPastePanelOpen(open) {
 function setShortcutHelpOpen(open) {
   shortcutHelp.hidden = !open;
   shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function setButtonHelpOpen(open) {
+  buttonHelpPanel.hidden = !open;
+  buttonHelpToggle.setAttribute('aria-expanded', String(open));
+  if (open) buttonHelpPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function renderUpgradeCallout() {
@@ -3737,6 +3746,8 @@ function handleGlobalShortcut(event) {
   if (event.key === 'Escape') {
     const helpWasOpen = !shortcutHelp.hidden;
     setShortcutHelpOpen(false);
+    const buttonHelpWasOpen = !buttonHelpPanel.hidden;
+    setButtonHelpOpen(false);
     const leftNetMode = leaveNetMode();
     const closedShowcase = !showcasePanel.hidden;
     if (closedShowcase) setShowcaseOpen(false);
@@ -3752,7 +3763,7 @@ function handleGlobalShortcut(event) {
     if (closedReminderPrefs) setReminderPrefsOpen(false);
     const closedPrefs = !prefsPanel.hidden;
     if (closedPrefs) setPrefsOpen(false);
-    if (helpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs) event.preventDefault();
   }
 }
 
@@ -3869,6 +3880,8 @@ dailyCatchClose.addEventListener('click', () => setDailyCatchOpen(false));
 upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
+buttonHelpToggle.addEventListener('click', () => setButtonHelpOpen(buttonHelpPanel.hidden));
+buttonHelpClose.addEventListener('click', () => setButtonHelpOpen(false));
 triageToggle.addEventListener('click', () => setTriageOpen(!triageOpen));
 triageClose.addEventListener('click', () => setTriageOpen(false));
 triagePrev.addEventListener('click', () => moveTriage(-1));

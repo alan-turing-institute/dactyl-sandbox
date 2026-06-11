@@ -114,6 +114,7 @@
         <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel">Calm Water</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
+        <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U">Triage mode</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
@@ -127,6 +128,27 @@
           </select>
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
+      </section>
+
+      <section id="button-help-panel" class="button-help-panel" aria-labelledby="button-help-title" hidden>
+        <div class="button-help-header">
+          <div>
+            <p class="eyebrow">Fetch the bubbly</p>
+            <h2 id="button-help-title">What the pond buttons do</h2>
+          </div>
+          <button id="button-help-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p class="button-help-note">A quick map for TODO-app developers swimming through the fishy UI.</p>
+        <dl class="button-help-list">
+          <div><dt>➕ Add</dt><dd>Type a task, optional due date, GitHub link, and tide priority, then add a new fish to the pond.</dd></div>
+          <div><dt>✓ Complete</dt><dd>Tick a fish when it is fed. Completed fish can be archived or celebrated in reports.</dd></div>
+          <div><dt>× Delete</dt><dd>Release a fish from the pond. Bulk release uses the Cast net controls and keeps an undo line where available.</dd></div>
+          <div><dt>🌊 Filters</dt><dd>All, Active, Tide, Ghost net, Week ahead, and Archive reshape the visible shoal without changing hidden tasks.</dd></div>
+          <div><dt>🎯 Feed</dt><dd>Pin one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
+          <div><dt>📝 Details/Edit</dt><dd>Edit changes the core task fields; Details opens private notes and checklist items for the selected fish.</dd></div>
+          <div><dt>🕸 Cast net</dt><dd>Select visible fish for safe bulk release or priority-shoal moves. Hidden tasks stay out of the net.</dd></div>
+          <div><dt>⌨ Shortcuts</dt><dd>Open Pond shortcuts for keyboard commands; Escape closes pop-up panels and leaves net mode.</dd></div>
+        </dl>
       </section>
 
       <section id="shortcut-help" class="shortcut-help" aria-labelledby="shortcut-help-title" hidden>

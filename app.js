@@ -1,4 +1,5 @@
 /* global DactylAnalytics, DactylDailyCatch, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
+// Added quick comment for issue 150 fix.
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
@@ -3834,6 +3835,10 @@ authForm.addEventListener('submit', (event) => {
 });
 
 signupButton.addEventListener('click', () => authenticate('signup'));
+// Prevent the default form submission to avoid page reloads when the user
+// presses <Enter> inside the username or password fields. This makes the
+// signup and login flows more reliable in all browsers.
+authForm.addEventListener('submit', (e) => e.preventDefault());
 logoutButton.addEventListener('click', logout);
 passwordForm.addEventListener('submit', (event) => {
   event.preventDefault();

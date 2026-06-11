@@ -80,6 +80,8 @@
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
+        <button id="export-pond" class="secondary-action" type="button">Export pond</button>
+        <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel">Restore pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
@@ -145,6 +147,23 @@
         <div class="paste-actions">
           <button id="add-pasted-tasks" type="button" disabled>Add tasks</button>
           <button id="clear-paste" class="secondary-action" type="button">Clear</button>
+        </div>
+      </section>
+
+      <section id="restore-panel" class="restore-panel" aria-labelledby="restore-title" hidden>
+        <div class="restore-panel-header">
+          <div>
+            <p class="eyebrow">Backups</p>
+            <h2 id="restore-title">Restore pond</h2>
+          </div>
+          <button id="cancel-restore" class="secondary-action" type="button">Cancel</button>
+        </div>
+        <label for="restore-file">Choose a Dactyl pond JSON backup to preview before importing.</label>
+        <input id="restore-file" type="file" accept="application/json,.json" />
+        <p id="restore-preview" class="restore-preview" role="status" aria-live="polite">Choose a backup file to preview its fish.</p>
+        <div class="restore-actions">
+          <button id="merge-restore" type="button" disabled>Merge into pond</button>
+          <button id="replace-restore" class="secondary-action" type="button" disabled>Replace pond</button>
         </div>
       </section>
 

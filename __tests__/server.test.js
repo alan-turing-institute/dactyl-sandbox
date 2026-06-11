@@ -142,6 +142,59 @@ describe('auth and task API', () => {
       .expect(400);
   });
 
+  test('changes password and invalidates older tokens', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'rotate-user', password: 'very-secret' })
+      .expect(201);
+
+    const oldToken = signup.body.token;
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'wrong-secret', newPassword: 'new-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'very-secret', newPassword: 'short' })
+      .expect(400);
+
+    const changed = await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'very-secret', newPassword: 'new-secret' })
+      .expect(200);
+
+    expect(changed.body.token).toBeTruthy();
+    expect(changed.body.token).not.toBe(oldToken);
+    expect(changed.body.user.username).toBe('rotate-user');
+
+    await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .expect(401);
+
+    await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${changed.body.token}`)
+      .expect(200);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'rotate-user', password: 'very-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'rotate-user', password: 'new-secret' })
+      .expect(200);
+  });
+
   test('malformed password hashes fail login without crashing', async () => {
     app = makeApp();
 

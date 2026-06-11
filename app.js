@@ -306,6 +306,7 @@ let blockingTodoId = '';
 let detailsTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
+let pendingTodoFocusTarget = null;
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
@@ -2495,9 +2496,10 @@ function createGithubChip(todo) {
   return chip;
 }
 
-function updateTodoDetails(id, updates, message = 'Updated task details.') {
+function updateTodoDetails(id, updates, message = 'Updated task details.', options = {}) {
   const existingTodo = todos.find((todo) => todo.id === id);
   if (!existingTodo) return;
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const updatedTodo = normaliseTodo({ ...existingTodo, ...updates });
   if (!updatedTodo) return;
   todos = todos.map((todo) => (todo.id === id ? updatedTodo : todo));
@@ -2741,18 +2743,33 @@ function createTodoItem(todo) {
     );
   }
 
+  function actionButtonAvailable(button) {
+    return Boolean(button && !button.hidden && !button.disabled);
+  }
+
   function handleStripShortcut(e) {
     if (e.key === 'c' || e.key === 'C') {
-      e.preventDefault();
-      toggleTodo(todo.id);
+      if (!checkbox.disabled) {
+        e.preventDefault();
+        toggleTodo(todo.id, { refocusRow: true });
+      }
+    } else if (e.key === 'a' || e.key === 'A') {
+      if (actionButtonAvailable(archiveButton)) {
+        e.preventDefault();
+        archiveTodo(todo.id, { refocusRow: true });
+      }
     } else if (e.key === 'e' || e.key === 'E') {
-      e.preventDefault();
-      startEditingTodo(todo.id);
+      if (actionButtonAvailable(editButton)) {
+        e.preventDefault();
+        startEditingTodo(todo.id);
+      }
     } else if (e.key === 'p' || e.key === 'P') {
-      e.preventDefault();
-      const order = ['', 'low', 'medium', 'high'];
-      const next = order[(order.indexOf(todo.priority || '') + 1) % order.length] || null;
-      updateTodoDetails(todo.id, { priority: next }, 'Tide level updated.');
+      if (!isArchived && todo.id !== editingTodoId) {
+        e.preventDefault();
+        const order = ['', 'low', 'medium', 'high'];
+        const next = order[(order.indexOf(todo.priority || '') + 1) % order.length] || null;
+        updateTodoDetails(todo.id, { priority: next }, 'Tide level updated.', { refocusRow: true });
+      }
     }
   }
 
@@ -3474,6 +3491,7 @@ function render() {
   renderFocusPanel();
   syncScreen({ updateUrl: !suppressScreenHistory });
   focusPendingEditField();
+  focusPendingTodoRow();
   updateShoalDatalist();
   recordRenderDuration(renderStarted);
   renderDailyCatch();
@@ -3616,7 +3634,8 @@ function renderStarterShoalsList() {
   });
 }
 
-function toggleTodo(id) {
+function toggleTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const previousCompletedCount = completedTodoCount();
   let generatedTodo = null;
   todos = todos.map((todo) => {
@@ -3697,6 +3716,33 @@ function removeTodosWithUndo(predicate, message) {
     action: { label: 'Undo', onClick: restoreUndoAction },
   });
   return true;
+}
+
+function queueTodoFocusAfterRender(id) {
+  const visibleIds = visibleTodos().map((todo) => todo.id);
+  const currentIndex = visibleIds.indexOf(id);
+  const fallbackIds = currentIndex === -1
+    ? []
+    : [...visibleIds.slice(currentIndex + 1), ...visibleIds.slice(0, currentIndex).reverse()];
+  pendingTodoFocusTarget = { id, fallbackIds };
+}
+
+function findRenderedTodoItemById(id) {
+  return Array.from(list.querySelectorAll('.todo-item')).find((item) => item.dataset.todoId === id) || null;
+}
+
+function focusPendingTodoRow() {
+  if (!pendingTodoFocusTarget) return;
+  const targetIds = [pendingTodoFocusTarget.id, ...pendingTodoFocusTarget.fallbackIds];
+  pendingTodoFocusTarget = null;
+  for (const id of targetIds) {
+    const item = findRenderedTodoItemById(id);
+    if (item) {
+      item.focus();
+      return;
+    }
+  }
+  input.focus();
 }
 
 function focusPendingEditField() {
@@ -3804,7 +3850,8 @@ function deleteTodo(id) {
   );
 }
 
-function archiveTodo(id) {
+function archiveTodo(id, options = {}) {
+  if (options.refocusRow) queueTodoFocusAfterRender(id);
   const archivedAt = new Date().toISOString();
   const todoToArchive = todos.find((todo) => todo.id === id);
   todos = todos.map((todo) => (

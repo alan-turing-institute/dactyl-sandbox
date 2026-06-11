@@ -115,6 +115,7 @@
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U">Triage mode</button>
+        <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel">Activity</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
         <label id="shoal-control" class="shoal-control" hidden>
@@ -279,6 +280,21 @@
               <span>Show tide labels instead of colour dots on tasks.</span>
             </span>
           </label>
+        </div>
+      </section>
+
+      <section id="activity-log-panel" class="activity-log-panel" aria-labelledby="activity-log-title" hidden>
+        <div class="activity-log-header">
+          <div>
+            <p class="eyebrow">Recent actions</p>
+            <h2 id="activity-log-title">Activity</h2>
+          </div>
+          <button id="activity-log-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
+        </div>
+        <p class="activity-log-note">Local actions from this session. Reloading the page clears this log.</p>
+        <ul id="activity-log-list" class="activity-log-list" aria-live="polite" aria-label="Recent task actions"></ul>
+        <div id="activity-log-undo" class="activity-log-undo" hidden>
+          <button id="activity-undo-btn" class="secondary-action" type="button">Undo last action</button>
         </div>
       </section>
 

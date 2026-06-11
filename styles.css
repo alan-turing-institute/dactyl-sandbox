@@ -702,6 +702,44 @@ kbd {
   font-size: .85rem;
 }
 
+.first-task-onboarding {
+  display: grid;
+  gap: .75rem;
+  justify-items: center;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(141 212 255 / 24%);
+  border-radius: 1.25rem;
+  background: rgb(141 212 255 / 8%);
+}
+
+.first-task-onboarding[hidden] { display: none; }
+
+.first-task-onboarding p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.first-task-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ghost-action {
+  padding: .45rem .7rem;
+  background: transparent;
+  color: var(--muted);
+}
+
+.ghost-action:hover,
+.ghost-action:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  color: var(--text);
+}
+
 .smart-view-item {
   display: inline-flex;
   overflow: hidden;

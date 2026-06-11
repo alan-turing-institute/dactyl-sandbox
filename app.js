@@ -1,10 +1,12 @@
-/* global DactylFishEmoji, DactylScreenState */
+/* global DactylFirstTaskOnboarding, DactylFishEmoji, DactylScreenState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
+const FIRST_TASK_ONBOARDING_DISMISSED_KEY = 'dactyl.firstTaskOnboardingDismissed:v1';
+const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const MAX_TODOS = 200;
@@ -15,6 +17,11 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const DEMO_TODO_IDS = ['demo-flopping', 'demo-bubbles', 'demo-low-tide'];
 const GHOST_STALE_DAYS = 7;
 const REMINDER_PREFS_KEY = 'dactyl.reminderPrefs:v1';
+const {
+  shouldCelebrateFirstCompletion,
+  shouldShowFirstTaskOnboarding,
+  templateForId,
+} = DactylFirstTaskOnboarding;
 const {
   normaliseScreenKey,
   screenKeyFromLocation,
@@ -46,6 +53,9 @@ const list = document.querySelector('#todo-list');
 const template = document.querySelector('#todo-template');
 const count = document.querySelector('#todo-count');
 const emptyState = document.querySelector('#empty-state');
+const firstTaskOnboarding = document.querySelector('#first-task-onboarding');
+const firstTaskTemplateButtons = [...document.querySelectorAll('[data-first-task-template]')];
+const dismissFirstTaskOnboarding = document.querySelector('#dismiss-first-task-onboarding');
 const clearCompleted = document.querySelector('#clear-completed');
 const filterButtons = [...document.querySelectorAll('.filter')];
 const taskSearch = document.querySelector('#task-search');
@@ -155,6 +165,8 @@ let quickFilter = '';
 let smartViews = loadSmartViews();
 let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
+let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
+let firstCompletionCelebrated = loadFirstCompletionCelebrated();
 let tourForcedVisible = false;
 let viewPrefs = loadViewPrefs();
 let focusSprint = createFocusSprint();
@@ -416,6 +428,22 @@ function loadTourDismissed() {
   }
 }
 
+function loadFirstTaskOnboardingDismissed() {
+  try {
+    return localStorage.getItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function loadFirstCompletionCelebrated() {
+  try {
+    return localStorage.getItem(FIRST_COMPLETION_CELEBRATED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function loadSmartViews() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SMART_VIEWS_KEY) ?? '[]');
@@ -478,6 +506,26 @@ function saveTourDismissed(value) {
     else localStorage.removeItem(TOUR_DISMISSED_KEY);
   } catch {
     showStorageError('Pond tour preference changed, but could not be saved in this browser.');
+  }
+}
+
+function saveFirstTaskOnboardingDismissed(value) {
+  firstTaskOnboardingDismissed = value;
+  try {
+    if (value) localStorage.setItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY, 'true');
+    else localStorage.removeItem(FIRST_TASK_ONBOARDING_DISMISSED_KEY);
+  } catch {
+    showStorageError('First-task guide preference changed, but could not be saved in this browser.');
+  }
+}
+
+function saveFirstCompletionCelebrated(value) {
+  firstCompletionCelebrated = value;
+  try {
+    if (value) localStorage.setItem(FIRST_COMPLETION_CELEBRATED_KEY, 'true');
+    else localStorage.removeItem(FIRST_COMPLETION_CELEBRATED_KEY);
+  } catch {
+    showStorageError('First-completion celebration changed, but could not be saved in this browser.');
   }
 }
 
@@ -2216,6 +2264,7 @@ function render() {
   renderAuth();
   if (quickFilter === 'selected-net' && !netMode) quickFilter = '';
   list.replaceChildren();
+  const visiblePond = visibleTodos();
 
   if (filter === 'tide') {
     renderTideMode();
@@ -2224,13 +2273,21 @@ function render() {
   } else if (filter === 'ghost') {
     renderGhostNet();
   } else {
-    for (const todo of visibleTodos()) {
+    for (const todo of visiblePond) {
       list.append(createTodoItem(todo));
     }
   }
 
-  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
-  const visibleCount = filter === 'tide' ? filteredTodos(liveTodos()).length : visibleTodos().length;
+  const livePond = liveTodos();
+  const activeCount = livePond.filter((todo) => !todo.completed).length;
+  const visibleCount = filter === 'tide' ? filteredTodos(livePond).length : visiblePond.length;
+  const showFirstTaskGuide = shouldShowFirstTaskOnboarding({
+    dismissed: firstTaskOnboardingDismissed,
+    filter,
+    hasActiveSearchFilter: hasActiveSearchFilter(),
+    liveCount: livePond.length,
+    visibleCount,
+  });
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : hasActiveSearchFilter()
@@ -2247,8 +2304,11 @@ function render() {
     ? filteredEmptyDescription()
     : filter === 'archive'
       ? 'Archive completed fish to tidy the active pond without permanently deleting them.'
-      : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
-  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visibleTodos().length === 0);
+      : showFirstTaskGuide
+        ? 'Start with a tiny guided task, or add your own fish in the box above.'
+        : 'Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.';
+  firstTaskOnboarding.hidden = !showFirstTaskGuide;
+  emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
@@ -2284,12 +2344,48 @@ function addTodo(text, options = {}) {
   });
 
   if (!todo) return;
+  if (liveTodos().length === 0) saveFirstTaskOnboardingDismissed(true);
   todos.unshift(todo);
   saveTodos();
   render();
 }
 
+function addStarterTask(templateId) {
+  const templateTodo = templateForId(templateId);
+  if (!templateTodo) return;
+
+  addTodo(templateTodo.text, { priority: templateTodo.priority });
+  showPondMessage(`Starter fish added: ${templateTodo.text}.`);
+  input.focus();
+}
+
+function dismissFirstTaskGuide() {
+  saveFirstTaskOnboardingDismissed(true);
+  render();
+  showPondMessage('First-task guide dismissed. Add your own fish whenever you are ready.');
+  input.focus();
+}
+
+function completedTodoCount() {
+  return liveTodos().filter((todo) => todo.completed).length;
+}
+
+function celebrateFirstCompletionIfNeeded(previousCompletedCount, nextCompletedCount) {
+  if (!shouldCelebrateFirstCompletion({
+    alreadyCelebrated: firstCompletionCelebrated,
+    previousCompletedCount,
+    nextCompletedCount,
+  })) {
+    return false;
+  }
+
+  saveFirstCompletionCelebrated(true);
+  showPondMessage('First fish fed! Nice launch — the pond officially has momentum.');
+  return true;
+}
+
 function toggleTodo(id) {
+  const previousCompletedCount = completedTodoCount();
   todos = todos.map((todo) => (
     todo.id === id ? { ...todo, completed: !todo.completed } : todo
   ));
@@ -2299,6 +2395,7 @@ function toggleTodo(id) {
   }
   saveTodos();
   render();
+  celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
 
 function restoreUndoAction() {
@@ -2534,6 +2631,7 @@ function moveSelectedToShoal() {
 
 function completeFocusedTodo() {
   if (!focusedTodoId) return;
+  const previousCompletedCount = completedTodoCount();
   const completedTask = todos.find((todo) => todo.id === focusedTodoId);
   cancelCurrentFocusSprint('');
   todos = todos.map((todo) => (
@@ -2543,6 +2641,7 @@ function completeFocusedTodo() {
   saveTodos();
   render();
   if (completedTask) {
+    if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
   }
@@ -2590,6 +2689,7 @@ function stockDemoPond() {
   }
 
   todos = [...newTodos, ...todos].slice(0, MAX_TODOS);
+  if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
   saveTodos();
   showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
   render();
@@ -2931,6 +3031,10 @@ clearCompleted.addEventListener('click', () => {
 
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
+firstTaskTemplateButtons.forEach((button) => {
+  button.addEventListener('click', () => addStarterTask(button.dataset.firstTaskTemplate));
+});
+dismissFirstTaskOnboarding.addEventListener('click', dismissFirstTaskGuide);
 pastePond.addEventListener('click', () => setPastePanelOpen(pastePanel.hidden));
 pasteInput.addEventListener('input', updatePastePreview);
 addPastedTasks.addEventListener('click', importPastedTodos);

@@ -384,7 +384,8 @@ function baseVisibleTodos() {
 
 function matchesSearch(todo) {
   if (!searchQuery) return true;
-  return todo.text.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase());
+  const query = searchQuery.toLowerCase();
+  return todo.text.toLowerCase().includes(query);
 }
 
 function matchesQuickFilter(todo) {
@@ -425,8 +426,8 @@ function filteredEmptyHeading() {
 
 function filteredEmptyDescription() {
   return searchQuery
-    ? 'Clear the search or quick filter to see the whole pond.'
-    : 'Clear the quick filter to see the whole pond.';
+    ? 'Clear the search or quick filter to see more fish in this view.'
+    : 'Clear the quick filter to see more fish in this view.';
 }
 
 function tideFor(todo) {

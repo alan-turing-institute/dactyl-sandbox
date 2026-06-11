@@ -5,6 +5,7 @@ const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
 const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const MAX_TODOS = 200;
+const POND_EXPORT_VERSION = 1;
 const DEFAULT_SPRINT_MINUTES = 15;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -47,6 +48,14 @@ const pastePreview = document.querySelector('#paste-preview');
 const addPastedTasks = document.querySelector('#add-pasted-tasks');
 const clearPaste = document.querySelector('#clear-paste');
 const cancelPaste = document.querySelector('#cancel-paste');
+const exportPond = document.querySelector('#export-pond');
+const restorePondToggle = document.querySelector('#restore-pond-toggle');
+const restorePanel = document.querySelector('#restore-panel');
+const restoreFile = document.querySelector('#restore-file');
+const restorePreview = document.querySelector('#restore-preview');
+const mergeRestore = document.querySelector('#merge-restore');
+const replaceRestore = document.querySelector('#replace-restore');
+const cancelRestore = document.querySelector('#cancel-restore');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const pondHealthToggle = document.querySelector('#pond-health-toggle');
 const pondHealthPanel = document.querySelector('#pond-health-panel');
@@ -118,6 +127,7 @@ let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
+let pendingRestore = null;
 let lastSync = {
   state: 'never synced',
   at: '',
@@ -640,6 +650,172 @@ function clearPasteInput() {
   pasteInput.value = '';
   updatePastePreview();
   pasteInput.focus();
+}
+
+function exportedTodo(todo) {
+  return {
+    id: todo.id,
+    text: todo.text,
+    completed: todo.completed,
+    createdAt: todo.createdAt,
+    dueDate: todo.dueDate,
+    priority: todo.priority,
+    archivedAt: todo.archivedAt,
+  };
+}
+
+function buildPondBackup() {
+  return {
+    source: 'dactyl-sandbox',
+    version: POND_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    tasks: normaliseTodos(todos).map(exportedTodo),
+  };
+}
+
+function backupFileName() {
+  return `dactyl-pond-backup-${todayKey()}.json`;
+}
+
+function downloadJsonFile(filename, data) {
+  const blob = new window.Blob([`${JSON.stringify(data, null, 2)}\n`], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function exportPondBackup() {
+  if (!currentUser) return;
+  const backup = buildPondBackup();
+  downloadJsonFile(backupFileName(), backup);
+  showPondMessage(`Exported ${pluralise(backup.tasks.length, 'fish', 'fish')} as a JSON pond backup.`);
+}
+
+function backupTasksFromJson(value) {
+  if (!value || typeof value !== 'object') throw new Error('This file is not a Dactyl pond backup.');
+  if (value.source && value.source !== 'dactyl-sandbox') throw new Error('This backup came from an unsupported source.');
+  if (Number(value.version || 1) > POND_EXPORT_VERSION) throw new Error('This backup was made by a newer Dactyl version.');
+  const tasks = Array.isArray(value.tasks) ? value.tasks : value.todos;
+  if (!Array.isArray(tasks)) throw new Error('This backup does not contain a task list.');
+  return tasks;
+}
+
+function normaliseBackupTask(task, seenIds) {
+  if (!task || typeof task !== 'object') return null;
+  const candidateId = typeof task.id === 'string' ? task.id.trim() : '';
+  const id = candidateId && !seenIds.has(candidateId) ? candidateId : crypto.randomUUID();
+  seenIds.add(id);
+  return normaliseTodo({
+    id,
+    text: task.text,
+    completed: task.completed,
+    createdAt: task.createdAt,
+    dueDate: task.dueDate,
+    priority: task.priority,
+    archivedAt: task.archivedAt,
+  });
+}
+
+function duplicateRestoreHints(imported) {
+  const existingKeys = new Set(todos.map((todo) => `${todo.text.trim().toLowerCase()}|${todo.dueDate || ''}`));
+  return imported.filter((todo) => existingKeys.has(`${todo.text.trim().toLowerCase()}|${todo.dueDate || ''}`)).length;
+}
+
+function updateRestorePreview() {
+  const readyCount = pendingRestore?.todos.length ?? 0;
+  mergeRestore.disabled = !currentUser || readyCount === 0 || todos.length >= MAX_TODOS;
+  replaceRestore.disabled = !currentUser || readyCount === 0;
+
+  if (!pendingRestore) return;
+
+  const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+  const mergeableCount = Math.min(readyCount, remainingSlots);
+  const parts = [
+    `${pluralise(readyCount, 'fish', 'fish')} ready`,
+    `${pendingRestore.skippedCount} skipped`,
+  ];
+  if (pendingRestore.duplicateHints > 0) parts.push(`${pluralise(pendingRestore.duplicateHints, 'possible duplicate')} by title/date`);
+  if (mergeableCount < readyCount) parts.push(`${mergeableCount} can be merged before the ${MAX_TODOS}-fish pond limit`);
+  restorePreview.textContent = `${parts.join(' · ')}. Merge keeps existing fish; replace requires confirmation.`;
+}
+
+function setRestorePanelOpen(open) {
+  restorePanel.hidden = !open;
+  restorePondToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    updateRestorePreview();
+    restoreFile.focus();
+  }
+}
+
+function clearRestoreSelection() {
+  pendingRestore = null;
+  restoreFile.value = '';
+  restorePreview.textContent = 'Choose a backup file to preview its fish.';
+  updateRestorePreview();
+}
+
+async function previewRestoreFile() {
+  const [file] = restoreFile.files;
+  pendingRestore = null;
+  if (!file) {
+    clearRestoreSelection();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(await file.text());
+    const rawTasks = backupTasksFromJson(parsed);
+    const seenIds = new Set();
+    const importedTodos = rawTasks
+      .map((task) => normaliseBackupTask(task, seenIds))
+      .filter(Boolean)
+      .slice(0, MAX_TODOS);
+    pendingRestore = {
+      todos: importedTodos,
+      skippedCount: Math.max(0, rawTasks.length - importedTodos.length),
+      duplicateHints: duplicateRestoreHints(importedTodos),
+    };
+    updateRestorePreview();
+  } catch (error) {
+    pendingRestore = null;
+    restorePreview.textContent = `Could not read this backup: ${error.message}`;
+    updateRestorePreview();
+  }
+}
+
+function applyRestore(mode) {
+  if (!currentUser || !pendingRestore || pendingRestore.todos.length === 0) return;
+
+  const imported = normaliseTodos(pendingRestore.todos);
+  let restoredCount = imported.length;
+  if (mode === 'replace') {
+    const confirmed = window.confirm(`Replace your current pond with ${pluralise(imported.length, 'fish', 'fish')} from this backup? This cannot be undone after sync.`);
+    if (!confirmed) return;
+    todos = imported;
+  } else {
+    const existingIds = new Set(todos.map((todo) => todo.id));
+    const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+    const merged = imported.slice(0, remainingSlots).map((todo) => ({
+      ...todo,
+      id: existingIds.has(todo.id) ? crypto.randomUUID() : todo.id,
+    }));
+    restoredCount = merged.length;
+    todos = normaliseTodos([...merged, ...todos]);
+  }
+
+  selectedTodoIds.clear();
+  saveFocusedTodoId(focusedTodoId && todos.some((todo) => todo.id === focusedTodoId) ? focusedTodoId : '');
+  saveTodos();
+  showPondMessage(`${mode === 'replace' ? 'Replaced' : 'Merged'} ${pluralise(restoredCount, 'fish', 'fish')} from the pond backup.`);
+  clearRestoreSelection();
+  setRestorePanelOpen(false);
+  render();
 }
 
 function importPastedTodos() {
@@ -1458,6 +1634,8 @@ function renderAuth() {
   });
   stockPond.disabled = !signedIn;
   pastePond.disabled = !signedIn;
+  exportPond.disabled = !signedIn;
+  restorePondToggle.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   pondHealthToggle.disabled = !signedIn;
   copyPondDiagnostics.disabled = !signedIn;
@@ -1465,6 +1643,7 @@ function renderAuth() {
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
   updatePastePreview();
+  updateRestorePreview();
 }
 
 function setFilter(nextFilter) {
@@ -2039,6 +2218,8 @@ function logout() {
   tourForcedVisible = false;
   resetFocusSprint('');
   saveFocusedTodoId('');
+  clearRestoreSelection();
+  setRestorePanelOpen(false);
   markSyncState('signed out', 'No account is currently syncing.');
   hidePondMessage();
   render();
@@ -2190,6 +2371,12 @@ pasteInput.addEventListener('input', updatePastePreview);
 addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
+exportPond.addEventListener('click', exportPondBackup);
+restorePondToggle.addEventListener('click', () => setRestorePanelOpen(restorePanel.hidden));
+restoreFile.addEventListener('change', previewRestoreFile);
+mergeRestore.addEventListener('click', () => applyRestore('merge'));
+replaceRestore.addEventListener('click', () => applyRestore('replace'));
+cancelRestore.addEventListener('click', () => setRestorePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));

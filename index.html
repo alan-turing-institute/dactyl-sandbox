@@ -96,6 +96,9 @@
             <button type="button" data-priority="high" aria-pressed="false">High</button>
           </div>
         </div>
+        <label class="sr-only" for="shoal-input">Shoal (optional grouping)</label>
+        <input id="shoal-input" name="shoal" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" />
+        <datalist id="shoal-datalist"></datalist>
         <label class="sr-only" for="recurrence-input">Repeat</label>
         <select id="recurrence-input" name="recurrence" aria-label="Repeat">
           <option value="none" selected>No repeat</option>
@@ -136,11 +139,7 @@
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
         <label id="shoal-control" class="shoal-control" hidden>
           <span>Move to shoal</span>
-          <select id="shoal-priority" aria-label="Selected task priority">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
+          <input id="bulk-shoal-input" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" aria-label="Selected task shoal" />
           <button id="move-shoal" class="secondary-action" type="button">Apply</button>
         </label>
       </section>
@@ -178,7 +177,7 @@
           <div><dt>📝 Details / Edit</dt><dd><span class="help-safety help-safety-change">Edits task</span> Edit changes core task fields. Details opens private notes and checklist items for the selected fish.</dd></div>
           <div><dt>🕸 Cast net</dt><dd><span class="help-safety help-safety-view">Selection mode</span> Lets you select visible fish for batch actions. Hidden tasks stay out of the net until their view is active.</dd></div>
           <div><dt>🌊 Release selected</dt><dd><span class="help-safety help-safety-danger">Bulk destructive</span> Releases the fish currently caught in the net. Use the undo message immediately if the wrong fish swim off.</dd></div>
-          <div><dt>🏷 Move to shoal</dt><dd><span class="help-safety help-safety-change">Bulk edit</span> Moves selected fish to the chosen priority shoal: low, medium, or high. It changes only the caught fish.</dd></div>
+          <div><dt>🏷 Move to shoal</dt><dd><span class="help-safety help-safety-change">Bulk edit</span> Moves selected fish into a custom shoal name, or clears the shoal when left blank. It changes only the caught fish.</dd></div>
         </dl>
       </section>
 
@@ -456,6 +455,9 @@
           <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
           <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
+          <select id="shoal-filter-select" class="shoal-filter-select" aria-label="Filter by shoal">
+            <option value="">All shoals</option>
+          </select>
         </div>
       </section>
 
@@ -544,6 +546,7 @@
               <span class="mood-badge"></span>
               <span class="due-label"></span>
               <span class="priority-label"></span>
+              <span class="shoal-chip" hidden></span>
               <span class="blocker-badge"></span>
             </span>
           </span>

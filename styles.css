@@ -209,7 +209,7 @@ h1 {
 
 .todo-form {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(14rem, auto) minmax(12rem, auto) auto;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, auto) minmax(14rem, auto) minmax(12rem, auto) minmax(8rem, auto) auto;
   gap: .75rem;
   margin-bottom: 1rem;
 }
@@ -366,6 +366,7 @@ h1 {
 .showcase-panel[hidden],
 .focus-panel[hidden],
 .shoal-control[hidden],
+.shoal-chip[hidden],
 .secondary-action[hidden],
 .blocker-badge[hidden] { display: none; }
 
@@ -1086,6 +1087,16 @@ kbd {
   color: var(--text);
 }
 
+.shoal-filter-select {
+  padding: .55rem .75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: var(--card-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: .88rem;
+}
+
 .todo-list {
   display: grid;
   gap: .65rem;
@@ -1187,6 +1198,15 @@ kbd {
 .mood-badge.mood-mythical { color: var(--accent); }
 .mood-badge.mood-normal,
 .mood-badge.mood-resting { color: var(--success); }
+
+.shoal-chip {
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  background: rgb(255 210 141 / 16%);
+  color: var(--warning);
+  font-size: .75rem;
+  font-weight: 700;
+}
 
 .blocker-badge {
   color: var(--danger);

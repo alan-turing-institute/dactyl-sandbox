@@ -126,6 +126,7 @@ function normaliseTodo(todo) {
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
     archivedAt: normaliseTimestamp(todo.archivedAt),
+    shoal: typeof todo.shoal === 'string' ? todo.shoal.trim().slice(0, 40) : '',
     blocked: Boolean(todo.blocked),
     blockerReason: typeof todo.blockerReason === 'string' ? todo.blockerReason.trim().slice(0, 160) : '',
     githubUrl: normaliseGithubUrl(todo.githubUrl),
@@ -276,6 +277,9 @@ function createApp(options = {}) {
   if (!todoColumns.includes('archived_at')) {
     db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
   }
+  if (!todoColumns.includes('shoal')) {
+    db.exec("ALTER TABLE todos ADD COLUMN shoal TEXT NOT NULL DEFAULT ''");
+  }
   if (!todoColumns.includes('blocked')) {
     db.exec('ALTER TABLE todos ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0');
   }
@@ -342,7 +346,7 @@ function createApp(options = {}) {
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson, recurrence
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt, shoal, blocked, blocker_reason AS blockerReason, github_url AS githubUrl, notes, checklist_json AS checklistJson, recurrence
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -366,14 +370,15 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, blocked, blocker_reason, github_url, notes, checklist_json, recurrence, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, shoal, blocked, blocker_reason, github_url, notes, checklist_json, recurrence, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
         archived_at = excluded.archived_at,
+        shoal = excluded.shoal,
         blocked = excluded.blocked,
         blocker_reason = excluded.blocker_reason,
         github_url = excluded.github_url,
@@ -390,6 +395,7 @@ function createApp(options = {}) {
       normalised.dueDate,
       normalised.priority,
       normalised.archivedAt,
+      normalised.shoal,
       normalised.blocked ? 1 : 0,
       normalised.blockerReason,
       normalised.githubUrl,

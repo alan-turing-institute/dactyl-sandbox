@@ -42,6 +42,9 @@ const pondHealthMetrics = document.querySelector('#pond-health-metrics');
 const pondHealthHints = document.querySelector('#pond-health-hints');
 const copyPondDiagnostics = document.querySelector('#copy-pond-diagnostics');
 const showPondTour = document.querySelector('#show-pond-tour');
+const shortcutHelpToggle = document.querySelector('#shortcut-help-toggle');
+const shortcutHelp = document.querySelector('#shortcut-help');
+const shortcutHelpClose = document.querySelector('#shortcut-help-close');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
@@ -476,6 +479,15 @@ function setPastePanelOpen(open) {
   }
 }
 
+function setShortcutHelpOpen(open) {
+  shortcutHelp.hidden = !open;
+  shortcutHelpToggle.setAttribute('aria-expanded', String(open));
+}
+
+function toggleShortcutHelp() {
+  setShortcutHelpOpen(shortcutHelp.hidden);
+}
+
 function clearPasteInput() {
   pasteInput.value = '';
   updatePastePreview();
@@ -891,6 +903,11 @@ function renderAuth() {
   updatePastePreview();
 }
 
+function setFilter(nextFilter) {
+  filter = nextFilter;
+  render();
+}
+
 function render() {
   const renderStarted = diagnosticNow();
   renderAuth();
@@ -1021,6 +1038,14 @@ function toggleNetMode() {
   netMode = !netMode;
   if (!netMode) selectedTodoIds.clear();
   render();
+}
+
+function leaveNetMode() {
+  if (!netMode) return false;
+  netMode = false;
+  selectedTodoIds.clear();
+  render();
+  return true;
 }
 
 function toggleSelectedTodo(id) {
@@ -1177,6 +1202,57 @@ async function restoreSession() {
   render();
 }
 
+function isInteractiveShortcutTarget(target) {
+  if (!target || typeof target.closest !== 'function') return false;
+  return Boolean(target.closest(
+    'input, select, textarea, button, [contenteditable=""], [contenteditable="true"]',
+  ));
+}
+
+function handleGlobalShortcut(event) {
+  const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
+  if (event.defaultPrevented || hasModifier || isInteractiveShortcutTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === '?') {
+    event.preventDefault();
+    toggleShortcutHelp();
+    return;
+  }
+
+  if (event.key === '/') {
+    event.preventDefault();
+    input.focus();
+    return;
+  }
+
+  if (event.key.toLowerCase() === 't') {
+    event.preventDefault();
+    setFilter('tide');
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'a') {
+    event.preventDefault();
+    setFilter('all');
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'r') {
+    event.preventDefault();
+    if (currentUser) copyPondProgressReport();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    const helpWasOpen = !shortcutHelp.hidden;
+    setShortcutHelpOpen(false);
+    const leftNetMode = leaveNetMode();
+    if (helpWasOpen || leftNetMode) event.preventDefault();
+  }
+}
+
 authForm.addEventListener('submit', (event) => {
   event.preventDefault();
   authenticate('login');
@@ -1200,10 +1276,7 @@ form.addEventListener('submit', (event) => {
 });
 
 filterButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    filter = button.dataset.filter;
-    render();
-  });
+  button.addEventListener('click', () => setFilter(button.dataset.filter));
 });
 
 clearCompleted.addEventListener('click', () => {
@@ -1221,6 +1294,8 @@ addPastedTasks.addEventListener('click', importPastedTodos);
 clearPaste.addEventListener('click', clearPasteInput);
 cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
+shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
+shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 pondHealthToggle.addEventListener('click', () => setPondHealthOpen(pondHealthPanel.hidden));
 copyPondDiagnostics.addEventListener('click', copyDiagnosticsReport);
 castNet.addEventListener('click', toggleNetMode);
@@ -1250,5 +1325,7 @@ dismissPondTour.addEventListener('click', () => {
   showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
 });
 completeFocus.addEventListener('click', completeFocusedTodo);
+
+document.addEventListener('keydown', handleGlobalShortcut);
 
 restoreSession();

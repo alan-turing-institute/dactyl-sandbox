@@ -213,6 +213,7 @@ h1 {
 
 .storage-error[hidden],
 .pond-message[hidden],
+.shortcut-help[hidden],
 .pond-health-panel[hidden],
 .paste-panel[hidden],
 .pond-tour[hidden],
@@ -322,6 +323,7 @@ h1 {
 
 .pond-health-hints:empty { display: none; }
 
+.shortcut-help,
 .paste-panel {
   display: grid;
   gap: .75rem;
@@ -332,6 +334,12 @@ h1 {
   background: rgb(141 212 255 / 8%);
 }
 
+.shortcut-help {
+  border-color: rgb(141 255 202 / 26%);
+  background: rgb(141 255 202 / 8%);
+}
+
+.shortcut-help-header,
 .paste-panel-header {
   display: flex;
   align-items: start;
@@ -339,11 +347,13 @@ h1 {
   gap: 1rem;
 }
 
+.shortcut-help h2,
 .paste-panel h2 {
   margin: 0;
   font-size: 1.25rem;
 }
 
+.shortcut-help-note,
 .paste-panel label,
 .paste-preview {
   color: var(--muted);
@@ -368,8 +378,44 @@ h1 {
   box-shadow: 0 0 0 4px rgb(141 212 255 / 14%);
 }
 
+.shortcut-help-note,
 .paste-preview {
   margin: 0;
+}
+
+.shortcut-list {
+  display: grid;
+  gap: .5rem;
+  margin: 0;
+}
+
+.shortcut-list div {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: .75rem;
+  align-items: start;
+}
+
+.shortcut-list dt,
+.shortcut-list dd {
+  margin: 0;
+}
+
+.shortcut-list dd {
+  color: var(--muted);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 2rem;
+  padding: .16rem .45rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: .45rem;
+  background: var(--card-strong);
+  color: var(--text);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 24%);
 }
 
 .paste-actions {
@@ -655,6 +701,7 @@ h1 {
   .todo-form,
   .tour-steps { grid-template-columns: 1fr; }
   .todo-form button { width: 100%; }
+  .shortcut-list div { grid-template-columns: 1fr; }
   .todo-item,
   .todo-actions { align-items: stretch; }
   .todo-item { flex-direction: column; }

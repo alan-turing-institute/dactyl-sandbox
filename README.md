@@ -21,9 +21,21 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
+- Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
 - Clear completed tasks
 - Validate saved task data before rendering
 - Responsive layout with accessible labels
+
+### Keyboard shortcuts
+
+Open the in-app **Pond shortcuts** card with the visible button or press `?`. Shortcuts only run when focus is not in a form field, button, or editable element.
+
+- `?` opens or closes the shortcuts card
+- `/` focuses the task input
+- `T` switches to Tide mode
+- `A` switches to All tasks
+- `R` copies the pond report
+- `Esc` closes the shortcuts card and leaves net mode
 
 ### Run locally
 

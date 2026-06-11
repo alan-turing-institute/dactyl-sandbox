@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
+const TOUR_DISMISSED_KEY = 'dactyl.pondTourDismissed:v1';
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -27,11 +28,18 @@ const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
 const releaseDemo = document.querySelector('#release-demo');
 const copyPondReport = document.querySelector('#copy-pond-report');
+const showPondTour = document.querySelector('#show-pond-tour');
 const castNet = document.querySelector('#cast-net');
 const releaseSelected = document.querySelector('#release-selected');
 const shoalControl = document.querySelector('#shoal-control');
 const shoalPriority = document.querySelector('#shoal-priority');
 const moveShoal = document.querySelector('#move-shoal');
+const pondTour = document.querySelector('#pond-tour');
+const tourAddTask = document.querySelector('#tour-add-task');
+const tourStockDemo = document.querySelector('#tour-stock-demo');
+const tourTideMode = document.querySelector('#tour-tide-mode');
+const tourCopyReport = document.querySelector('#tour-copy-report');
+const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
@@ -56,6 +64,8 @@ let currentUser = null;
 let todos = [];
 let filter = 'all';
 let focusedTodoId = loadFocusedTodoId();
+let tourDismissed = loadTourDismissed();
+let tourForcedVisible = false;
 let netMode = false;
 let selectedTodoIds = new Set();
 let saveQueue = Promise.resolve();
@@ -186,6 +196,24 @@ function loadFocusedTodoId() {
     return localStorage.getItem(FOCUS_KEY) ?? '';
   } catch {
     return '';
+  }
+}
+
+function loadTourDismissed() {
+  try {
+    return localStorage.getItem(TOUR_DISMISSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveTourDismissed(value) {
+  tourDismissed = value;
+  try {
+    if (value) localStorage.setItem(TOUR_DISMISSED_KEY, 'true');
+    else localStorage.removeItem(TOUR_DISMISSED_KEY);
+  } catch {
+    showStorageError('Pond tour preference changed, but could not be saved in this browser.');
   }
 }
 
@@ -479,6 +507,14 @@ function renderNetControls() {
   releaseSelected.textContent = selectedCount > 0 ? `Release selected (${selectedCount})` : 'Release selected';
 }
 
+function renderTourPanel() {
+  const shouldAutoShow = Boolean(currentUser) && todos.length === 0 && !tourDismissed;
+  const shouldShow = Boolean(currentUser) && (tourForcedVisible || shouldAutoShow);
+  pondTour.hidden = !shouldShow;
+  showPondTour.hidden = !currentUser || shouldShow;
+  tourCopyReport.disabled = todos.length === 0;
+}
+
 function renderFocusPanel() {
   const focusedTodo = todos.find((todo) => todo.id === focusedTodoId && !todo.completed);
   if (!focusedTodo) {
@@ -507,6 +543,7 @@ function renderAuth() {
   });
   stockPond.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
+  showPondTour.disabled = !signedIn;
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
 }
@@ -530,6 +567,7 @@ function render() {
   releaseDemo.disabled = !currentUser || !todos.some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => todos.some((todo) => todo.id === id)));
   renderNetControls();
+  renderTourPanel();
 
   filterButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.filter === filter);
@@ -764,6 +802,7 @@ function logout() {
   todos = [];
   selectedTodoIds.clear();
   netMode = false;
+  tourForcedVisible = false;
   saveFocusedTodoId('');
   hidePondMessage();
   render();
@@ -828,6 +867,28 @@ copyPondReport.addEventListener('click', copyPondProgressReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
+showPondTour.addEventListener('click', () => {
+  tourForcedVisible = true;
+  render();
+  pondTour.focus({ preventScroll: true });
+  pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
+tourAddTask.addEventListener('click', () => {
+  input.focus();
+  showPondMessage('Add one small next action, then let it swim.');
+});
+tourStockDemo.addEventListener('click', stockDemoPond);
+tourTideMode.addEventListener('click', () => {
+  filter = 'tide';
+  render();
+});
+tourCopyReport.addEventListener('click', copyPondProgressReport);
+dismissPondTour.addEventListener('click', () => {
+  tourForcedVisible = false;
+  saveTourDismissed(true);
+  render();
+  showPondMessage('Pond tour dismissed. You can reopen it from Show pond tour.');
+});
 completeFocus.addEventListener('click', completeFocusedTodo);
 
 restoreSession();

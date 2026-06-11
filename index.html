@@ -67,6 +67,7 @@
         <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button">Copy pond report</button>
         <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel">Pond health</button>
+        <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
         <button id="release-selected" class="secondary-action" type="button" hidden>Release selected</button>
         <label id="shoal-control" class="shoal-control" hidden>
@@ -110,6 +111,40 @@
         </div>
       </section>
 
+      <section id="pond-tour" class="pond-tour" aria-labelledby="pond-tour-title" aria-live="polite" tabindex="-1" hidden>
+        <div>
+          <p class="eyebrow">Pond tour</p>
+          <h2 id="pond-tour-title">Start with one useful fish</h2>
+          <p>Try the core pond moves without leaving the app: add a task, stock a demo pond, switch to Tide mode, paste a shoal of notes, or copy a report when you have work to share.</p>
+        </div>
+        <ol class="tour-steps">
+          <li>
+            <strong>Add your first task</strong>
+            <span>Use the task box above for one next action, with optional due date and priority.</span>
+          </li>
+          <li>
+            <strong>Try a demo pond</strong>
+            <span>Stock sample fish to explore focus mode, Tide lanes, net actions, and reports.</span>
+          </li>
+          <li>
+            <strong>Paste a shoal</strong>
+            <span>Turn Slack bullets or checklists into normal pond tasks when you need a quick import.</span>
+          </li>
+          <li>
+            <strong>Use Tide mode</strong>
+            <span>Group active work by urgency so the washed-ashore fish are obvious.</span>
+          </li>
+        </ol>
+        <div class="tour-actions">
+          <button id="tour-add-task" type="button">Add a task</button>
+          <button id="tour-stock-demo" class="secondary-action" type="button">Stock demo fish</button>
+          <button id="tour-paste-pond" class="secondary-action" type="button">Paste to pond</button>
+          <button id="tour-tide-mode" class="secondary-action" type="button">Try Tide mode</button>
+          <button id="tour-copy-report" class="secondary-action" type="button">Copy report</button>
+          <button id="dismiss-pond-tour" class="secondary-action" type="button">Dismiss tour</button>
+        </div>
+      </section>
+
       <section id="focus-panel" class="focus-panel" aria-live="polite" hidden>
         <p class="eyebrow">Feed the fish</p>
         <h2 id="focus-title">No fish selected</h2>
@@ -123,6 +158,7 @@
           <button type="button" class="filter active" data-filter="all">All</button>
           <button type="button" class="filter" data-filter="active">Active</button>
           <button type="button" class="filter" data-filter="completed">Completed</button>
+          <button type="button" class="filter" data-filter="week">Week ahead</button>
           <button type="button" class="filter" data-filter="tide">Tide mode</button>
         </div>
       </section>
@@ -131,7 +167,7 @@
 
       <section id="empty-state" class="empty-state">
         <h2>Nothing here yet</h2>
-        <p>Add your first task above, or stock the pond with demo tasks.</p>
+        <p>Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.</p>
       </section>
 
       <button id="clear-completed" class="clear-completed" type="button">Release completed</button>

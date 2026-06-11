@@ -268,6 +268,14 @@
           <button type="button" class="quick-filter" data-quick-filter="no-due-date" aria-pressed="false">No due date</button>
           <button type="button" class="quick-filter" data-quick-filter="selected-net" aria-pressed="false">Selected net</button>
         </div>
+        <div class="smart-views" aria-label="Saved smart views">
+          <div class="smart-view-form">
+            <label for="smart-view-name">Save current view</label>
+            <input id="smart-view-name" type="text" maxlength="32" autocomplete="off" placeholder="Planning view name" />
+            <button id="save-smart-view" class="secondary-action" type="button">Save smart view</button>
+          </div>
+          <ul id="smart-view-list" class="smart-view-list" aria-live="polite"></ul>
+        </div>
       </section>
 
       <section class="toolbar" aria-label="TODO filters">

@@ -64,6 +64,7 @@
       <section class="pond-actions" aria-label="Pond actions">
         <button id="stock-pond" class="secondary-action" type="button">Stock the pond</button>
         <button id="release-demo" class="secondary-action" type="button">Release demo fish</button>
+        <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel">Paste to pond</button>
         <button id="copy-pond-report" class="secondary-action" type="button">Copy pond report</button>
         <button id="show-pond-tour" class="secondary-action" type="button">Show pond tour</button>
         <button id="cast-net" class="secondary-action" type="button">Cast net</button>
@@ -79,11 +80,28 @@
         </label>
       </section>
 
+      <section id="paste-panel" class="paste-panel" aria-labelledby="paste-title" hidden>
+        <div class="paste-panel-header">
+          <div>
+            <p class="eyebrow">Bulk import</p>
+            <h2 id="paste-title">Paste to pond</h2>
+          </div>
+          <button id="cancel-paste" class="secondary-action" type="button">Cancel</button>
+        </div>
+        <label for="paste-input">Paste Slack bullets, checklists, or plain text notes.</label>
+        <textarea id="paste-input" rows="6" maxlength="6000" placeholder="- [high] Follow up with Dactyl due:2026-06-12&#10;• Draft demo notes&#10;1. [ ] Check CI bubbles"></textarea>
+        <p id="paste-preview" class="paste-preview" role="status" aria-live="polite">Paste notes to preview tasks.</p>
+        <div class="paste-actions">
+          <button id="add-pasted-tasks" type="button" disabled>Add tasks</button>
+          <button id="clear-paste" class="secondary-action" type="button">Clear</button>
+        </div>
+      </section>
+
       <section id="pond-tour" class="pond-tour" aria-labelledby="pond-tour-title" aria-live="polite" tabindex="-1" hidden>
         <div>
           <p class="eyebrow">Pond tour</p>
           <h2 id="pond-tour-title">Start with one useful fish</h2>
-          <p>Try the core pond moves without leaving the app: add a task, stock a demo pond, switch to Tide mode, or copy a report when you have work to share.</p>
+          <p>Try the core pond moves without leaving the app: add a task, stock a demo pond, switch to Tide mode, paste a shoal of notes, or copy a report when you have work to share.</p>
         </div>
         <ol class="tour-steps">
           <li>
@@ -95,17 +113,18 @@
             <span>Stock sample fish to explore focus mode, Tide lanes, net actions, and reports.</span>
           </li>
           <li>
-            <strong>Use Tide mode</strong>
-            <span>Group active work by urgency so the washed-ashore fish are obvious.</span>
+            <strong>Paste a shoal</strong>
+            <span>Turn Slack bullets or checklists into normal pond tasks when you need a quick import.</span>
           </li>
           <li>
-            <strong>Copy a pond report</strong>
-            <span>Make a Slack-friendly summary only when you choose to share it.</span>
+            <strong>Use Tide mode</strong>
+            <span>Group active work by urgency so the washed-ashore fish are obvious.</span>
           </li>
         </ol>
         <div class="tour-actions">
           <button id="tour-add-task" type="button">Add a task</button>
           <button id="tour-stock-demo" class="secondary-action" type="button">Stock demo fish</button>
+          <button id="tour-paste-pond" class="secondary-action" type="button">Paste to pond</button>
           <button id="tour-tide-mode" class="secondary-action" type="button">Try Tide mode</button>
           <button id="tour-copy-report" class="secondary-action" type="button">Copy report</button>
           <button id="dismiss-pond-tour" class="secondary-action" type="button">Dismiss tour</button>

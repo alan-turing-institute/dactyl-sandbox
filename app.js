@@ -27,6 +27,13 @@ const storageError = document.querySelector('#storage-error');
 const pondMessage = document.querySelector('#pond-message');
 const stockPond = document.querySelector('#stock-pond');
 const releaseDemo = document.querySelector('#release-demo');
+const pastePond = document.querySelector('#paste-pond');
+const pastePanel = document.querySelector('#paste-panel');
+const pasteInput = document.querySelector('#paste-input');
+const pastePreview = document.querySelector('#paste-preview');
+const addPastedTasks = document.querySelector('#add-pasted-tasks');
+const clearPaste = document.querySelector('#clear-paste');
+const cancelPaste = document.querySelector('#cancel-paste');
 const copyPondReport = document.querySelector('#copy-pond-report');
 const showPondTour = document.querySelector('#show-pond-tour');
 const castNet = document.querySelector('#cast-net');
@@ -37,6 +44,7 @@ const moveShoal = document.querySelector('#move-shoal');
 const pondTour = document.querySelector('#pond-tour');
 const tourAddTask = document.querySelector('#tour-add-task');
 const tourStockDemo = document.querySelector('#tour-stock-demo');
+const tourPastePond = document.querySelector('#tour-paste-pond');
 const tourTideMode = document.querySelector('#tour-tide-mode');
 const tourCopyReport = document.querySelector('#tour-copy-report');
 const dismissPondTour = document.querySelector('#dismiss-pond-tour');
@@ -346,6 +354,116 @@ function reportDueLabel(todo) {
   return formatDateKey(todo.dueDate);
 }
 
+function stripImportPrefix(line) {
+  let text = line.trim().replace(/^>\s*/, '');
+  text = text.replace(/^(?:[-*•]\s*)?\[(?:\s|x|X)\]\s*/, '');
+  text = text.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, '');
+  text = text.replace(/^\[(?:\s|x|X)\]\s*/, '');
+  return text.trim();
+}
+
+function isImportHeading(text, originalLine) {
+  if (!text || /^[\s\-*_–—=•#]+$/.test(text)) return true;
+  if (/^#{1,6}\s+\S+/.test(originalLine.trim())) return true;
+  return text.length <= 48 && /:$/.test(text) && !/\bdue:\d{4}-\d{2}-\d{2}\b/i.test(text);
+}
+
+function parseImportLine(line) {
+  let text = stripImportPrefix(line);
+  if (isImportHeading(text, line)) return null;
+
+  const dueMatch = text.match(/\bdue:\s*(\d{4}-\d{2}-\d{2})\b/i);
+  const dueDate = dueMatch && isValidDateKey(dueMatch[1]) ? dueMatch[1] : '';
+  text = text.replace(/\bdue:\s*\d{4}-\d{2}-\d{2}\b/ig, '').trim();
+
+  let priority = 'medium';
+  const bracketPriority = text.match(/\[(high|medium|low)\]/i);
+  const namedPriority = text.match(/\bpriority:\s*(high|medium|low)\b/i);
+  if (bracketPriority) priority = normalisePriority(bracketPriority[1].toLowerCase());
+  else if (namedPriority) priority = normalisePriority(namedPriority[1].toLowerCase());
+
+  text = text
+    .replace(/\[(high|medium|low)\]/ig, '')
+    .replace(/\bpriority:\s*(high|medium|low)\b/ig, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!text) return null;
+  return { text, priority, dueDate };
+}
+
+function parsePastedTodos(value) {
+  return value
+    .split(/\r?\n/)
+    .map(parseImportLine)
+    .filter(Boolean);
+}
+
+function pastedTodoPreview() {
+  const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+  return parsePastedTodos(pasteInput.value).slice(0, remainingSlots);
+}
+
+function updatePastePreview() {
+  const parsedCount = parsePastedTodos(pasteInput.value).length;
+  const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
+  const importableCount = Math.min(parsedCount, remainingSlots);
+
+  if (remainingSlots === 0) {
+    pastePreview.textContent = `The pond is full at ${MAX_TODOS} tasks. Release a fish before importing.`;
+  } else if (parsedCount === 0) {
+    pastePreview.textContent = 'Paste notes to preview tasks. Supported: bullets, checkboxes, [high]/[medium]/[low], and due:YYYY-MM-DD.';
+  } else if (parsedCount > remainingSlots) {
+    pastePreview.textContent = `${parsedCount} task lines found; ${importableCount} will be added because the pond has ${remainingSlots} open ${remainingSlots === 1 ? 'slot' : 'slots'}.`;
+  } else {
+    pastePreview.textContent = `${pluralise(importableCount, 'task')} ready to add.`;
+  }
+
+  addPastedTasks.disabled = !currentUser || importableCount === 0;
+}
+
+function setPastePanelOpen(open) {
+  pastePanel.hidden = !open;
+  pastePond.setAttribute('aria-expanded', String(open));
+  if (open) {
+    updatePastePreview();
+    pasteInput.focus();
+  }
+}
+
+function clearPasteInput() {
+  pasteInput.value = '';
+  updatePastePreview();
+  pasteInput.focus();
+}
+
+function importPastedTodos() {
+  if (!currentUser) return;
+
+  const imported = pastedTodoPreview()
+    .map((todo, index) => normaliseTodo({
+      id: crypto.randomUUID(),
+      text: todo.text,
+      completed: false,
+      createdAt: new Date(Date.now() - index).toISOString(),
+      dueDate: todo.dueDate,
+      priority: todo.priority,
+    }))
+    .filter(Boolean);
+
+  if (imported.length === 0) {
+    updatePastePreview();
+    return;
+  }
+
+  todos = [...imported, ...todos].slice(0, MAX_TODOS);
+  pasteInput.value = '';
+  saveTodos();
+  showPondMessage(`Added ${pluralise(imported.length, 'pasted fish', 'pasted fish')} to the pond.`);
+  setPastePanelOpen(false);
+  render();
+}
+
 function buildPondReport() {
   const totalCount = todos.length;
   const activeTodos = todos.filter((todo) => !todo.completed);
@@ -542,10 +660,12 @@ function renderAuth() {
     element.disabled = !signedIn;
   });
   stockPond.disabled = !signedIn;
+  pastePond.disabled = !signedIn;
   copyPondReport.disabled = !signedIn;
   showPondTour.disabled = !signedIn;
   castNet.disabled = !signedIn;
   clearCompleted.disabled = !signedIn;
+  updatePastePreview();
 }
 
 function render() {
@@ -863,6 +983,11 @@ clearCompleted.addEventListener('click', () => {
 
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
+pastePond.addEventListener('click', () => setPastePanelOpen(pastePanel.hidden));
+pasteInput.addEventListener('input', updatePastePreview);
+addPastedTasks.addEventListener('click', importPastedTodos);
+clearPaste.addEventListener('click', clearPasteInput);
+cancelPaste.addEventListener('click', () => setPastePanelOpen(false));
 copyPondReport.addEventListener('click', copyPondProgressReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
@@ -878,6 +1003,7 @@ tourAddTask.addEventListener('click', () => {
   showPondMessage('Add one small next action, then let it swim.');
 });
 tourStockDemo.addEventListener('click', stockDemoPond);
+tourPastePond.addEventListener('click', () => setPastePanelOpen(true));
 tourTideMode.addEventListener('click', () => {
   filter = 'tide';
   render();

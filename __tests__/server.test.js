@@ -162,6 +162,40 @@ describe('auth and task API', () => {
     ]));
   });
 
+  test('deletes a task and enforces user isolation on delete', async () => {
+    app = makeApp();
+
+    const owner = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-owner', password: 'very-secret' })
+      .expect(201);
+    const other = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-other', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer ' + owner.body.token)
+      .send({ text: 'Delete me' })
+      .expect(201);
+
+    await request(app)
+      .delete('/api/tasks/' + created.body.todo.id)
+      .set('Authorization', 'Bearer ' + other.body.token)
+      .expect(404);
+
+    await request(app)
+      .delete('/api/tasks/' + created.body.todo.id)
+      .set('Authorization', 'Bearer ' + owner.body.token)
+      .expect(204);
+
+    await request(app)
+      .delete('/api/tasks/' + created.body.todo.id)
+      .set('Authorization', 'Bearer ' + owner.body.token)
+      .expect(404);
+  });
+
   test('rejects invalid task patches with 400', async () => {
     app = makeApp();
 

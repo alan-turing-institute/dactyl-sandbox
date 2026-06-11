@@ -9,16 +9,21 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 ### Features
 
 - Sign up and log in with username/password credentials
+- Change a signed-in account password and invalidate old session tokens
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
 - Add, edit, and delete tasks with optional due dates and low, medium, or high priority
 - Mark tasks as complete
-- Filter all, active, completed, Tide mode grouped urgency lanes, and a Week ahead agenda
+- Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
+- Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
+- Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
+- Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Pick one active task for "feed the fish" focus mode
 - Stock or release fish-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a priority shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers
+- Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
 - Show a Pond shortcuts help card with safe keyboard shortcuts for repeat actions
@@ -33,6 +38,7 @@ Open the in-app **Pond shortcuts** card with the visible button or press `?`. Sh
 - `?` opens or closes the shortcuts card
 - `/` focuses the task input
 - `T` switches to Tide mode
+- `G` switches to Ghost net review
 - `A` switches to All tasks
 - `R` copies the pond report
 - `Esc` closes the shortcuts card and leaves net mode

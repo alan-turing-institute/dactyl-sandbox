@@ -54,6 +54,35 @@ describe('auth and task API', () => {
     await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
   });
 
+  test('rate limits auth routes', async () => {
+    app = createApp({
+      dbPath: ':memory:',
+      jwtSecret: 'test-secret',
+      authRateLimitMax: 2,
+      authRateLimitWindowMs: 60 * 1000,
+    });
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'limited-user', password: 'wrong-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'limited-other', password: 'very-secret' })
+      .expect(429)
+      .expect('Retry-After', /.+/)
+      .expect('RateLimit-Limit', '2')
+      .expect(({ body }) => {
+        expect(body.error).toBe('Too many authentication attempts. Please try again later.');
+      });
+  });
+
   test('requires a valid token and keeps users isolated', async () => {
     app = makeApp();
 
@@ -121,6 +150,47 @@ describe('auth and task API', () => {
     expect(tasks.body.todos.map((todo) => todo.text)).not.toContain('Old task');
   });
 
+  test('persists archived task markers through patch and replace', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'archive-user', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ text: 'Archive me', completed: true, archivedAt: '2026-06-11T08:00:00.000Z' })
+      .expect(201);
+
+    expect(created.body.todo).toMatchObject({ text: 'Archive me', completed: true, archivedAt: '2026-06-11T08:00:00.000Z' });
+
+    const restored = await request(app)
+      .patch(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ archivedAt: '' })
+      .expect(200);
+
+    expect(restored.body.todo.archivedAt).toBe('');
+
+    const replacement = await request(app)
+      .put('/api/tasks')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({
+        todos: [
+          { id: 'archived-1', text: 'Old shell', completed: true, archivedAt: '2026-06-11T09:00:00.000Z' },
+          { id: 'bad-archive', text: 'Bad archive date', completed: true, archivedAt: 'not-a-date' },
+        ],
+      })
+      .expect(200);
+
+    expect(replacement.body.todos).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'archived-1', archivedAt: '2026-06-11T09:00:00.000Z' }),
+      expect.objectContaining({ id: 'bad-archive', archivedAt: '' }),
+    ]));
+  });
+
   test('rejects invalid task patches with 400', async () => {
     app = makeApp();
 
@@ -140,6 +210,135 @@ describe('auth and task API', () => {
       .set('Authorization', `Bearer ${signup.body.token}`)
       .send({ text: '' })
       .expect(400);
+  });
+
+  test('deletes a task and enforces user isolation on delete', async () => {
+    app = makeApp();
+
+    const owner = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-owner', password: 'very-secret' })
+      .expect(201);
+    const other = await request(app)
+      .post('/api/signup')
+      .send({ username: 'delete-other', password: 'very-secret' })
+      .expect(201);
+
+    const created = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .send({ text: 'Delete me' })
+      .expect(201);
+
+    await request(app)
+      .delete(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${other.body.token}`)
+      .expect(404);
+
+    await request(app)
+      .delete('/api/tasks/missing-task')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(404);
+
+    await request(app)
+      .delete(`/api/tasks/${created.body.todo.id}`)
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(204);
+
+    const tasks = await request(app)
+      .get('/api/tasks')
+      .set('Authorization', `Bearer ${owner.body.token}`)
+      .expect(200);
+
+    expect(tasks.body.todos).toEqual([]);
+  });
+
+  test('changes password and invalidates older tokens', async () => {
+    app = makeApp();
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'rotate-user', password: 'very-secret' })
+      .expect(201);
+
+    const oldToken = signup.body.token;
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'wrong-secret', newPassword: 'new-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'very-secret', newPassword: 'short' })
+      .expect(400);
+
+    const changed = await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send({ currentPassword: 'very-secret', newPassword: 'new-secret' })
+      .expect(200);
+
+    expect(changed.body.token).toBeTruthy();
+    expect(changed.body.token).not.toBe(oldToken);
+    expect(changed.body.user.username).toBe('rotate-user');
+
+    await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .expect(401);
+
+    await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${changed.body.token}`)
+      .expect(200);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'rotate-user', password: 'very-secret' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'rotate-user', password: 'new-secret' })
+      .expect(200);
+  });
+
+  test('rejects passwords longer than the bounded scrypt input length', async () => {
+    app = makeApp();
+    const longPassword = 'p'.repeat(129);
+
+    await request(app)
+      .post('/api/signup')
+      .send({ username: 'long-signup', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    const signup = await request(app)
+      .post('/api/signup')
+      .send({ username: 'bounded-user', password: 'very-secret' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/login')
+      .send({ username: 'bounded-user', password: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('Password must be 8-128 characters.');
+      });
+
+    await request(app)
+      .post('/api/account/password')
+      .set('Authorization', `Bearer ${signup.body.token}`)
+      .send({ currentPassword: 'very-secret', newPassword: longPassword })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error).toBe('New password must be 8-128 characters.');
+      });
   });
 
   test('malformed password hashes fail login without crashing', async () => {

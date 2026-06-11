@@ -6,8 +6,13 @@ const express = require('express');
 
 const MAX_TODOS = 200;
 const MAX_TODO_LENGTH = 120;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const PRIORITIES = ['low', 'medium', 'high'];
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_RATE_LIMIT_MAX = 20;
+const AUTH_RATE_LIMIT_MAX_KEYS = 1000;
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
@@ -54,6 +59,10 @@ function normalisePriority(priority) {
   return PRIORITIES.includes(priority) ? priority : 'medium';
 }
 
+function normaliseTimestamp(value) {
+  return typeof value === 'string' && value && !Number.isNaN(Date.parse(value)) ? value : '';
+}
+
 function normaliseTodo(todo) {
   if (!todo || typeof todo !== 'object') return null;
   if (typeof todo.id !== 'string' || typeof todo.text !== 'string') return null;
@@ -73,11 +82,23 @@ function normaliseTodo(todo) {
     createdAt,
     dueDate: isValidDateKey(todo.dueDate) ? todo.dueDate : '',
     priority: normalisePriority(todo.priority),
+    archivedAt: normaliseTimestamp(todo.archivedAt),
   };
 }
 
 function toPublicUser(row) {
   return { id: row.id, username: row.username };
+}
+
+function userTokenVersion(row) {
+  return Number.isInteger(row?.token_version) ? row.token_version : 0;
+}
+
+function passwordLengthError(password, label = 'Password') {
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    return `${label} must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters.`;
+  }
+  return '';
 }
 
 function createPasswordHash(password) {
@@ -92,6 +113,55 @@ function verifyPassword(password, passwordHash) {
   const hash = crypto.scryptSync(password, salt, 64);
   const stored = Buffer.from(storedHash, 'hex');
   return stored.length === hash.length && crypto.timingSafeEqual(stored, hash);
+}
+
+function createFixedWindowRateLimiter({ windowMs, max, keyPrefix = 'rate-limit', maxKeys = AUTH_RATE_LIMIT_MAX_KEYS }) {
+  const hits = new Map();
+
+  function pruneExpired(now) {
+    for (const [key, entry] of hits) {
+      if (entry.resetAt <= now) hits.delete(key);
+    }
+  }
+
+  function pruneOldest() {
+    while (hits.size >= maxKeys) {
+      const oldestKey = hits.keys().next().value;
+      if (!oldestKey) return;
+      hits.delete(oldestKey);
+    }
+  }
+
+  return (req, res, next) => {
+    if (!Number.isFinite(windowMs) || windowMs <= 0 || !Number.isFinite(max) || max <= 0) return next();
+    if (!Number.isFinite(maxKeys) || maxKeys <= 0) return next();
+
+    const now = Date.now();
+    const clientId = req.ips?.[0] || req.ip || req.socket?.remoteAddress;
+    if (!clientId) return next();
+
+    const key = keyPrefix + ':' + clientId;
+    let entry = hits.get(key);
+    if (!entry || entry.resetAt <= now) {
+      pruneExpired(now);
+      if (!hits.has(key)) pruneOldest();
+      entry = { count: 0, resetAt: now + windowMs };
+      hits.set(key, entry);
+    }
+
+    entry.count += 1;
+    const resetSeconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+    res.setHeader('RateLimit-Limit', String(max));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, max - entry.count)));
+    res.setHeader('RateLimit-Reset', String(resetSeconds));
+
+    if (entry.count > max) {
+      res.setHeader('Retry-After', String(resetSeconds));
+      return res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' });
+    }
+
+    return next();
+  };
 }
 
 function createApp(options = {}) {
@@ -122,6 +192,16 @@ function createApp(options = {}) {
     );
   `);
 
+  const todoColumns = db.prepare('PRAGMA table_info(todos)').all().map((column) => column.name);
+  if (!todoColumns.includes('archived_at')) {
+    db.exec("ALTER TABLE todos ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''");
+  }
+
+  const userColumns = db.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
+  if (!userColumns.includes('token_version')) {
+    db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
+  }
+
   app.locals.db = db;
   app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; connect-src 'self'");
@@ -133,8 +213,20 @@ function createApp(options = {}) {
   });
   app.use(express.json({ limit: '100kb' }));
 
+  const authRateLimiter = createFixedWindowRateLimiter({
+    windowMs: options.authRateLimitWindowMs ?? AUTH_RATE_LIMIT_WINDOW_MS,
+    max: options.authRateLimitMax ?? AUTH_RATE_LIMIT_MAX,
+    maxKeys: options.authRateLimitMaxKeys ?? AUTH_RATE_LIMIT_MAX_KEYS,
+    keyPrefix: 'auth',
+  });
+
   function issueToken(user) {
-    return signJwt({ sub: user.id, username: user.username, exp: Date.now() + TOKEN_TTL_MS }, jwtSecret);
+    return signJwt({
+      sub: user.id,
+      username: user.username,
+      tokenVersion: userTokenVersion(user),
+      exp: Date.now() + TOKEN_TTL_MS,
+    }, jwtSecret);
   }
 
   function requireAuth(req, res, next) {
@@ -142,15 +234,17 @@ function createApp(options = {}) {
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     const payload = verifyJwt(token, jwtSecret);
     if (!payload) return res.status(401).json({ error: 'Authentication required.' });
-    const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(payload.sub);
-    if (!user) return res.status(401).json({ error: 'Authentication required.' });
+    const user = db.prepare('SELECT id, username, token_version FROM users WHERE id = ?').get(payload.sub);
+    if (!user || (payload.tokenVersion ?? 0) !== userTokenVersion(user)) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
     req.user = user;
     return next();
   }
 
   function listTodos(userId) {
     return db.prepare(`
-      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority
+      SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt
       FROM todos
       WHERE user_id = ?
       ORDER BY completed ASC, COALESCE(NULLIF(due_date, ''), '9999-12-31') ASC, created_at DESC
@@ -161,13 +255,14 @@ function createApp(options = {}) {
     const normalised = normaliseTodo(todo);
     if (!normalised) return null;
     db.prepare(`
-      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, user_id, text, completed, created_at, due_date, priority, archived_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id, user_id) DO UPDATE SET
         text = excluded.text,
         completed = excluded.completed,
         due_date = excluded.due_date,
         priority = excluded.priority,
+        archived_at = excluded.archived_at,
         updated_at = excluded.updated_at
     `).run(
       normalised.id,
@@ -177,22 +272,24 @@ function createApp(options = {}) {
       normalised.createdAt,
       normalised.dueDate,
       normalised.priority,
+      normalised.archivedAt,
       new Date().toISOString(),
     );
     return normalised;
   }
 
-  app.post('/api/signup', (req, res) => {
+  app.post('/api/signup', authRateLimiter, (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
       return res.status(400).json({ error: 'Username must be 3-32 letters, numbers, dots, underscores, or hyphens.' });
     }
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
 
     const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
     try {
-      db.prepare('INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)')
+      db.prepare('INSERT INTO users (id, username, password_hash, created_at, token_version) VALUES (?, ?, ?, ?, 0)')
         .run(user.id, username, createPasswordHash(password), user.createdAt);
     } catch (error) {
       if (String(error.message).includes('UNIQUE')) return res.status(409).json({ error: 'Username already exists.' });
@@ -201,10 +298,13 @@ function createApp(options = {}) {
     return res.status(201).json({ token: issueToken(user), user: toPublicUser(user), todos: [] });
   });
 
-  app.post('/api/login', (req, res) => {
+  app.post('/api/login', authRateLimiter, (req, res) => {
     const username = String(req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
-    const user = db.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username);
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
+
+    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
@@ -213,6 +313,31 @@ function createApp(options = {}) {
 
   app.get('/api/me', requireAuth, (req, res) => {
     res.json({ user: toPublicUser(req.user), todos: listTodos(req.user.id) });
+  });
+
+  app.post('/api/account/password', requireAuth, (req, res) => {
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+    const currentPasswordError = passwordLengthError(currentPassword, 'Current password');
+    if (currentPasswordError) return res.status(400).json({ error: currentPasswordError });
+    const newPasswordError = passwordLengthError(newPassword, 'New password');
+    if (newPasswordError) return res.status(400).json({ error: newPasswordError });
+
+    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE id = ?').get(req.user.id);
+    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const nextTokenVersion = userTokenVersion(user) + 1;
+    db.prepare('UPDATE users SET password_hash = ?, token_version = ? WHERE id = ?')
+      .run(createPasswordHash(newPassword), nextTokenVersion, user.id);
+
+    const updatedUser = { ...user, token_version: nextTokenVersion };
+    return res.json({
+      token: issueToken(updatedUser),
+      user: toPublicUser(updatedUser),
+      todos: listTodos(user.id),
+    });
   });
 
   app.get('/api/tasks', requireAuth, (req, res) => {
@@ -243,7 +368,7 @@ function createApp(options = {}) {
   });
 
   app.patch('/api/tasks/:id', requireAuth, (req, res) => {
-    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority FROM todos WHERE user_id = ? AND id = ?')
+    const existing = db.prepare('SELECT id, text, completed, created_at AS createdAt, due_date AS dueDate, priority, archived_at AS archivedAt FROM todos WHERE user_id = ? AND id = ?')
       .get(req.user.id, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Task not found.' });
     const updated = upsertTodo(req.user.id, { ...existing, ...req.body, id: existing.id });

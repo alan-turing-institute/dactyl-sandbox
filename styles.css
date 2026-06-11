@@ -407,14 +407,91 @@ h1 {
 
 .secondary-action,
 .focus-task {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: .65rem .9rem;
   border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
   background: rgb(255 255 255 / 8%);
   color: var(--text);
+  text-decoration: none;
 }
 
 .secondary-action:hover,
 .focus-task:hover { background: rgb(255 255 255 / 14%); }
+
+.docs-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgb(141 212 255 / 20%), transparent 32rem),
+    var(--bg);
+}
+
+.docs-shell {
+  width: min(980px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.docs-hero,
+.docs-card {
+  margin-bottom: 1rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid rgb(122 184 245 / 20%);
+  border-radius: 1.5rem;
+  background: rgb(7 17 26 / 72%);
+  box-shadow: 0 20px 80px rgb(0 0 0 / 20%);
+}
+
+.docs-hero h1,
+.docs-card h2,
+.docs-card h3,
+.docs-hero p,
+.docs-card p { margin-top: 0; }
+
+.docs-hero p,
+.docs-card p,
+.docs-list,
+.docs-vocab-list dd { color: var(--muted); }
+
+.docs-back-link { width: fit-content; }
+
+.docs-vocab-list,
+.docs-grid {
+  display: grid;
+  gap: .75rem;
+}
+
+.docs-vocab-list {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin: 0;
+}
+
+.docs-vocab-list div,
+.docs-grid article {
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 6%);
+}
+
+.docs-vocab-list dt {
+  margin-bottom: .25rem;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.docs-vocab-list dd { margin: 0; }
+
+.docs-grid { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+
+.docs-list {
+  display: grid;
+  gap: .55rem;
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
 
 .shoal-control {
   display: flex;

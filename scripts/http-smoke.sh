@@ -38,6 +38,14 @@ assert_header "Permissions-Policy" "camera=(), microphone=(), geolocation=()"
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 grep -q '<!doctype html>' "$TMP_DIR/body"
 
+fetch /docs
+case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in
+  text/html*) ;;
+  *) printf 'Unexpected /docs Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+grep -q 'Dactyl TODO, translated' "$TMP_DIR/body"
+
 fetch /app.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;

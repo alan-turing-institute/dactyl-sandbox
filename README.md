@@ -87,6 +87,18 @@ Data is stored in an ephemeral SQLite file on the Render container filesystem un
 
 Data is stored in an ephemeral SQLite file on the container filesystem. For persistent storage, mount a [Railway volume](https://docs.railway.app/reference/volumes) at `/data` and set `DATABASE_PATH=/data/todos.sqlite`.
 
+### Published documentation
+
+The standalone documentation site is published with GitHub Pages at <https://alan-turing-institute.github.io/dactyl-sandbox/>. It reuses the in-app `docs.html` guide, builds to `dist/docs`, and uses relative asset links so it works under the repository Pages path.
+
+Build and validate the static docs locally with:
+
+```bash
+npm run docs:lint
+```
+
+Pull request CI runs the docs build, and pushes to `main` deploy the generated `dist/docs` artifact with the official GitHub Pages actions.
+
 ### Run locally
 
 Install dependencies and start the app:

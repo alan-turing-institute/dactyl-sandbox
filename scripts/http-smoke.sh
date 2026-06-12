@@ -81,6 +81,13 @@ case "$(header_value "Content-Type")" in
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 
+fetch /due-nudges.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /due-nudges.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+
 fetch /premium-hooks.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;

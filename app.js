@@ -82,6 +82,7 @@ const STARTER_SHOALS = [
 const {
   shouldCelebrateFirstCompletion,
   shouldShowFirstTaskOnboarding,
+  shouldUseNewUserOnboardingMode,
   templateForId,
 } = DactylFirstTaskOnboarding;
 const {
@@ -3469,6 +3470,16 @@ function onboardingIsComplete() {
   return tourDismissed && hasRealTask();
 }
 
+function isNewUserOnboardingMode() {
+  return shouldUseNewUserOnboardingMode({
+    signedIn: Boolean(currentUser),
+    dismissed: firstTaskOnboardingDismissed,
+    filter,
+    hasActiveSearchFilter: hasActiveSearchFilter(),
+    liveCount: liveTodos().length,
+  });
+}
+
 function setGettingStartedOpen(open) {
   viewPrefs = { ...viewPrefs, [GETTING_STARTED_PREF_KEY]: Boolean(open) };
   saveViewPrefs();
@@ -3496,7 +3507,8 @@ function renderGettingStartedPanel() {
     saveViewPrefs();
   }
 
-  const open = Boolean(currentUser) && (storedOpen === null ? !complete : storedOpen);
+  const forceNewUserOpen = isNewUserOnboardingMode();
+  const open = Boolean(currentUser) && (forceNewUserOpen || (storedOpen === null ? !complete : storedOpen));
   gettingStartedPanel.hidden = !open;
   gettingStartedToggle.hidden = !currentUser;
   gettingStartedToggle.setAttribute('aria-expanded', String(open));
@@ -3975,6 +3987,7 @@ function render() {
   renderEmptyStateActions(empty);
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
+  pondScreen.classList.toggle('new-user-onboarding', isNewUserOnboardingMode());
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Send all to reef';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));

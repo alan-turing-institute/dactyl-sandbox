@@ -629,6 +629,32 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.pond-screen.new-user-onboarding .pond-shell,
+.pond-screen.new-user-onboarding [data-pond-view-section],
+.pond-screen.new-user-onboarding .todo-form,
+.pond-screen.new-user-onboarding .pond-actions,
+.pond-screen.new-user-onboarding .toolbar,
+.pond-screen.new-user-onboarding .search-panel,
+.pond-screen.new-user-onboarding .todo-list,
+.pond-screen.new-user-onboarding .clear-completed,
+.pond-screen.new-user-onboarding .upgrade-callout,
+.pond-screen.new-user-onboarding .overdue-nudge,
+.pond-screen.new-user-onboarding section[id$="-panel"]:not(#getting-started-panel),
+.pond-screen.new-user-onboarding .shortcut-help,
+.pond-screen.new-user-onboarding .pond-tour {
+  display: none !important;
+}
+
+.pond-screen.new-user-onboarding {
+  display: grid;
+  gap: 1rem;
+}
+
+.pond-screen.new-user-onboarding .getting-started-panel,
+.pond-screen.new-user-onboarding .empty-state.visible {
+  margin: 0;
+}
+
 .getting-started-panel {
   margin-bottom: 1rem;
   padding: 1rem;

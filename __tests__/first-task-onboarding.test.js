@@ -2,6 +2,7 @@ const {
   FIRST_TASK_TEMPLATES,
   shouldCelebrateFirstCompletion,
   shouldShowFirstTaskOnboarding,
+  shouldUseNewUserOnboardingMode,
   templateForId,
 } = require('../first-task-onboarding');
 
@@ -55,6 +56,56 @@ describe('first task onboarding', () => {
       hasActiveSearchFilter: false,
       liveCount: 1,
       visibleCount: 1,
+    })).toBe(false);
+  });
+
+  test('uses simplified onboarding mode only for signed-in empty ponds', () => {
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: true,
+      dismissed: false,
+      filter: 'all',
+      hasActiveSearchFilter: false,
+      liveCount: 0,
+    })).toBe(true);
+
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: false,
+      dismissed: false,
+      filter: 'all',
+      hasActiveSearchFilter: false,
+      liveCount: 0,
+    })).toBe(false);
+
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: true,
+      dismissed: true,
+      filter: 'all',
+      hasActiveSearchFilter: false,
+      liveCount: 0,
+    })).toBe(false);
+
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: true,
+      dismissed: false,
+      filter: 'completed',
+      hasActiveSearchFilter: false,
+      liveCount: 0,
+    })).toBe(false);
+
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: true,
+      dismissed: false,
+      filter: 'all',
+      hasActiveSearchFilter: true,
+      liveCount: 0,
+    })).toBe(false);
+
+    expect(shouldUseNewUserOnboardingMode({
+      signedIn: true,
+      dismissed: false,
+      filter: 'all',
+      hasActiveSearchFilter: false,
+      liveCount: 1,
     })).toBe(false);
   });
 

@@ -582,7 +582,7 @@ function checklistProgress(todo) {
   const checklist = normaliseChecklist(todo.checklist);
   if (checklist.length === 0) return '';
   const completed = checklist.filter((item) => item.completed).length;
-  return `${completed}/${checklist.length} checklist`;
+  return `${completed}/${checklist.length} scales`;
 }
 
 function githubLinkInfo(url) {
@@ -2122,26 +2122,26 @@ function buildStandupDraft() {
   const focused = active.find((t) => t.id === focusedTodoId);
   if (focused) {
     lines.push('*Working on now:*');
-    lines.push(`• ${focused.text}${focused.blocked ? ` 🔴 Blocked${focused.blockerReason ? ': ' + focused.blockerReason : ''}` : ''}`);
+    lines.push(`• ${focused.text}${focused.blocked ? ` 🔴 Snagged${focused.blockerReason ? ': ' + focused.blockerReason : ''}` : ''}`);
     lines.push('');
   }
   const dueOrOverdue = sortTodos(active.filter((t) => t.dueDate && t.dueDate <= today));
   if (dueOrOverdue.length > 0) {
     lines.push('*Due or overdue:*');
     dueOrOverdue.forEach((t) => {
-      lines.push(`• ${t.text}${t.blocked ? ` 🔴 Blocked${t.blockerReason ? ': ' + t.blockerReason : ''}` : ''}`);
+      lines.push(`• ${t.text}${t.blocked ? ` 🔴 Snagged${t.blockerReason ? ': ' + t.blockerReason : ''}` : ''}`);
     });
     lines.push('');
   }
   const blockers = active.filter((t) => t.blocked && t.id !== focusedTodoId && !(t.dueDate && t.dueDate <= today));
   if (blockers.length > 0) {
-    lines.push('*Blockers:*');
+    lines.push('*Snagged:*');
     blockers.forEach((t) => {
       lines.push(`• ${t.text}${t.blockerReason ? ` — ${t.blockerReason}` : ''}`);
     });
     lines.push('');
   }
-  if (lines.length === 0) return 'Stand-up draft: nothing due, overdue, or blocked today.';
+  if (lines.length === 0) return 'Stand-up draft: nothing due, overdue, or snagged today.';
   return lines.join('\n').trim();
 }
 
@@ -2681,10 +2681,10 @@ function createTodoEditForm(todo) {
   const recurrenceSelect = document.createElement('select');
   recurrenceSelect.name = 'recurrence';
   [
-    ['none', 'No repeat'],
-    ['daily', 'Repeat daily'],
-    ['weekly', 'Repeat weekly'],
-    ['monthly', 'Repeat monthly'],
+    ['none', 'No migration'],
+    ['daily', 'Migrate daily'],
+    ['weekly', 'Migrate weekly'],
+    ['monthly', 'Migrate monthly'],
   ].forEach(([value, label]) => {
     const option = document.createElement('option');
     option.value = value;
@@ -2708,8 +2708,8 @@ function createTodoEditForm(todo) {
     createEditField('Task', textInput),
     createEditField('Due date', dueInput),
     createEditField('GitHub URL', githubInput),
-    createEditField('Priority', prioritySelect),
-    createEditField('Repeat', recurrenceSelect),
+    createEditField('Tide level', prioritySelect),
+    createEditField('Migration', recurrenceSelect),
     actions,
   );
 
@@ -2776,7 +2776,7 @@ function createTodoDetailsPanel(todo) {
   checklistWrap.className = 'task-checklist';
   const checklistTitle = document.createElement('p');
   checklistTitle.className = 'task-details-heading';
-  checklistTitle.textContent = checklist.length > 0 ? checklistProgress(todo) : 'Checklist';
+  checklistTitle.textContent = checklist.length > 0 ? checklistProgress(todo) : 'Scales';
   const checklistList = document.createElement('ul');
   checklistList.className = 'task-checklist-items';
 
@@ -2809,7 +2809,7 @@ function createTodoDetailsPanel(todo) {
   const addInput = document.createElement('input');
   addInput.type = 'text';
   addInput.maxLength = MAX_CHECKLIST_TEXT_LENGTH;
-  addInput.placeholder = checklist.length >= MAX_CHECKLIST_ITEMS ? 'Checklist limit reached' : 'Add checklist item';
+  addInput.placeholder = checklist.length >= MAX_CHECKLIST_ITEMS ? 'Scales limit reached' : 'Add scale';
   addInput.disabled = checklist.length >= MAX_CHECKLIST_ITEMS;
   const addButton = document.createElement('button');
   addButton.type = 'button';
@@ -2837,7 +2837,7 @@ function createTodoDetailsPanel(todo) {
   close.textContent = 'Close';
   actions.append(save, close);
 
-  panel.append(createEditField('Notes', notes), checklistWrap, actions);
+  panel.append(createEditField('Depth', notes), checklistWrap, actions);
   panel.addEventListener('submit', (event) => {
     event.preventDefault();
     updateTodoDetails(todo.id, { notes: notes.value }, 'Saved task notes.');
@@ -3000,9 +3000,9 @@ function createTodoItem(todo) {
   detailsButton.hidden = isArchived;
   detailsButton.disabled = todo.id === editingTodoId;
   detailsButton.setAttribute('aria-expanded', String(detailsTodoId === todo.id));
-  detailsButton.setAttribute('aria-label', `Edit notes and checklist for ${todo.text}`);
+  detailsButton.setAttribute('aria-label', `Edit depth and scales for ${todo.text}`);
   archiveButton.hidden = isArchived || !todo.completed;
-  archiveButton.setAttribute('aria-label', `Archive ${todo.text}`);
+  archiveButton.setAttribute('aria-label', `Send to reef: ${todo.text}`);
   restoreButton.hidden = !isArchived;
   restoreButton.setAttribute('aria-label', `Restore ${todo.text}`);
   deleteButton.setAttribute('aria-label', isArchived ? `Permanently release ${todo.text}` : `Delete ${todo.text}`);
@@ -3010,7 +3010,7 @@ function createTodoItem(todo) {
   blockButton.textContent = todo.blocked ? 'Unblock' : 'Block';
   blockerBadge.hidden = !todo.blocked;
   blockerBadge.textContent = todo.blocked
-    ? (todo.blockerReason ? `Blocked: ${todo.blockerReason}` : 'Blocked')
+    ? (todo.blockerReason ? `Snagged: ${todo.blockerReason}` : 'Snagged')
     : '';
 
   if (statusSummary) {
@@ -3814,7 +3814,7 @@ function render() {
   renderEmptyStateActions(empty);
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
-  clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Archive completed';
+  clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Send all to reef';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
@@ -4147,10 +4147,10 @@ function createBlockForm(todo) {
   input.type = 'text';
   input.className = 'block-reason-input';
   input.maxLength = 160;
-  input.placeholder = 'Blocker reason (optional)…';
+  input.placeholder = 'Snag reason (optional)…';
   const saveBtn = document.createElement('button');
   saveBtn.type = 'submit';
-  saveBtn.textContent = 'Save block';
+  saveBtn.textContent = 'Save snag';
   const cancelBtn = document.createElement('button');
   cancelBtn.type = 'button';
   cancelBtn.textContent = 'Cancel';
@@ -4170,7 +4170,7 @@ function setTodoBlocked(id, blocked, reason) {
   blockingTodoId = '';
   saveTodos();
   render();
-  showPondMessage(blocked ? 'Task flagged as blocked.' : 'Blocker cleared.');
+  showPondMessage(blocked ? 'Task snagged.' : 'Snag cleared.');
 }
 
 function deleteTodo(id) {

@@ -9,7 +9,7 @@ describe('recurrence helpers', () => {
   });
 
   test('labels recurring tasks accessibly', () => {
-    expect(recurrenceLabel('weekly')).toBe('Repeats weekly');
+    expect(recurrenceLabel('weekly')).toBe('Migrates weekly');
     expect(recurrenceLabel('none')).toBe('');
   });
 

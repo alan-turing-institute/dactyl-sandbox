@@ -12,9 +12,9 @@
 
   function recurrenceLabel(value) {
     return {
-      daily: 'Repeats daily',
-      weekly: 'Repeats weekly',
-      monthly: 'Repeats monthly',
+      daily: 'Migrates daily',
+      weekly: 'Migrates weekly',
+      monthly: 'Migrates monthly',
     }[normaliseRecurrence(value)] || '';
   }
 

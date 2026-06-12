@@ -3805,8 +3805,16 @@ function setFilter(nextFilter) {
   applyContextDefaults();
 }
 
+function exitNewUserOnboardingForAction() {
+  if (!isNewUserOnboardingMode()) return false;
+  saveFirstTaskOnboardingDismissed(true);
+  return true;
+}
+
 function focusTaskInputFromTour() {
+  const exitedNewUserOnboarding = exitNewUserOnboardingForAction();
   setPondView('tasks', { announce: false });
+  if (exitedNewUserOnboarding) render();
   input.focus();
   showPondMessage('Add one small next action, then let it swim.');
 }
@@ -3820,6 +3828,7 @@ function switchToTideModeFromTour() {
 }
 
 function openPondTour(source = 'manual') {
+  exitNewUserOnboardingForAction();
   tourForcedVisible = true;
   trackProductEvent('tour_opened', { source });
   render();

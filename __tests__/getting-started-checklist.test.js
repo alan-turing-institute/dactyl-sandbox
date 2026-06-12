@@ -21,4 +21,13 @@ describe('Getting started checklist actions', () => {
     expect(appJs).toContain("checklistTideMode.addEventListener('click', switchToTideModeFromTour);");
     expect(appJs).toContain("checklistPondTour.addEventListener('click', () => openPondTour('getting_started_checklist'));");
   });
+
+  test('new-user checklist actions leave the simplified shell before revealing hidden UI', () => {
+    expect(appJs).toContain('function exitNewUserOnboardingForAction()');
+    expect(appJs).toContain('if (!isNewUserOnboardingMode()) return false;');
+    expect(appJs).toContain('saveFirstTaskOnboardingDismissed(true);');
+    expect(appJs).toContain('const exitedNewUserOnboarding = exitNewUserOnboardingForAction();');
+    expect(appJs).toContain('if (exitedNewUserOnboarding) render();');
+    expect(appJs).toContain("function openPondTour(source = 'manual') {\n  exitNewUserOnboardingForAction();");
+  });
 });

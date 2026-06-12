@@ -58,11 +58,46 @@ describe('auth and task API', () => {
     });
   });
 
-  test('POST / redirects to GET / so native auth form submission never returns Cannot POST /', async () => {
+  test('native auth form submission signs in instead of returning to a dead button', async () => {
     app = makeApp();
 
-    await request(app).post('/').expect(303).expect('Location', '/');
-    await request(app).post('/index.html').expect(303).expect('Location', '/');
+    const signup = await request(app)
+      .post('/')
+      .type('form')
+      .send({ username: 'native-user', password: 'very-secret', 'auth-mode': 'signup' })
+      .expect(200)
+      .expect('Content-Security-Policy', /script-src 'nonce-/)
+      .expect(/Signing in/)
+      .expect(/localStorage\.setItem\('dactyl\.authToken'/);
+
+    const signupToken = signup.text.match(/localStorage\.setItem\('dactyl\.authToken', "([^"]+)"\)/)?.[1];
+    expect(signupToken).toBeTruthy();
+
+    await request(app)
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${signupToken}`)
+      .send({ text: 'Native login keeps working' })
+      .expect(201);
+
+    const login = await request(app)
+      .post('/index.html')
+      .type('form')
+      .send({ username: 'native-user', password: 'very-secret', 'auth-mode': 'login' })
+      .expect(200)
+      .expect(/Signing in/)
+      .expect(/native-user/);
+
+    const loginToken = login.text.match(/localStorage\.setItem\('dactyl\.authToken', "([^"]+)"\)/)?.[1];
+    expect(loginToken).toBeTruthy();
+
+    await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${loginToken}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.username).toBe('native-user');
+        expect(body.todos).toHaveLength(1);
+      });
   });
 
   test('does not expose server source files', async () => {

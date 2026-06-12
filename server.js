@@ -314,6 +314,7 @@ function createApp(options = {}) {
     next();
   });
   app.use(express.json({ limit: '100kb' }));
+  app.use(express.urlencoded({ extended: false, limit: '20kb' }));
 
   const authRateLimiter = createFixedWindowRateLimiter({
     windowMs: options.authRateLimitWindowMs ?? AUTH_RATE_LIMIT_WINDOW_MS,
@@ -329,6 +330,95 @@ function createApp(options = {}) {
       tokenVersion: userTokenVersion(user),
       exp: Date.now() + TOKEN_TTL_MS,
     }, jwtSecret);
+  }
+
+  function createSignupSession(usernameValue, passwordValue) {
+    const username = String(usernameValue || '').trim().toLowerCase();
+    const password = String(passwordValue || '');
+    if (!USERNAME_PATTERN.test(username)) {
+      return { status: 400, body: authError('Username must be 3-32 letters, numbers, dots, underscores, or hyphens.', 'username', 'invalid_username') };
+    }
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return { status: 400, body: authError(passwordError, 'password', 'invalid_password_length') };
+
+    const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
+    try {
+      db.prepare('INSERT INTO users (id, username, password_hash, created_at, token_version) VALUES (?, ?, ?, ?, 0)')
+        .run(user.id, username, createPasswordHash(password), user.createdAt);
+    } catch (error) {
+      if (String(error.message).includes('UNIQUE')) {
+        return { status: 409, body: authError('Username already exists.', 'username', 'username_taken') };
+      }
+      throw error;
+    }
+    return { status: 201, body: { token: issueToken(user), user: toPublicUser(user), todos: [] } };
+  }
+
+  function createLoginSession(usernameValue, passwordValue) {
+    const username = String(usernameValue || '').trim().toLowerCase();
+    const password = String(passwordValue || '');
+    const passwordError = passwordLengthError(password);
+    if (passwordError) return { status: 400, body: authError(passwordError, 'password', 'invalid_password_length') };
+
+    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return { status: 401, body: { error: 'Invalid username or password.' } };
+    }
+    return { status: 200, body: { token: issueToken(user), user: toPublicUser(user), todos: listTodos(user.id) } };
+  }
+
+  function sendNativeAuthBridge(res, result) {
+    res.setHeader('Cache-Control', 'no-store');
+    if (result.status >= 400) {
+      res.status(result.status);
+      return res.send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign-in failed · Dactyl TODO</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app auth-screen" aria-labelledby="auth-failed-title">
+      <section class="auth-panel">
+        <p class="eyebrow">Dactyl TODO</p>
+        <h1 id="auth-failed-title">Sign-in failed</h1>
+        <p class="auth-status">${escapeHtml(result.body.error || 'Authentication failed.')}</p>
+        <p><a href="/">Return to the sign-in form</a></p>
+      </section>
+    </main>
+  </body>
+</html>`);
+    }
+
+    const nonce = crypto.randomBytes(16).toString('base64');
+    const tokenJson = JSON.stringify(result.body.token).replaceAll('<', '\\u003c');
+    const username = escapeHtml(result.body.user.username);
+    res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'nonce-${nonce}'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; connect-src 'self'`);
+    return res.status(200).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in · Dactyl TODO</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app auth-screen" aria-labelledby="auth-bridge-title">
+      <section class="auth-panel">
+        <p class="eyebrow">Dactyl TODO</p>
+        <h1 id="auth-bridge-title">Signing in…</h1>
+        <p class="auth-status">Loading ${username}’s TODO pond.</p>
+        <noscript><p class="auth-status">JavaScript is required to open the synced TODO pond after sign-in.</p></noscript>
+      </section>
+    </main>
+    <script nonce="${nonce}">
+      localStorage.setItem('dactyl.authToken', ${tokenJson});
+      window.location.replace('/');
+    </script>
+  </body>
+</html>`);
   }
 
   function requireAuth(req, res, next) {
@@ -504,36 +594,13 @@ function createApp(options = {}) {
   }
 
   app.post('/api/signup', authRateLimiter, (req, res) => {
-    const username = String(req.body?.username || '').trim().toLowerCase();
-    const password = String(req.body?.password || '');
-    if (!USERNAME_PATTERN.test(username)) {
-      return res.status(400).json(authError('Username must be 3-32 letters, numbers, dots, underscores, or hyphens.', 'username', 'invalid_username'));
-    }
-    const passwordError = passwordLengthError(password);
-    if (passwordError) return res.status(400).json(authError(passwordError, 'password', 'invalid_password_length'));
-
-    const user = { id: crypto.randomUUID(), username, createdAt: new Date().toISOString() };
-    try {
-      db.prepare('INSERT INTO users (id, username, password_hash, created_at, token_version) VALUES (?, ?, ?, ?, 0)')
-        .run(user.id, username, createPasswordHash(password), user.createdAt);
-    } catch (error) {
-      if (String(error.message).includes('UNIQUE')) return res.status(409).json(authError('Username already exists.', 'username', 'username_taken'));
-      throw error;
-    }
-    return res.status(201).json({ token: issueToken(user), user: toPublicUser(user), todos: [] });
+    const result = createSignupSession(req.body?.username, req.body?.password);
+    return res.status(result.status).json(result.body);
   });
 
   app.post('/api/login', authRateLimiter, (req, res) => {
-    const username = String(req.body?.username || '').trim().toLowerCase();
-    const password = String(req.body?.password || '');
-    const passwordError = passwordLengthError(password);
-    if (passwordError) return res.status(400).json(authError(passwordError, 'password', 'invalid_password_length'));
-
-    const user = db.prepare('SELECT id, username, password_hash, token_version FROM users WHERE username = ?').get(username);
-    if (!user || !verifyPassword(password, user.password_hash)) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
-    }
-    return res.json({ token: issueToken(user), user: toPublicUser(user), todos: listTodos(user.id) });
+    const result = createLoginSession(req.body?.username, req.body?.password);
+    return res.status(result.status).json(result.body);
   });
 
   app.get('/api/me', requireAuth, (req, res) => {
@@ -639,7 +706,13 @@ function createApp(options = {}) {
   });
 
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-  app.post(['/', '/index.html'], (req, res) => res.redirect(303, '/'));
+  app.post(['/', '/index.html'], authRateLimiter, (req, res) => {
+    const mode = req.body?.['auth-mode'] === 'signup' ? 'signup' : 'login';
+    const result = mode === 'signup'
+      ? createSignupSession(req.body?.username, req.body?.password)
+      : createLoginSession(req.body?.username, req.body?.password);
+    return sendNativeAuthBridge(res, result);
+  });
   app.get(['/docs', '/docs.html'], (req, res) => res.sendFile(path.join(__dirname, 'docs.html')));
   app.get('/styles.css', (req, res) => res.type('text/css').sendFile(path.join(__dirname, 'styles.css')));
   app.get('/analytics-config.js', (req, res) => {

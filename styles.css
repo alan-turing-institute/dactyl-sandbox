@@ -1607,22 +1607,6 @@ kbd {
   opacity: .55;
 }
 
-.overdue-nudge {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .6rem;
-  padding: .55rem .8rem;
-  margin-bottom: .75rem;
-  border-radius: .5rem;
-  background: rgb(255 160 0 / 12%);
-  border: 1px solid rgb(255 160 0 / 30%);
-  color: var(--fg);
-  font-size: .85rem;
-}
-
-.overdue-nudge-text { flex: 1; }
-
 .overdue-nudge-switch,
 .overdue-nudge-dismiss {
   border-radius: .25rem;
@@ -1632,7 +1616,7 @@ kbd {
   padding: .2rem .55rem;
   border: 1px solid rgb(255 160 0 / 40%);
   background: rgb(255 160 0 / 16%);
-  color: var(--fg);
+  color: var(--text);
   font-size: .8rem;
 }
 
@@ -1650,7 +1634,7 @@ kbd {
 }
 
 .overdue-nudge-dismiss:hover,
-.overdue-nudge-dismiss:focus-visible { color: var(--fg); }
+.overdue-nudge-dismiss:focus-visible { color: var(--text); }
 
 .mood-badge.mood-emergency,
 .todo-item[data-tide="washed"] .due-label { color: var(--danger); }

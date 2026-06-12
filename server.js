@@ -491,7 +491,7 @@ function createApp(options = {}) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(share.title)} · Dactyl shared pond</title>
+    <title>${escapeHtml(share.title)} · Pond Life shared pond</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -671,7 +671,7 @@ function createApp(options = {}) {
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
   createApp().listen(port, () => {
-    console.log(`Dactyl TODO listening on http://localhost:${port}`);
+    console.log(`Pond Life listening on http://localhost:${port}`);
   });
 }
 

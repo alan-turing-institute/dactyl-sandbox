@@ -44,7 +44,7 @@ case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in
   *) printf 'Unexpected /docs Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
-grep -q 'Dactyl TODO, translated' "$TMP_DIR/body"
+grep -q 'Pond Life, translated' "$TMP_DIR/body"
 
 fetch /favicon.svg
 case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in

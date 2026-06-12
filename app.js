@@ -1879,9 +1879,9 @@ function exportPondBackup() {
 }
 
 function backupTasksFromJson(value) {
-  if (!value || typeof value !== 'object') throw new Error('This file is not a Dactyl pond backup.');
+  if (!value || typeof value !== 'object') throw new Error('This file is not a Pond Life backup.');
   if (value.source && value.source !== 'dactyl-sandbox') throw new Error('This backup came from an unsupported source.');
-  if (Number(value.version || 1) > POND_EXPORT_VERSION) throw new Error('This backup was made by a newer Dactyl version.');
+  if (Number(value.version || 1) > POND_EXPORT_VERSION) throw new Error('This backup was made by a newer Pond Life version.');
   const tasks = Array.isArray(value.tasks) ? value.tasks : value.todos;
   if (!Array.isArray(tasks)) throw new Error('This backup does not contain a task list.');
   return tasks;
@@ -3708,7 +3708,7 @@ function checkDueNotifications() {
   );
 
   newlyDue.forEach((todo) => {
-    new notificationApi('Dactyl TODO', {
+    new notificationApi('Pond Life', {
       body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
       tag: `dactyl-due-${todo.id}`,
     });
@@ -3747,7 +3747,7 @@ function renderAuth() {
   authTitle.textContent = signedIn ? 'Account' : 'Sign in to sync tasks';
   authStatus.textContent = signedIn
     ? `Signed in as ${currentUser.username}. Your tasks sync to the backend.`
-    : 'Create an account or log in to load your TODO pond.';
+    : 'Create an account or log in to load your Pond Life tasks.';
   logoutButton.hidden = !signedIn;
   usernameInput.disabled = signedIn;
   passwordInput.disabled = signedIn;

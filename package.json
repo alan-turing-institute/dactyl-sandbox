@@ -2,7 +2,7 @@
   "name": "dactyl-sandbox",
   "version": "1.0.0",
   "private": true,
-  "description": "Dactyl TODO app with authenticated backend sync",
+  "description": "Pond Life TODO app with authenticated backend sync",
   "type": "commonjs",
   "engines": {
     "node": ">=24"

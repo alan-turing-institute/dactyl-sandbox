@@ -71,12 +71,17 @@ describe('auth and task API', () => {
     app = makeApp();
 
     await request(app).get('/server.js').expect(404);
-    await request(app).get('/').expect(200).expect('Content-Security-Policy', /default-src 'self'/);
+    await request(app)
+      .get('/')
+      .expect(200)
+      .expect('Content-Security-Policy', /default-src 'self'/)
+      .expect(/<title>Pond Life<\/title>/)
+      .expect(/Your task pond/);
     await request(app)
       .get('/docs')
       .expect(200)
       .expect('Content-Security-Policy', /default-src 'self'/)
-      .expect(/Dactyl TODO, translated/);
+      .expect(/Pond Life, translated/);
     await request(app)
       .get('/favicon.svg')
       .expect(200)

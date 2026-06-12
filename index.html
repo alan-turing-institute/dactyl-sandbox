@@ -306,7 +306,7 @@
           <div><dt>➕ Add task</dt><dd><span class="help-safety help-safety-change">Creates task</span> Adds a new TODO fish with optional due date, GitHub link, priority, and quick-add hints. Requires sign-in.</dd></div>
           <div><dt>✓ Complete</dt><dd><span class="help-safety help-safety-change">Changes task</span> Marks a fish fed/completed. This can be undone from the Archive before permanent release; recurring fish schedule the next occurrence.</dd></div>
           <div><dt>× Delete / Release</dt><dd><span class="help-safety help-safety-danger">Destructive</span> Removes a fish. Archive release can be permanent; bulk release shows an undo affordance where supported.</dd></div>
-          <div><dt>🌊 Filters</dt><dd><span class="help-safety help-safety-view">View only</span> Full pond, Swimming, Tide mode, Ghost net, Coming tide, and The reef only change which fish you see. Hidden fish are not modified.</dd></div>
+          <div><dt>🌊 Filters</dt><dd><span class="help-safety help-safety-view">View only</span> Full pond, Swimming, Tide mode, Needs Attention, Coming tide, and The reef only change which fish you see. Hidden fish are not modified.</dd></div>
           <div><dt>🐟 Stock the pond</dt><dd><span class="help-safety help-safety-change">Creates demos</span> Adds sample tasks so new users can explore the pond. Your existing fish stay untouched.</dd></div>
           <div><dt>🧹 Release demo fish</dt><dd><span class="help-safety help-safety-danger">Deletes demos</span> Removes only demo/sample fish. It never touches your own non-demo tasks.</dd></div>
           <div><dt>📋 Paste to pond</dt><dd><span class="help-safety help-safety-change">Creates tasks</span> Turns pasted bullets or checkbox notes into tasks. Preview first; importing creates real fish in your account.</dd></div>
@@ -343,7 +343,7 @@
           <div><dt><kbd>?</kbd></dt><dd>Open or close this help card.</dd></div>
           <div><dt><kbd>/</kbd></dt><dd>Focus the task input.</dd></div>
           <div><dt><kbd>T</kbd></dt><dd>Switch to Tide mode.</dd></div>
-          <div><dt><kbd>G</kbd></dt><dd>Switch to Ghost net review.</dd></div>
+          <div><dt><kbd>G</kbd></dt><dd>Switch to Needs Attention review.</dd></div>
           <div><dt><kbd>A</kbd></dt><dd>Switch back to All tasks.</dd></div>
           <div><dt><kbd>R</kbd></dt><dd>Copy the pond report.</dd></div>
           <div><dt><kbd>U</kbd></dt><dd>Open triage mode for keyboard-first task clearing.</dd></div>
@@ -636,7 +636,7 @@
           <button type="button" class="filter" data-filter="archive">The reef</button>
           <button type="button" class="filter" data-filter="week">Coming tide</button>
           <button type="button" class="filter" data-filter="tide" aria-keyshortcuts="T">Tide mode</button>
-          <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Ghost net</button>
+          <button type="button" class="filter" data-filter="ghost" aria-keyshortcuts="G">Needs Attention</button>
           <select id="shoal-filter-select" class="shoal-filter-select" aria-label="Filter by shoal">
             <option value="">All shoals</option>
           </select>

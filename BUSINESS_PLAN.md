@@ -30,7 +30,7 @@ Pain points:
 Dactyl hooks:
 
 - Daily Catch: three to five suggested tasks;
-- Ghost net: stale-task recovery without shame;
+- Needs Attention: stale-task recovery without shame;
 - focus fish: one active task at a time;
 - streaks based on re-engagement, not perfection.
 
@@ -166,7 +166,7 @@ Actions:
 
 - Pro Individual subscription at £4-5/month;
 - PWA/mobile polish;
-- pond customisation, recurring tasks, reminders, Daily Catch, and Ghost net;
+- pond customisation, recurring tasks, reminders, Daily Catch, and Needs Attention;
 - referral/share loops around pond snapshots or weekly wins.
 
 Success signals:
@@ -268,7 +268,7 @@ Moat:
 1. Problem: shame-pile productivity and lightweight team planning gap.
 2. Solution: gentle task pond with practical workflows.
 3. Market: consumer productivity, cozy software, research/students, small teams, events.
-4. Product: Daily Catch, Ghost net, focus fish, shared ponds, reports, integrations.
+4. Product: Daily Catch, Needs Attention, focus fish, shared ponds, reports, integrations.
 5. Business model: freemium, Pro, teams, institutions, events.
 6. Traction plan: activation/retention instrumentation and paid beta validation.
 7. Roadmap: individual retention first, team expansion second.

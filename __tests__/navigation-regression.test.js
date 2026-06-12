@@ -44,4 +44,12 @@ describe('top-level navigation regression coverage', () => {
     expect(readme).toContain('Navigation QA checklist');
     expect(docsHtml).toContain('Top-level views');
   });
+
+  test('stale-task review uses clear Needs Attention public copy', () => {
+    expect(indexHtml).toContain('data-filter="ghost" aria-keyshortcuts="G">Needs Attention</button>');
+    expect(indexHtml).toContain('Switch to Needs Attention review.');
+    expect(appJs).toContain("Switch to Needs Attention review");
+    expect(readme).toContain('Needs Attention stale-task review');
+    expect(docsHtml).toContain('<dt>Needs Attention</dt>');
+  });
 });

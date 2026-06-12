@@ -18,18 +18,18 @@ For product strategy, see the [Dactyl business plan](BUSINESS_PLAN.md): investor
 - Use quick priority chips to mark the next fish as low, medium, or high tide
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
-- Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
+- Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Needs Attention stale-task review
 - Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Save repeated planning filters as local smart views for quick reuse
 - Open fish-themed button help to decode key controls and pond-specific UI language
 - Swim through decorative pond polish: a fish cursor, hover fish pops, animated bubbles, and reef plants that respect reduced-motion settings
-- Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
+- Review Needs Attention tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`; expand `+ more options` only when you need due date, GitHub URL, recurrence, or priority fields
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Nudge due dates inline from each task chip with keyboard-reachable ±1 day / ±1 week controls, or set no-date tasks to tomorrow
-- See contextual empty-state guidance for filters, search, ghost net, Tide mode, and Daily Catch so an empty view explains what to do next
+- See contextual empty-state guidance for filters, search, Needs Attention review, Tide mode, and Daily Catch so an empty view explains what to do next
 - Keep private per-task notes and capped checklists in the app; details only leave the pond when you copy/export them yourself
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app
 - Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
@@ -91,7 +91,7 @@ Open the in-app **Pond shortcuts** card with the visible button or press `?`. Sh
 - `?` opens or closes the shortcuts card
 - `/` focuses the task input
 - `T` switches to Tide mode
-- `G` switches to Ghost net review
+- `G` switches to Needs Attention review
 - `A` switches to All tasks
 - `R` copies the pond report
 - `Esc` closes the shortcuts card and leaves net mode

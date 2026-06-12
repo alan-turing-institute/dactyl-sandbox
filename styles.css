@@ -761,7 +761,8 @@ h1 {
 .daily-catch-header,
 .triage-header,
 .paste-panel-header,
-.restore-panel-header {
+.restore-panel-header,
+.github-import-header {
   display: flex;
   align-items: start;
   justify-content: space-between;
@@ -773,7 +774,8 @@ h1 {
 .daily-catch-panel h2,
 .triage-panel h2,
 .paste-panel h2,
-.restore-panel h2 {
+.restore-panel h2,
+.github-import-panel h2 {
   margin: 0;
   font-size: 1.25rem;
 }
@@ -786,7 +788,8 @@ h1 {
 .paste-panel label,
 .paste-preview,
 .restore-panel label,
-.restore-preview {
+.restore-preview,
+.github-import-note {
   color: var(--muted);
   font-size: .92rem;
   font-weight: 700;
@@ -1003,6 +1006,83 @@ kbd {
 .paste-actions button:first-child:hover:not(:disabled),
 .restore-actions button:first-child:hover:not(:disabled) {
   background: var(--accent-strong);
+}
+
+.github-import-panel {
+  border-color: rgb(141 212 255 / 30%);
+  background: linear-gradient(135deg, rgb(141 212 255 / 10%), rgb(122 184 245 / 8%));
+}
+
+.github-import-input {
+  width: 100%;
+  min-height: 7rem;
+  padding: .9rem 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+  resize: vertical;
+}
+
+.github-import-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(122 184 245 / 14%);
+}
+
+.github-import-preview {
+  font-size: .92rem;
+}
+
+.github-import-preview-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: .4rem;
+}
+
+.github-import-preview-item label {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  cursor: pointer;
+}
+
+.github-import-preview-item--duplicate label {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.github-import-duplicate-badge {
+  font-size: .8em;
+  color: var(--muted);
+}
+
+.github-import-actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.github-import-actions button:first-child {
+  padding: .75rem 1rem;
+  color: #07111a;
+  background: var(--accent);
+}
+
+.github-import-actions button:first-child:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.github-import-rate-limit-warning {
+  margin: 0 0 .6rem;
+  padding: .45rem .7rem;
+  border-radius: .4rem;
+  background: rgb(255 160 0 / 12%);
+  border: 1px solid rgb(255 160 0 / 28%);
+  color: var(--warning);
+  font-size: .82rem;
 }
 
 .pond-tour {

@@ -663,6 +663,7 @@ function createApp(options = {}) {
   app.get('/quick-add-parser.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'quick-add-parser.js')));
   app.get('/triage-mode.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'triage-mode.js')));
   app.get('/github-import.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'github-import.js')));
+  app.get('/pond-os.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'pond-os.js')));
   app.get('/app.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'app.js')));
 
   app.close = () => db.close();

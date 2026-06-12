@@ -1,5 +1,5 @@
 <!-- AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. -->
-<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero; (3) `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy. -->
+<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero; (3) `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy; (4) issue #230 Pond OS easter egg. -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -698,6 +698,38 @@
         <button id="complete-focus" type="button">Mark fed</button>
       </section>
 
+    <div id="pond-os-overlay" class="pond-os-overlay" role="dialog" aria-modal="true" aria-labelledby="pond-os-title" aria-describedby="pond-os-description" hidden>
+      <section class="pond-os-desktop" aria-label="Pond OS retro desktop">
+        <header class="pond-os-taskbar">
+          <div>
+            <p class="pond-os-kernel">Pond OS 0.1 — Task pond kernel online</p>
+            <h2 id="pond-os-title">Pond OS</h2>
+          </div>
+          <button id="pond-os-close" class="pond-os-return" type="button">Return to Pond Life</button>
+        </header>
+        <p id="pond-os-description" class="sr-only">A retro Pond Life desktop easter egg with local read-only apps.</p>
+        <div class="pond-os-body">
+          <nav class="pond-os-icons" aria-label="Pond OS apps">
+            <button class="pond-os-icon" type="button" data-pond-os-app="fishterm" aria-pressed="false">
+              <span aria-hidden="true">&gt;_</span>
+              FishTerm
+            </button>
+            <button class="pond-os-icon" type="button" data-pond-os-app="pondpad" aria-pressed="true">
+              <span aria-hidden="true">📝</span>
+              PondPad
+            </button>
+          </nav>
+          <section class="pond-os-window" aria-live="polite" aria-labelledby="pond-os-window-title">
+            <div class="pond-os-window-titlebar">
+              <h3 id="pond-os-window-title">PondPad</h3>
+              <span aria-hidden="true">□ ×</span>
+            </div>
+            <div id="pond-os-window-content" class="pond-os-window-content"></div>
+          </section>
+        </div>
+      </section>
+    </div>
+
     <div id="command-palette" class="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" hidden>
       <div class="command-palette-inner">
         <h2 id="command-palette-title" class="sr-only">Helm</h2>
@@ -754,6 +786,7 @@
     <script src="quick-add-parser.js"></script>
     <script src="triage-mode.js"></script>
     <script src="github-import.js"></script>
+    <script src="pond-os.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

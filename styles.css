@@ -2884,6 +2884,160 @@ kbd {
   cursor: default;
 }
 
+.pond-os-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(1, 13, 20, .88);
+}
+
+.pond-os-overlay[hidden] { display: none; }
+
+.pond-os-desktop {
+  width: min(100%, 640px);
+  min-height: min(480px, calc(100vh - 2rem));
+  display: grid;
+  grid-template-rows: auto 1fr;
+  color: #f7f7f7;
+  background:
+    linear-gradient(135deg, rgba(0, 84, 88, .95), rgba(0, 22, 70, .95)),
+    #005458;
+  border: 4px solid #f7f7f7;
+  box-shadow: 0 0 0 4px #000, 0 18px 48px rgba(0, 0, 0, .45);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+}
+
+.pond-os-taskbar,
+.pond-os-window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  background: #0000aa;
+  color: #fff;
+  border-bottom: 3px solid #fff;
+  padding: .45rem .6rem;
+}
+
+.pond-os-taskbar h2,
+.pond-os-window-titlebar h3,
+.pond-os-kernel {
+  margin: 0;
+}
+
+.pond-os-kernel {
+  font-size: .72rem;
+  color: #ffff55;
+}
+
+.pond-os-return,
+.pond-os-icon,
+.pond-os-terminal-form button {
+  border: 3px solid #000;
+  background: #55ff55;
+  color: #000;
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+}
+
+.pond-os-return { padding: .35rem .55rem; }
+
+.pond-os-body {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: .75rem;
+  padding: .75rem;
+}
+
+.pond-os-icons {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.pond-os-icon {
+  min-height: 5rem;
+  display: grid;
+  place-items: center;
+  padding: .5rem;
+  background: #00aaaa;
+}
+
+.pond-os-icon[aria-pressed="true"] {
+  background: #ffff55;
+}
+
+.pond-os-icon span {
+  display: block;
+  font-size: 1.55rem;
+}
+
+.pond-os-window {
+  min-height: 18rem;
+  background: #c0c0c0;
+  color: #000;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.pond-os-window-titlebar {
+  border-bottom-color: #000;
+}
+
+.pond-os-window-content {
+  padding: .8rem;
+  line-height: 1.45;
+}
+
+.pond-os-window-content p,
+.pond-os-window-content ul {
+  margin-top: 0;
+}
+
+.pond-os-terminal-output {
+  min-height: 11rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  margin: 0 0 .75rem;
+  padding: .6rem;
+  color: #55ff55;
+  background: #000;
+  border: 2px solid #555;
+  white-space: pre-wrap;
+}
+
+.pond-os-terminal-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .5rem;
+}
+
+.pond-os-terminal-form input {
+  min-width: 0;
+  border: 3px solid #000;
+  padding: .45rem;
+  font: inherit;
+  color: #55ff55;
+  background: #000;
+}
+
+.pond-os-terminal-form button { padding: .35rem .7rem; }
+
+.pond-os-system-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .25rem .75rem;
+}
+
+.pond-os-system-list dt { font-weight: 700; }
+
+.pond-os-system-list dd { margin: 0; }
+
 @media (max-width: 44rem) {
   body { padding: 1rem; }
   .auth-panel,
@@ -2905,4 +3059,7 @@ kbd {
   .daily-catch-actions { justify-content: flex-end; }
   .ghost-item { flex-direction: column; }
   .ghost-actions { justify-content: flex-end; }
+  .pond-os-body { grid-template-columns: 1fr; }
+  .pond-os-icons { flex-direction: row; flex-wrap: wrap; }
+  .pond-os-icon { min-height: 4rem; flex: 1 1 8rem; }
 }

@@ -343,12 +343,16 @@
               <span>Increase text and border contrast throughout.</span>
             </span>
           </label>
-          <label class="pref-option">
-            <input id="pref-compact" type="checkbox" />
+          <label class="pref-option pref-option-row">
             <span>
-              <strong>Compact layout</strong>
-              <span>Reduce spacing between tasks and panels.</span>
+              <strong>Row density</strong>
+              <span>Control how much detail is shown on each task row.</span>
             </span>
+            <select id="pref-density" aria-label="Row density">
+              <option value="condensed">Condensed — text and key status only</option>
+              <option value="comfortable" selected>Comfortable — text, dates, and priority</option>
+              <option value="detailed">Detailed — all metadata always visible</option>
+            </select>
           </label>
           <label class="pref-option">
             <input id="pref-text-badges" type="checkbox" />

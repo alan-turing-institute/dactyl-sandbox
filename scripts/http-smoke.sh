@@ -46,6 +46,14 @@ esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 grep -q 'Dactyl TODO, translated' "$TMP_DIR/body"
 
+fetch /favicon.svg
+case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in
+  image/svg+xml*) ;;
+  *) printf 'Unexpected /favicon.svg Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+grep -q '<svg' "$TMP_DIR/body"
+
 fetch /app.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;

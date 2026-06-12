@@ -1,5 +1,6 @@
 // AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
 // `claude -p "Investigate likely cause... Do not modify files"` for issue #198; test verifies all auth page scripts are served.
+// `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to update visible brand expectations.
 const request = require('supertest');
 const { createApp } = require('../server');
 
@@ -76,7 +77,7 @@ describe('auth and task API', () => {
       .get('/docs')
       .expect(200)
       .expect('Content-Security-Policy', /default-src 'self'/)
-      .expect(/Dactyl TODO, translated/);
+      .expect(/Pond Life, translated/);
     await request(app)
       .get('/favicon.svg')
       .expect(200)
@@ -336,6 +337,7 @@ describe('auth and task API', () => {
       .expect(200)
       .expect('Content-Type', /html/)
       .expect(/Read-only shared pond/)
+      .expect(/Pond Life shared pond/)
       .expect(/Shared planning task/);
   });
 

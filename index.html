@@ -1,11 +1,11 @@
 <!-- AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. -->
-<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero. -->
+<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero; (3) `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy. -->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dactyl TODO</title>
+    <title>Pond Life</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -18,8 +18,8 @@
           <span class="fish fish-2">🐠</span>
           <span class="fish fish-3">🐬</span>
         </div>
-        <p class="eyebrow">Dactyl Sandbox</p>
-        <h1 id="app-title">TODO List</h1>
+        <p class="eyebrow">Task pond</p>
+        <h1 id="app-title">Pond Life</h1>
         <p class="campaign-tagline">Your TODO list has teeth.</p>
         <p class="subtitle">Give it a pond — a lightweight TODO app with sign-in, sync, and gentler ways to sort the catch.</p>
       </section>
@@ -28,7 +28,7 @@
         <div>
           <p class="eyebrow">Account</p>
           <h2 id="auth-title">Sign in to sync tasks</h2>
-          <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your TODO pond.</p>
+          <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your Pond Life.</p>
           <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
         </div>
         <form id="auth-form" class="auth-form" method="post" autocomplete="on">
@@ -62,7 +62,7 @@
       </section>
 
       <section id="pond-screen" class="screen pond-screen" aria-labelledby="pond-title" tabindex="-1" hidden>
-        <h2 id="pond-title" class="sr-only">Your TODO pond</h2>
+        <h2 id="pond-title" class="sr-only">Your Pond Life</h2>
         <div class="pond-wave" aria-hidden="true"></div>
         <div class="reef-scenery" aria-hidden="true">
           <span class="reef-bubble reef-bubble-one"></span>

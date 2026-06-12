@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
+# `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to update visible brand smoke checks.
 set -eu
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
@@ -44,7 +46,7 @@ case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in
   *) printf 'Unexpected /docs Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
-grep -q 'Dactyl TODO, translated' "$TMP_DIR/body"
+grep -q 'Pond Life, translated' "$TMP_DIR/body"
 
 fetch /favicon.svg
 case "$(header_value "Content-Type" | tr '[:upper:]' '[:lower:]')" in

@@ -35,10 +35,10 @@ describe('top-level navigation regression coverage', () => {
   });
 
   test('README and docs describe the view map for future UI additions', () => {
-    ['Home / Today', 'Tasks', 'Tools', 'Settings & Help'].forEach((label) => {
+    ['Home / Today', 'View Fish', 'Tools', 'Settings & Help'].forEach((label) => {
       expect(readme).toContain(label);
     });
-    ['Home / Today', 'Tasks', 'Tools', 'Settings &amp; Help'].forEach((label) => {
+    ['Home / Today', 'View Fish', 'Tools', 'Settings &amp; Help'].forEach((label) => {
       expect(docsHtml).toContain(label);
     });
     expect(readme).toContain('Navigation QA checklist');

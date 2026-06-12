@@ -472,7 +472,7 @@ function syncScreen(options = {}) {
 function pondViewLabel(viewKey) {
   return {
     home: 'Home / Today',
-    tasks: 'Tasks',
+    tasks: 'View Fish',
     tools: 'Tools',
     settings: 'Settings & Help',
   }[viewKey] || 'Home / Today';
@@ -490,11 +490,23 @@ function updateHomeViewSummary() {
   if (!homeViewSummaryText) return;
   const activeCount = liveTodos().filter((todo) => !todo.completed).length;
   const highCount = liveTodos().filter((todo) => !todo.completed && todo.priority === 'high').length;
-  const catchCount = dailyCatch.pinnedIds.length;
+  const catchCount = dailyCatch.ids.length;
   const summaryParts = [pluralise(activeCount, 'active fish', 'active fish')];
   if (highCount > 0) summaryParts.push(pluralise(highCount, 'high-tide task'));
   if (catchCount > 0) summaryParts.push(pluralise(catchCount, 'Daily Catch pin'));
-  homeViewSummaryText.textContent = `${summaryParts.join(', ')}. Open Tasks when you are ready to add, search, or review the full pond.`;
+  homeViewSummaryText.textContent = `${summaryParts.join(', ')}. Switch to View Fish when you are ready to add, search, or review the full pond.`;
+}
+
+function syncHomeTodayTabs(activeView) {
+  const homeActive = activeView === 'home';
+  dailyCatchPanel.hidden = !homeActive;
+  dailyCatchToggle.classList.toggle('active', homeActive);
+  dailyCatchToggle.setAttribute('aria-expanded', String(homeActive));
+  dailyCatchToggle.setAttribute('aria-selected', String(homeActive));
+  pondViewTargets
+    .filter((button) => button.dataset.pondViewTarget === 'tasks' && button.getAttribute('role') === 'tab')
+    .forEach((button) => button.setAttribute('aria-selected', String(!homeActive)));
+  if (homeActive) renderDailyCatch();
 }
 
 function applyPondView(options = {}) {
@@ -520,6 +532,7 @@ function applyPondView(options = {}) {
   });
 
   document.body.dataset.pondView = activeView;
+  syncHomeTodayTabs(activeView);
   updateHomeViewSummary();
   if (pondViewStatus && options.announce !== false) pondViewStatus.textContent = `${pondViewLabel(activeView)} view selected.`;
 }
@@ -2446,6 +2459,12 @@ function dailyCatchTodos() {
 }
 
 function setDailyCatchOpen(open) {
+  if (!open) {
+    setPondView('tasks');
+    return;
+  }
+  currentPondView = 'home';
+  applyPondView();
   dailyCatchPanel.hidden = !open;
   dailyCatchToggle.setAttribute('aria-expanded', String(open));
   if (open) {
@@ -2517,9 +2536,9 @@ function renderDailyCatch() {
     const action = document.createElement('button');
     action.type = 'button';
     action.className = 'secondary-action';
-    action.textContent = emptyState.cta.label;
+    action.textContent = 'View all fish';
     action.addEventListener('click', () => {
-      setDailyCatchOpen(false);
+      setPondView('tasks');
       runEmptyStateAction(emptyState.cta.action);
     });
     empty.append(copy, action);

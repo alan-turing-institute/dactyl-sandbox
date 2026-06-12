@@ -20,6 +20,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Save repeated planning filters as local smart views for quick reuse
 - Open fish-themed button help to decode key controls and pond-specific UI language
+- Swim through decorative pond polish: a fish cursor, hover fish pops, animated bubbles, and reef plants that respect reduced-motion settings
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
 - Show deterministic fishy mood badges with accessible text
 - Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable

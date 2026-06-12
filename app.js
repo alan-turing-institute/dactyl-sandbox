@@ -262,7 +262,7 @@ const prefsPanel = document.querySelector('#prefs-panel');
 const prefsClose = document.querySelector('#prefs-close');
 const prefReducedMotion = document.querySelector('#pref-reduced-motion');
 const prefHighContrast = document.querySelector('#pref-high-contrast');
-const prefCompact = document.querySelector('#pref-compact');
+const prefDensity = document.querySelector('#pref-density');
 const prefTextBadges = document.querySelector('#pref-text-badges');
 const moreActionsToggle = document.querySelector('#more-actions-toggle');
 const moreActionsPanel = document.querySelector('#more-actions-panel');
@@ -278,6 +278,15 @@ const commandPaletteEl = document.querySelector('#command-palette');
 const commandSearch = document.querySelector('#command-search');
 const commandList = document.querySelector('#command-list');
 const commandPaletteToggle = document.querySelector('#command-palette-toggle');
+const githubImportToggle = document.querySelector('#github-import-toggle');
+const githubImportPanel = document.querySelector('#github-import-panel');
+const githubImportClose = document.querySelector('#github-import-close');
+const githubImportInput = document.querySelector('#github-import-input');
+const githubImportParse = document.querySelector('#github-import-parse');
+const githubImportPreview = document.querySelector('#github-import-preview');
+const githubImportActions = document.querySelector('#github-import-actions');
+const githubImportConfirm = document.querySelector('#github-import-confirm');
+const githubImportSelectAll = document.querySelector('#github-import-select-all');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -830,7 +839,7 @@ function loadViewPrefs() {
   const defaults = {
     reducedMotion: systemReducedMotion,
     highContrast: false,
-    compact: false,
+    density: 'comfortable',
     textBadges: false,
     addFormAdvanced: false,
     [GETTING_STARTED_PREF_KEY]: null,
@@ -843,7 +852,7 @@ function loadViewPrefs() {
     return {
       reducedMotion: typeof saved.reducedMotion === 'boolean' ? saved.reducedMotion : defaults.reducedMotion,
       highContrast: typeof saved.highContrast === 'boolean' ? saved.highContrast : false,
-      compact: typeof saved.compact === 'boolean' ? saved.compact : false,
+      density: (() => { const VALID_DENSITY = ['condensed', 'comfortable', 'detailed']; return VALID_DENSITY.includes(saved.density) ? saved.density : (saved.compact ? 'condensed' : 'comfortable'); })(),
       textBadges: typeof saved.textBadges === 'boolean' ? saved.textBadges : false,
       addFormAdvanced: typeof saved.addFormAdvanced === 'boolean' ? saved.addFormAdvanced : false,
       [GETTING_STARTED_PREF_KEY]: typeof saved[GETTING_STARTED_PREF_KEY] === 'boolean'
@@ -902,7 +911,7 @@ function applyViewPrefs() {
   const root = document.documentElement;
   root.dataset.motion = viewPrefs.reducedMotion ? 'reduced' : 'full';
   root.dataset.contrast = viewPrefs.highContrast ? 'high' : 'default';
-  root.dataset.density = viewPrefs.compact ? 'compact' : 'default';
+  root.dataset.density = viewPrefs.density || 'comfortable';
   root.dataset.badges = viewPrefs.textBadges ? 'text-first' : 'default';
   renderAddFormMode();
 }
@@ -980,7 +989,7 @@ function setPrefsOpen(open) {
   if (open) {
     prefReducedMotion.checked = viewPrefs.reducedMotion;
     prefHighContrast.checked = viewPrefs.highContrast;
-    prefCompact.checked = viewPrefs.compact;
+    if (prefDensity) prefDensity.value = viewPrefs.density || 'comfortable';
     prefTextBadges.checked = viewPrefs.textBadges;
     prefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -1016,6 +1025,79 @@ function setActivityLogOpen(open) {
   } else {
     activityLogToggle.focus();
   }
+}
+
+function setGithubImportOpen(open) {
+  githubImportPanel.hidden = !open;
+  githubImportToggle.setAttribute('aria-expanded', String(open));
+  if (open) {
+    githubImportPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    githubImportClose.focus({ preventScroll: true });
+  } else {
+    githubImportToggle.focus({ preventScroll: true });
+  }
+}
+
+function renderGithubImportPreview(items, rateLimitHit) {
+  if (!items || items.length === 0) {
+    githubImportPreview.hidden = false;
+    githubImportPreview.textContent = 'No valid GitHub issue or PR URLs found.';
+    githubImportActions.hidden = true;
+    return;
+  }
+  const container = document.createDocumentFragment();
+  if (rateLimitHit) {
+    const warning = document.createElement('p');
+    warning.className = 'github-import-rate-limit-warning';
+    warning.textContent = 'GitHub rate limit reached — some titles are shown as fallback labels. Try again in a few minutes.';
+    container.append(warning);
+  }
+  const list = document.createElement('ul');
+  list.className = 'github-import-preview-list';
+  items.forEach((item) => {
+    const li = document.createElement('li');
+    li.className = `github-import-preview-item${item.duplicate ? ' github-import-preview-item--duplicate' : ''}`;
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = item.url;
+    checkbox.dataset.title = item.title;
+    if (!item.duplicate) {
+      checkbox.checked = true;
+    } else {
+      checkbox.disabled = true;
+    }
+    const span = document.createElement('span');
+    span.textContent = item.title;
+    if (item.duplicate) {
+      const badge = document.createElement('span');
+      badge.className = 'github-import-duplicate-badge';
+      badge.textContent = ' (already in pond)';
+      span.append(badge);
+    }
+    label.append(checkbox, span);
+    li.append(label);
+    list.append(li);
+  });
+  container.append(list);
+  githubImportPreview.hidden = false;
+  githubImportPreview.replaceChildren(container);
+  githubImportActions.hidden = false;
+}
+
+function confirmGithubImport() {
+  const checkboxes = [...githubImportPreview.querySelectorAll('input[type="checkbox"]:checked')];
+  checkboxes.forEach((checkbox) => {
+    const url = checkbox.value;
+    const title = checkbox.dataset.title || url;
+    addTodo(title, { githubUrl: url, priority: 'medium', source: 'github_import' });
+  });
+  setGithubImportOpen(false);
+  githubImportInput.value = '';
+  githubImportPreview.hidden = true;
+  githubImportPreview.replaceChildren();
+  githubImportActions.hidden = true;
+  if (checkboxes.length > 0) showPondMessage(`Imported ${checkboxes.length} task${checkboxes.length === 1 ? '' : 's'} from GitHub.`);
 }
 
 function renderActivityLog() {
@@ -4671,7 +4753,9 @@ function handleGlobalShortcut(event) {
     if (closedActivityLog) setActivityLogOpen(false);
     const closedMoreActions = !moreActionsPanel.hidden;
     if (closedMoreActions) setMoreActionsOpen(false);
-    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog || closedMoreActions) event.preventDefault();
+    const closedGithubImport = !githubImportPanel.hidden;
+    if (closedGithubImport) setGithubImportOpen(false);
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog || closedMoreActions || closedGithubImport) event.preventDefault();
   }
 }
 
@@ -4934,8 +5018,8 @@ prefHighContrast.addEventListener('change', () => {
   saveViewPrefs();
   applyViewPrefs();
 });
-prefCompact.addEventListener('change', () => {
-  viewPrefs = { ...viewPrefs, compact: prefCompact.checked };
+prefDensity?.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, density: prefDensity.value };
   saveViewPrefs();
   applyViewPrefs();
 });
@@ -4960,6 +5044,22 @@ undoToast.addEventListener('focusin', () => {
 undoToast.addEventListener('focusout', () => {
   undoToastFocused = false;
   scheduleUndoToastDismiss();
+});
+
+githubImportToggle.addEventListener('click', () => setGithubImportOpen(githubImportPanel.hidden));
+githubImportClose.addEventListener('click', () => setGithubImportOpen(false));
+githubImportParse.addEventListener('click', async () => {
+  const urls = window.GithubImport.parseImportUrls(githubImportInput.value);
+  const existingUrls = todos.map((t) => t.githubUrl).filter(Boolean);
+  githubImportPreview.hidden = false;
+  githubImportPreview.textContent = 'Fetching titles…';
+  githubImportActions.hidden = true;
+  const { items, rateLimitHit } = await window.GithubImport.buildPreviewItems(urls, existingUrls);
+  renderGithubImportPreview(items, rateLimitHit);
+});
+githubImportConfirm.addEventListener('click', confirmGithubImport);
+githubImportSelectAll.addEventListener('click', () => {
+  [...githubImportPreview.querySelectorAll('input[type="checkbox"]:not(:disabled)')].forEach((cb) => { cb.checked = true; });
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);

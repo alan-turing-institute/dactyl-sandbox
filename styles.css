@@ -451,7 +451,8 @@ h1 {
 .shoal-control[hidden],
 .shoal-chip[hidden],
 .secondary-action[hidden],
-.blocker-badge[hidden] { display: none; }
+.blocker-badge[hidden],
+.overdue-nudge[hidden] { display: none; }
 
 .pond-actions {
   display: flex;
@@ -547,6 +548,24 @@ h1 {
   color: var(--muted);
   font-size: .92rem;
   font-weight: 700;
+}
+
+.overdue-nudge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  margin-bottom: .75rem;
+  padding: .65rem 1rem;
+  border: 1px solid rgb(122 184 245 / 28%);
+  border-radius: 999px;
+  background: rgb(122 184 245 / 8%);
+  font-size: .9rem;
+}
+
+.overdue-nudge-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .secondary-action,
@@ -761,7 +780,8 @@ h1 {
 .daily-catch-header,
 .triage-header,
 .paste-panel-header,
-.restore-panel-header {
+.restore-panel-header,
+.github-import-header {
   display: flex;
   align-items: start;
   justify-content: space-between;
@@ -773,7 +793,8 @@ h1 {
 .daily-catch-panel h2,
 .triage-panel h2,
 .paste-panel h2,
-.restore-panel h2 {
+.restore-panel h2,
+.github-import-panel h2 {
   margin: 0;
   font-size: 1.25rem;
 }
@@ -786,7 +807,8 @@ h1 {
 .paste-panel label,
 .paste-preview,
 .restore-panel label,
-.restore-preview {
+.restore-preview,
+.github-import-note {
   color: var(--muted);
   font-size: .92rem;
   font-weight: 700;
@@ -1003,6 +1025,83 @@ kbd {
 .paste-actions button:first-child:hover:not(:disabled),
 .restore-actions button:first-child:hover:not(:disabled) {
   background: var(--accent-strong);
+}
+
+.github-import-panel {
+  border-color: rgb(141 212 255 / 30%);
+  background: linear-gradient(135deg, rgb(141 212 255 / 10%), rgb(122 184 245 / 8%));
+}
+
+.github-import-input {
+  width: 100%;
+  min-height: 7rem;
+  padding: .9rem 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  outline: none;
+  background: var(--card-strong);
+  color: var(--text);
+  resize: vertical;
+}
+
+.github-import-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(122 184 245 / 14%);
+}
+
+.github-import-preview {
+  font-size: .92rem;
+}
+
+.github-import-preview-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: .4rem;
+}
+
+.github-import-preview-item label {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  cursor: pointer;
+}
+
+.github-import-preview-item--duplicate label {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.github-import-duplicate-badge {
+  font-size: .8em;
+  color: var(--muted);
+}
+
+.github-import-actions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.github-import-actions button:first-child {
+  padding: .75rem 1rem;
+  color: #07111a;
+  background: var(--accent);
+}
+
+.github-import-actions button:first-child:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.github-import-rate-limit-warning {
+  margin: 0 0 .6rem;
+  padding: .45rem .7rem;
+  border-radius: .4rem;
+  background: rgb(255 160 0 / 12%);
+  border: 1px solid rgb(255 160 0 / 28%);
+  color: var(--warning);
+  font-size: .82rem;
 }
 
 .pond-tour {
@@ -2427,8 +2526,16 @@ kbd {
 
 [data-contrast="high"] { --muted: var(--text); }
 
-[data-density="compact"] .todo-item { padding: .2rem .5rem; }
-[data-density="compact"] .pond-actions { gap: .35rem; }
+[data-density="condensed"] .todo-item { padding: .3rem .6rem; }
+[data-density="condensed"] .todo-actions { gap: .3rem; }
+[data-density="condensed"] .mood-badge,
+[data-density="condensed"] .recurrence-badge,
+[data-density="condensed"] .checklist-badge,
+[data-density="condensed"] .shoal-chip { display: none; }
+[data-density="condensed"] .pond-actions { gap: .35rem; }
+
+[data-density="detailed"] .todo-item { padding: 1rem 1.1rem; }
+[data-density="detailed"] .metadata { display: flex; }
 
 .command-palette {
   position: fixed;

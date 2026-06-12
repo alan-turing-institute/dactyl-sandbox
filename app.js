@@ -830,8 +830,12 @@ function contextFormDefaults() {
   const defaults = {};
   if (shoalFilter) defaults.shoal = shoalFilter;
   if (quickFilter === 'high') defaults.priority = 'high';
-  if (quickFilter === 'due-soon' || filter === 'week') defaults.dueDate = todayKey();
+  if (quickFilter === 'due-soon' || filter === 'week' || !dailyCatchPanel.hidden) defaults.dueDate = todayKey();
   return defaults;
+}
+
+function visibleContextDefaults(defaults) {
+  return Object.fromEntries(Object.entries(defaults).filter(([field]) => !dirtyFormFields.has(field)));
 }
 
 function updateContextHint(defaults) {
@@ -852,6 +856,7 @@ function updateContextHint(defaults) {
 
 function applyContextDefaults() {
   const defaults = contextFormDefaults();
+  const visibleDefaults = visibleContextDefaults(defaults);
   if (!dirtyFormFields.has('priority')) {
     priorityInput.value = defaults.priority || 'medium';
     syncPriorityChips();
@@ -862,7 +867,7 @@ function applyContextDefaults() {
   if (!dirtyFormFields.has('shoal') && shoalInput) {
     shoalInput.value = defaults.shoal || '';
   }
-  updateContextHint(defaults);
+  updateContextHint(visibleDefaults);
 }
 
 function renderAddFormMode() {
@@ -1348,6 +1353,7 @@ function setDraftPriority(priority) {
   priorityInput.value = priority;
   syncPriorityChips();
   dirtyFormFields.add('priority');
+  applyContextDefaults();
   showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
 }
 
@@ -1970,6 +1976,7 @@ function setDailyCatchOpen(open) {
     renderDailyCatch();
     dailyCatchPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
+  applyContextDefaults();
 }
 
 function pinDailyCatchTodo(id) {
@@ -4375,9 +4382,18 @@ filterButtons.forEach((button) => {
 priorityInput.addEventListener('change', () => {
   syncPriorityChips();
   dirtyFormFields.add('priority');
+  applyContextDefaults();
 });
-dueDateInput.addEventListener('change', () => dirtyFormFields.add('dueDate'));
-if (shoalInput) shoalInput.addEventListener('input', () => dirtyFormFields.add('shoal'));
+dueDateInput.addEventListener('change', () => {
+  dirtyFormFields.add('dueDate');
+  applyContextDefaults();
+});
+if (shoalInput) {
+  shoalInput.addEventListener('input', () => {
+    dirtyFormFields.add('shoal');
+    applyContextDefaults();
+  });
+}
 advancedAddToggle.addEventListener('click', () => setAddFormAdvanced(!viewPrefs.addFormAdvanced));
 priorityChips.forEach((chip) => {
   chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));

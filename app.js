@@ -269,6 +269,7 @@ const activityLogPanel = document.querySelector('#activity-log-panel');
 const activityLogClose = document.querySelector('#activity-log-close');
 const activityLogList = document.querySelector('#activity-log-list');
 const shoalInput = document.querySelector('#shoal-input');
+const formContextHint = document.querySelector('#form-context-hint');
 const shoalDatalist = document.querySelector('#shoal-datalist');
 const shoalFilterSelect = document.querySelector('#shoal-filter-select');
 const commandPaletteEl = document.querySelector('#command-palette');
@@ -320,6 +321,7 @@ let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let pendingTodoFocusTarget = null;
 let selectedTodoIds = new Set();
+const dirtyFormFields = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
@@ -885,6 +887,50 @@ function resetAdvancedAddFields() {
   syncPriorityChips();
 }
 
+function contextFormDefaults() {
+  const defaults = {};
+  if (shoalFilter) defaults.shoal = shoalFilter;
+  if (quickFilter === 'high') defaults.priority = 'high';
+  if (quickFilter === 'due-soon' || filter === 'week' || !dailyCatchPanel.hidden) defaults.dueDate = todayKey();
+  return defaults;
+}
+
+function visibleContextDefaults(defaults) {
+  return Object.fromEntries(Object.entries(defaults).filter(([field]) => !dirtyFormFields.has(field)));
+}
+
+function updateContextHint(defaults) {
+  if (!formContextHint) return;
+  const parts = [];
+  if (defaults.shoal) parts.push(`Shoal: ${defaults.shoal}`);
+  if (defaults.priority && defaults.priority !== 'medium') {
+    parts.push(`${defaults.priority[0].toUpperCase()}${defaults.priority.slice(1)} priority`);
+  }
+  if (defaults.dueDate) parts.push('Due today');
+  if (parts.length === 0) {
+    formContextHint.hidden = true;
+    return;
+  }
+  formContextHint.textContent = `Context: ${parts.join(' · ')}`;
+  formContextHint.hidden = false;
+}
+
+function applyContextDefaults() {
+  const defaults = contextFormDefaults();
+  const visibleDefaults = visibleContextDefaults(defaults);
+  if (!dirtyFormFields.has('priority')) {
+    priorityInput.value = defaults.priority || 'medium';
+    syncPriorityChips();
+  }
+  if (!dirtyFormFields.has('dueDate')) {
+    dueDateInput.value = defaults.dueDate || '';
+  }
+  if (!dirtyFormFields.has('shoal') && shoalInput) {
+    shoalInput.value = defaults.shoal || '';
+  }
+  updateContextHint(visibleDefaults);
+}
+
 function renderAddFormMode() {
   if (!advancedAddToggle || !advancedAddFields) return;
   const expanded = Boolean(viewPrefs.addFormAdvanced);
@@ -1098,6 +1144,7 @@ function setShoalFilter(name) {
   shoalFilter = name;
   if (shoalFilterSelect) shoalFilterSelect.value = name;
   render();
+  applyContextDefaults();
 }
 
 function updateShoalDatalist() {
@@ -1396,6 +1443,8 @@ function setDraftPriority(priority) {
   if (!PRIORITIES.includes(priority)) return;
   priorityInput.value = priority;
   syncPriorityChips();
+  dirtyFormFields.add('priority');
+  applyContextDefaults();
   showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
 }
 
@@ -2036,6 +2085,7 @@ function setDailyCatchOpen(open) {
     renderDailyCatch();
     dailyCatchPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
+  applyContextDefaults();
 }
 
 function pinDailyCatchTodo(id) {
@@ -3499,6 +3549,7 @@ function setFilter(nextFilter) {
   selectedTodoIds.clear();
   filter = nextFilter;
   render();
+  applyContextDefaults();
 }
 
 function focusTaskInputFromTour() {
@@ -4623,10 +4674,12 @@ form.addEventListener('submit', (event) => {
     showPondMessage(`Added quick task with ${hints}.`);
   }
   form.reset();
+  dirtyFormFields.clear();
   priorityInput.value = 'medium';
   if (shoalInput) shoalInput.value = '';
   recurrenceInput.value = 'none';
   syncPriorityChips();
+  applyContextDefaults();
   input.focus();
 });
 
@@ -4634,7 +4687,21 @@ filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
 });
 
-priorityInput.addEventListener('change', syncPriorityChips);
+priorityInput.addEventListener('change', () => {
+  syncPriorityChips();
+  dirtyFormFields.add('priority');
+  applyContextDefaults();
+});
+dueDateInput.addEventListener('change', () => {
+  dirtyFormFields.add('dueDate');
+  applyContextDefaults();
+});
+if (shoalInput) {
+  shoalInput.addEventListener('input', () => {
+    dirtyFormFields.add('shoal');
+    applyContextDefaults();
+  });
+}
 advancedAddToggle.addEventListener('click', () => setAddFormAdvanced(!viewPrefs.addFormAdvanced));
 priorityChips.forEach((chip) => {
   chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));
@@ -4663,6 +4730,7 @@ quickFilterButtons.forEach((button) => {
   button.addEventListener('click', () => {
     quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
     render();
+    applyContextDefaults();
   });
 });
 
@@ -4861,6 +4929,7 @@ function renderFromHistory() {
 window.addEventListener('popstate', renderFromHistory);
 window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
+applyContextDefaults();
 
 applyViewPrefs();
 renderStarterShoalsList();

@@ -69,6 +69,13 @@ describe('auth and task API', () => {
       .expect('Content-Security-Policy', /default-src 'self'/)
       .expect(/Dactyl TODO, translated/);
     await request(app)
+      .get('/favicon.svg')
+      .expect(200)
+      .expect('Content-Type', /image\/svg\+xml/)
+      .expect((res) => {
+        expect(res.text || res.body.toString()).toMatch(/Fish favicon/);
+      });
+    await request(app)
       .get('/first-task-onboarding.js')
       .expect(200)
       .expect('Content-Type', /javascript/);

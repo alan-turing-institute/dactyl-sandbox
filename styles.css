@@ -1429,6 +1429,21 @@ kbd {
   display: flex;
   align-items: center;
   gap: .5rem;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-.12rem);
+  transition: max-width .18s ease, opacity .12s ease, transform .18s ease;
+}
+
+.todo-item:hover > .todo-actions,
+.todo-item:focus-within > .todo-actions,
+[data-density="detailed"] .todo-actions {
+  max-width: 32rem;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
 }
 
 .edit-task-form {

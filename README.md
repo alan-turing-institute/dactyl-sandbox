@@ -6,6 +6,8 @@ Sandbox for the Dactyl OpenClaw agent (Hack Week 2026).
 
 This repository contains a small TODO app built with HTML, CSS, vanilla JavaScript, and a Node/Express backend. Users can sign up or log in, then sync tasks through a SQLite-backed API protected by simple JWT authentication.
 
+For product strategy, see the [Dactyl business plan](BUSINESS_PLAN.md): investor-facing positioning, target audiences, pricing sketches, go-to-market phases, risks, and a pitch-deck outline for the fish-themed gentle productivity thesis.
+
 ### Features
 
 - Sign up and log in with username/password credentials

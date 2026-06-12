@@ -3819,6 +3819,14 @@ function switchToTideModeFromTour() {
   setFilter('tide');
 }
 
+function openPondTour(source = 'manual') {
+  tourForcedVisible = true;
+  trackProductEvent('tour_opened', { source });
+  render();
+  pondTour.focus({ preventScroll: true });
+  pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 function dismissTour() {
   tourForcedVisible = false;
   saveTourDismissed(true);
@@ -5031,6 +5039,9 @@ clearCompleted.addEventListener('click', () => {
 
 gettingStartedToggle.addEventListener('click', () => setGettingStartedOpen(gettingStartedPanel.hidden));
 gettingStartedCollapse.addEventListener('click', () => setGettingStartedOpen(false));
+checklistAddTask.addEventListener('click', focusTaskInputFromTour);
+checklistTideMode.addEventListener('click', switchToTideModeFromTour);
+checklistPondTour.addEventListener('click', () => openPondTour('getting_started_checklist'));
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
 firstTaskTemplateButtons.forEach((button) => {
@@ -5108,13 +5119,7 @@ copyPondDiagnostics.addEventListener('click', copyDiagnosticsReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
-showPondTour.addEventListener('click', () => {
-  tourForcedVisible = true;
-  trackProductEvent('tour_opened', { source: 'manual' });
-  render();
-  pondTour.focus({ preventScroll: true });
-  pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-});
+showPondTour.addEventListener('click', () => openPondTour('manual'));
 tourAddTask.addEventListener('click', focusTaskInputFromTour);
 tourStockDemo.addEventListener('click', stockDemoPond);
 tourPastePond.addEventListener('click', openPastePanelFromTour);

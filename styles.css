@@ -67,6 +67,24 @@ button:disabled {
 
 .hero { margin-bottom: 1.5rem; }
 
+.auth-hero {
+  max-width: 42rem;
+  margin-right: auto;
+  margin-left: auto;
+  text-align: center;
+}
+
+.auth-hero .campaign-tagline {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.compact-fish-decoration {
+  opacity: .55;
+  transform: scale(.78);
+  transform-origin: top center;
+}
+
 .pond-shell,
 .view-summary {
   position: relative;
@@ -284,18 +302,23 @@ h1 {
 
 .auth-panel {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(16rem, 1.2fr);
-  gap: 1rem;
-  align-items: end;
-  margin-bottom: 1rem;
-  padding: 1rem;
+  gap: 1.5rem;
+  width: min(100%, 28rem);
+  margin: 0 auto 1rem;
+  padding: 1.5rem;
   border: 1px solid rgb(122 184 245 / 20%);
   border-radius: 1.25rem;
   background: rgb(122 184 245 / 7%);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 18%);
+}
+
+.auth-context {
+  display: grid;
+  gap: .5rem;
 }
 
 .auth-panel h2 {
-  margin: 0 0 .35rem;
+  margin: 0;
   font-size: 1.25rem;
 }
 
@@ -305,14 +328,22 @@ h1 {
 }
 
 .auth-help {
-  margin: .4rem 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: .82rem;
 }
 
-.auth-form {
+.auth-form,
+.auth-field-group {
   display: grid;
-  gap: .65rem;
+}
+
+.auth-form {
+  gap: 1.5rem;
+}
+
+.auth-field-group {
+  gap: 1rem;
 }
 
 .password-form {
@@ -345,22 +376,52 @@ h1 {
 .password-form input {
   width: 100%;
   min-width: 0;
+  min-height: 44px;
   padding: .8rem 1rem;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 999px;
   outline: none;
   background: var(--card-strong);
   color: var(--text);
+  font-size: 1rem;
 }
 
 .auth-actions {
-  display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 1rem;
+  margin-top: .5rem;
 }
 
 .auth-actions button {
+  min-height: 44px;
   padding: .75rem 1rem;
+}
+
+.auth-secondary-action {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+  text-align: center;
+}
+
+.link-action {
+  min-height: 44px;
+  padding: 0 .25rem;
+  border: 0;
+  border-radius: .4rem;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: .18em;
+  cursor: pointer;
+}
+
+.link-action:hover,
+.link-action:focus-visible {
+  color: var(--accent-strong);
+  background: rgb(122 184 245 / 10%);
 }
 
 .password-form button {
@@ -368,6 +429,7 @@ h1 {
 }
 
 #login-button {
+  width: 100%;
   color: #07111a;
   background: var(--accent);
 }

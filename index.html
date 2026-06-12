@@ -12,8 +12,8 @@
   <body>
     <main class="app" aria-labelledby="app-title">
       <section id="auth-screen" class="screen auth-screen" aria-labelledby="app-title" tabindex="-1">
-      <section class="hero">
-        <div class="fish-decoration" aria-hidden="true">
+      <section class="hero auth-hero">
+        <div class="fish-decoration compact-fish-decoration" aria-hidden="true">
           <span class="fish fish-1">🐟</span>
           <span class="fish fish-2">🐠</span>
           <span class="fish fish-3">🐬</span>
@@ -21,28 +21,30 @@
         <p class="eyebrow">Task pond</p>
         <h1 id="app-title">Pond Life</h1>
         <p class="campaign-tagline">Your TODO list has teeth.</p>
-        <p class="subtitle">Give it a pond — a lightweight TODO app with sign-in, sync, and gentler ways to sort the catch.</p>
+        <p class="subtitle">A calmer task pond with sign-in, sync, and gentle ways to sort the catch.</p>
       </section>
 
       <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
-        <div>
+        <div class="auth-context">
           <p class="eyebrow">Account</p>
           <h2 id="auth-title">Sign in to sync tasks</h2>
           <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your Pond Life.</p>
-          <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
         </div>
         <form id="auth-form" class="auth-form" method="post" autocomplete="on">
-          <label>
-            <span>Username</span>
-            <input id="username-input" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" aria-describedby="auth-help" title="Use 3–32 letters, numbers, dots, underscores, or hyphens." required />
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
-          </label>
+          <div class="auth-field-group" aria-describedby="auth-help">
+            <label>
+              <span>Username</span>
+              <input id="username-input" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" aria-describedby="auth-help" title="Use 3–32 letters, numbers, dots, underscores, or hyphens." required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
+            </label>
+            <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
+          </div>
           <div class="auth-actions">
             <button id="login-button" type="submit" name="auth-mode" value="login">Log in</button>
-            <button id="signup-button" class="secondary-action" type="submit" name="auth-mode" value="signup">Sign up</button>
+            <p class="auth-secondary-action">New here? <button id="signup-button" class="link-action" type="submit" name="auth-mode" value="signup">Create an account</button></p>
           </div>
         </form>
         <form id="password-form" class="password-form" autocomplete="on" hidden>

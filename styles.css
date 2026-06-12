@@ -118,6 +118,46 @@ button:disabled {
   50% { transform: translateY(-0.18rem) rotate(3deg); }
 }
 
+@keyframes reefSwim {
+  0% {
+    opacity: 0;
+    transform: translateX(-16%) translateY(0) scaleX(1);
+  }
+
+  12%, 82% { opacity: 0.82; }
+
+  45% { transform: translateX(44%) translateY(-0.45rem) scaleX(1); }
+
+  83% {
+    opacity: 0.82;
+    transform: translateX(104%) translateY(0.3rem) scaleX(1);
+  }
+
+  84% {
+    opacity: 0;
+    transform: translateX(104%) translateY(0.3rem) scaleX(-1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-16%) translateY(0) scaleX(-1);
+  }
+}
+
+@keyframes bubbleRise {
+  0% {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.7);
+  }
+
+  15%, 78% { opacity: 0.58; }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-7rem) scale(1.18);
+  }
+}
+
 button:not(:disabled):hover::after,
 button:not(:disabled):focus-visible::after,
 .todo-item:hover::after,
@@ -2599,10 +2639,105 @@ kbd {
   z-index: 1;
 }
 
+.reef-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reef-plant,
+.reef-swimmer,
+.reef-bubble {
+  position: absolute;
+  display: inline-block;
+  user-select: none;
+}
+
+.reef-plant {
+  bottom: 0.45rem;
+  opacity: 0.55;
+  font-size: clamp(1.8rem, 5vw, 3.25rem);
+  filter: drop-shadow(0 0.4rem 0.75rem rgb(0 0 0 / 28%));
+  animation: kelpSway 5.4s ease-in-out infinite;
+}
+
+.reef-plant-left {
+  left: 14%;
+  animation-delay: 0.7s;
+}
+
+.reef-plant-right {
+  right: 16%;
+  opacity: 0.48;
+  animation-delay: 1.8s;
+}
+
+.reef-swimmer {
+  left: 0;
+  opacity: 0;
+  font-size: clamp(1rem, 3vw, 1.8rem);
+  text-shadow: 0 0.25rem 0.45rem rgb(0 0 0 / 30%);
+  animation: reefSwim 12s ease-in-out infinite;
+}
+
+.reef-swimmer-one {
+  top: 5.8rem;
+  animation-delay: 1.2s;
+}
+
+.reef-swimmer-two {
+  top: 16rem;
+  font-size: clamp(0.9rem, 2.4vw, 1.45rem);
+  animation-delay: 6.7s;
+  animation-duration: 15s;
+}
+
+.reef-bubble {
+  bottom: 1.5rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border: 1px solid rgb(244 247 251 / 36%);
+  border-radius: 999px;
+  opacity: 0;
+  box-shadow: inset 0.1rem 0.08rem 0 rgb(255 255 255 / 28%);
+  animation: bubbleRise 6s ease-in infinite;
+}
+
+.reef-bubble-one {
+  left: 8%;
+  animation-delay: 0.4s;
+}
+
+.reef-bubble-two {
+  left: 72%;
+  width: 0.28rem;
+  height: 0.28rem;
+  animation-delay: 2.1s;
+  animation-duration: 7.2s;
+}
+
+.reef-bubble-three {
+  left: 88%;
+  width: 0.58rem;
+  height: 0.58rem;
+  animation-delay: 4s;
+  animation-duration: 8s;
+}
+
 
 [data-motion="reduced"] * {
   transition-duration: 0.01ms !important;
   animation-duration: 0.01ms !important;
+}
+
+[data-motion="reduced"] .reef-swimmer,
+[data-motion="reduced"] .reef-bubble { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reef-swimmer,
+  .reef-bubble { display: none; }
 }
 
 [data-contrast="high"] { --muted: var(--text); }

@@ -451,7 +451,8 @@ h1 {
 .shoal-control[hidden],
 .shoal-chip[hidden],
 .secondary-action[hidden],
-.blocker-badge[hidden] { display: none; }
+.blocker-badge[hidden],
+.overdue-nudge[hidden] { display: none; }
 
 .pond-actions {
   display: flex;
@@ -547,6 +548,24 @@ h1 {
   color: var(--muted);
   font-size: .92rem;
   font-weight: 700;
+}
+
+.overdue-nudge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  margin-bottom: .75rem;
+  padding: .65rem 1rem;
+  border: 1px solid rgb(122 184 245 / 28%);
+  border-radius: 999px;
+  background: rgb(122 184 245 / 8%);
+  font-size: .9rem;
+}
+
+.overdue-nudge-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .secondary-action,
@@ -2462,8 +2481,16 @@ kbd {
 
 [data-contrast="high"] { --muted: var(--text); }
 
-[data-density="compact"] .todo-item { padding: .2rem .5rem; }
-[data-density="compact"] .pond-actions { gap: .35rem; }
+[data-density="condensed"] .todo-item { padding: .3rem .6rem; }
+[data-density="condensed"] .todo-actions { gap: .3rem; }
+[data-density="condensed"] .mood-badge,
+[data-density="condensed"] .recurrence-badge,
+[data-density="condensed"] .checklist-badge,
+[data-density="condensed"] .shoal-chip { display: none; }
+[data-density="condensed"] .pond-actions { gap: .35rem; }
+
+[data-density="detailed"] .todo-item { padding: 1rem 1.1rem; }
+[data-density="detailed"] .metadata { display: flex; }
 
 .command-palette {
   position: fixed;

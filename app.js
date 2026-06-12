@@ -11,6 +11,8 @@ const FIRST_COMPLETION_CELEBRATED_KEY = 'dactyl.firstCompletionCelebrated:v1';
 const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
+const LAST_FILTER_KEY = 'dactyl.lastFilter:v1';
+const OVERDUE_NUDGE_MIN = 2;
 const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
 const POND_EXPORT_VERSION = 1;
@@ -281,7 +283,7 @@ const celebrations = [
 let authToken = loadAuthToken();
 let currentUser = null;
 let todos = [];
-let filter = 'all';
+let filter = loadLastFilter();
 let searchQuery = '';
 let quickFilter = '';
 let shoalFilter = '';
@@ -292,6 +294,7 @@ let focusedTodoId = loadFocusedTodoId();
 let tourDismissed = loadTourDismissed();
 let firstTaskOnboardingDismissed = loadFirstTaskOnboardingDismissed();
 let firstCompletionCelebrated = loadFirstCompletionCelebrated();
+let overdueNudgeDismissed = false;
 let tourForcedVisible = false;
 let notifiedTodayIds = loadNotifiedTodayIds();
 let notificationIntervalId = null;
@@ -798,6 +801,37 @@ function saveViewPrefs() {
   } catch {
     showStorageError('Preferences changed, but could not be saved in this browser.');
   }
+}
+
+const VALID_FILTERS = ['all', 'active', 'completed', 'archive', 'week', 'tide', 'ghost'];
+
+function loadLastFilter() {
+  const saved = localStorage.getItem(LAST_FILTER_KEY);
+  return VALID_FILTERS.includes(saved) ? saved : 'all';
+}
+
+function saveLastFilter() {
+  try {
+    localStorage.setItem(LAST_FILTER_KEY, filter);
+  } catch { /* ignore storage errors for non-critical state */ }
+}
+
+function overdueActiveTodoCount() {
+  const today = todayKey();
+  return todos.filter((t) => !t.completed && !t.archivedAt && t.dueDate && t.dueDate < today).length;
+}
+
+function renderOverdueNudge() {
+  const nudge = document.querySelector('#overdue-nudge');
+  if (!nudge) return;
+  const count = overdueActiveTodoCount();
+  if (count < OVERDUE_NUDGE_MIN || overdueNudgeDismissed) {
+    nudge.hidden = true;
+    return;
+  }
+  nudge.hidden = false;
+  nudge.querySelector('.overdue-nudge-text').textContent =
+    `${count} overdue task${count === 1 ? '' : 's'} — switch to Active or Tide mode to review them.`;
 }
 
 function applyViewPrefs() {
@@ -3217,6 +3251,7 @@ function setFilter(nextFilter) {
   // Clear selection when filter changes so hidden tasks can't be affected by bulk actions.
   selectedTodoIds.clear();
   filter = nextFilter;
+  saveLastFilter();
   render();
 }
 
@@ -3424,6 +3459,7 @@ function render() {
   renderShowcase();
   renderTrophies();
   if (!reminderPrefsPanel.hidden) renderReminderPrefs();
+  renderOverdueNudge();
 }
 
 function addTodo(text, options = {}) {
@@ -4399,6 +4435,10 @@ copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 dailyCatchToggle.addEventListener('click', () => setDailyCatchOpen(dailyCatchPanel.hidden));
 dailyCatchClose.addEventListener('click', () => setDailyCatchOpen(false));
 upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
+document.querySelector('#overdue-nudge-dismiss')?.addEventListener('click', () => {
+  overdueNudgeDismissed = true;
+  renderOverdueNudge();
+});
 shortcutHelpToggle.addEventListener('click', toggleShortcutHelp);
 shortcutHelpClose.addEventListener('click', () => setShortcutHelpOpen(false));
 buttonHelpToggle.addEventListener('click', () => setButtonHelpOpen(buttonHelpPanel.hidden));

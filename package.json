@@ -11,9 +11,11 @@
     "start": "node server.js",
     "test": "jest --runInBand",
     "lint": "npm run lint:js && npm run lint:html && npm run lint:css",
-    "lint:js": "eslint app.js analytics.js calendar-export.js contextual-empty-states.js daily-catch.js due-nudges.js fish-emoji.js first-task-onboarding.js premium-hooks.js quick-add-parser.js recurrence.js screen-state.js triage-mode.js server.js __tests__/**/*.js",
+    "lint:js": "eslint app.js analytics.js calendar-export.js contextual-empty-states.js daily-catch.js due-nudges.js fish-emoji.js first-task-onboarding.js premium-hooks.js quick-add-parser.js recurrence.js screen-state.js triage-mode.js server.js scripts/build-docs.js __tests__/**/*.js",
     "lint:html": "htmlhint index.html docs.html",
-    "lint:css": "stylelint styles.css"
+    "lint:css": "stylelint styles.css",
+    "docs:build": "node scripts/build-docs.js",
+    "docs:lint": "npm run docs:build && htmlhint dist/docs/index.html"
   },
   "dependencies": {
     "express": "^4.19.2"

@@ -105,6 +105,25 @@ button:disabled {
 
 .view-summary p { margin: .35rem 0 0; }
 
+.view-action-groups {
+  display: grid;
+  gap: .85rem;
+}
+
+.view-action-group {
+  display: grid;
+  gap: .4rem;
+}
+
+.view-action-label {
+  margin: 0;
+  color: var(--accent);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
 .pond-view-nav,
 .view-summary-actions {
   display: flex;

@@ -97,7 +97,7 @@
             <p id="home-view-summary-text">Review your Daily Catch, then jump into Tasks when you are ready to work the pond.</p>
           </div>
           <div class="view-summary-actions">
-            <button class="secondary-action" type="button" data-proxy-click="daily-catch-toggle">Open Daily Catch</button>
+            <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel" title="Pin up to five tasks as today's Daily Catch focus list">Open Daily Catch</button>
             <button class="secondary-action" type="button" data-pond-view-target="tasks">Open Tasks view</button>
           </div>
         </section>
@@ -121,11 +121,36 @@
             <h3 id="tools-view-title">Import, export, reports, and diagnostics</h3>
             <p>Use the pond tools without leaving your current task state behind.</p>
           </div>
-          <div class="view-summary-actions">
-            <button class="secondary-action" type="button" data-proxy-click="paste-pond">Paste to pond</button>
-            <button class="secondary-action" type="button" data-proxy-click="github-import-toggle">GitHub restock</button>
-            <button class="secondary-action" type="button" data-proxy-click="copy-pond-report">Copy report</button>
-            <button class="secondary-action" type="button" data-proxy-click="pond-health-toggle">Pond health</button>
+          <div class="view-action-groups" aria-label="Tools actions">
+            <div class="view-action-group">
+              <p class="view-action-label">Import / export</p>
+              <div class="view-summary-actions">
+                <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel" title="Paste a list of tasks in bulk from clipboard text">Paste to pond</button>
+                <button id="github-import-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="github-import-panel" title="Import GitHub issues and PRs as tasks">GitHub restock</button>
+                <button id="export-pond" class="secondary-action" type="button" title="Download all your tasks as a JSON backup file">Haul</button>
+                <button id="export-calendar" class="secondary-action" type="button" title="Download due and recurring tasks as an ICS calendar file">Haul calendar</button>
+                <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel" title="Restore tasks from a previously exported JSON backup">Restock</button>
+              </div>
+            </div>
+            <div class="view-action-group">
+              <p class="view-action-label">Reports &amp; diagnostics</p>
+              <div class="view-summary-actions">
+                <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R" title="Copy a text summary of your tasks for status updates (keyboard: R)">Copy pond report</button>
+                <button id="copy-pond-snapshot" class="secondary-action" type="button" title="Copy a read-only snapshot of the current task list for sharing">Copy snapshot</button>
+                <button id="share-pond" class="secondary-action" type="button" title="Copy or share a summary of the tasks currently visible on screen">Share visible pond</button>
+                <button id="copy-standup-draft" class="secondary-action" type="button" title="Copy a stand-up update draft based on your Daily Catch tasks">Copy stand-up draft</button>
+                <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel" title="Check lightweight diagnostics and copy a privacy-safe summary for debugging">Pond health</button>
+                <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel" title="Review recent task changes and pond activity">Tide log</button>
+              </div>
+            </div>
+            <div class="view-action-group">
+              <p class="view-action-label">Showcase</p>
+              <div class="view-summary-actions">
+                <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel" title="Browse your tasks in a decorative aquarium view">Aquarium view</button>
+                <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel" title="View tide trophies earned from completing tasks">Tide trophies</button>
+                <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel" title="Add one-click task templates for stand-ups, PR reviews, and other workflows">Starter shoals</button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -135,12 +160,23 @@
             <h3 id="settings-view-title">Comfort, reminders, shortcuts, and docs</h3>
             <p>Tune the pond or open help from one calmer corner.</p>
           </div>
-          <div class="view-summary-actions">
-            <button class="secondary-action" type="button" data-proxy-click="prefs-toggle">Calm Water</button>
-            <button class="secondary-action" type="button" data-proxy-click="reminder-prefs-toggle">Quiet hours</button>
-            <button class="secondary-action" type="button" data-proxy-click="shortcut-help-toggle">Pond shortcuts</button>
-            <button class="secondary-action" type="button" data-proxy-click="button-help-toggle">Button help</button>
-            <a class="secondary-action" href="/docs">Docs</a>
+          <div class="view-action-groups" aria-label="Settings and help actions">
+            <div class="view-action-group">
+              <p class="view-action-label">Comfort</p>
+              <div class="view-summary-actions">
+                <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel" title="Adjust layout density, motion, contrast, and other display preferences">Calm Water</button>
+                <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel" title="Set quiet hours to pause due-date notifications during off-hours">Quiet hours</button>
+              </div>
+            </div>
+            <div class="view-action-group">
+              <p class="view-action-label">Help</p>
+              <div class="view-summary-actions">
+                <button id="getting-started-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="getting-started-panel" title="View the getting-started guide and onboarding actions">Getting started</button>
+                <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?" title="See all keyboard shortcuts for the pond (keyboard: ?)">Pond shortcuts</button>
+                <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel" title="Learn what every button and fish-themed term in the pond means">Button help</button>
+                <a class="secondary-action" href="/docs" title="Open the full documentation page">Docs</a>
+              </div>
+            </div>
           </div>
         </section>
       <form id="todo-form" class="todo-form" autocomplete="off">
@@ -204,7 +240,7 @@
 
       <section class="pond-actions" aria-label="Pond actions">
         <button id="logout-button" class="secondary-action" type="button" hidden title="Sign out of your current session">Log out</button>
-        <button id="more-actions-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="more-actions-panel" title="Open grouped pond tools for workflows, reports, views, preferences, and help">⋯ More</button>
+        <button id="more-actions-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="more-actions-panel" title="Open shortcuts to the Tools and Settings views">Tools &amp; help</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U" title="Work through tasks one at a time with keyboard-friendly triage controls (keyboard: U)">Sort the catch</button>
         <button id="command-palette-toggle" class="secondary-action" type="button" aria-keyshortcuts="Control+K Meta+K" title="Search and run pond commands from the keyboard (Ctrl+K or Cmd+K)">Helm</button>
         <button id="cast-net" class="secondary-action" type="button" title="Turn on selection mode so you can catch multiple visible tasks for bulk actions">Cast net</button>
@@ -216,45 +252,11 @@
         </label>
       </section>
 
-      <section id="more-actions-panel" class="more-actions-panel" aria-label="More actions" hidden>
+      <section id="more-actions-panel" class="more-actions-panel" aria-label="Tools and help shortcuts" hidden>
         <div class="more-actions-group">
-          <p class="more-actions-label">Workflow</p>
-          <button id="getting-started-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="getting-started-panel" title="View the getting-started guide and onboarding actions">Getting started</button>
-          <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel" title="Pin up to five tasks as today's Daily Catch focus list">Daily Catch</button>
-        </div>
-        <div class="more-actions-group">
-          <p class="more-actions-label">Import / Export</p>
-          <button id="paste-pond" class="secondary-action" type="button" aria-expanded="false" aria-controls="paste-panel" title="Paste a list of tasks in bulk from clipboard text">Paste to pond</button>
-          <button id="export-pond" class="secondary-action" type="button" title="Download all your tasks as a JSON backup file">Haul</button>
-          <button id="export-calendar" class="secondary-action" type="button" title="Download due and recurring tasks as an ICS calendar file">Haul calendar</button>
-          <button id="restore-pond-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="restore-panel" title="Restore tasks from a previously exported JSON backup">Restock</button>
-          <button id="github-import-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="github-import-panel" title="Import GitHub issues and PRs as tasks">GitHub restock</button>
-        </div>
-        <div class="more-actions-group">
-          <p class="more-actions-label">Reports</p>
-          <button id="copy-pond-report" class="secondary-action" type="button" aria-keyshortcuts="R" title="Copy a text summary of your tasks for status updates (keyboard: R)">Copy pond report</button>
-          <button id="copy-pond-snapshot" class="secondary-action" type="button" title="Copy a read-only snapshot of the current task list for sharing">Copy snapshot</button>
-          <button id="share-pond" class="secondary-action" type="button" title="Copy or share a summary of the tasks currently visible on screen">Share visible pond</button>
-          <button id="copy-standup-draft" class="secondary-action" type="button" title="Copy a stand-up update draft based on your Daily Catch tasks">Copy stand-up draft</button>
-        </div>
-        <div class="more-actions-group">
-          <p class="more-actions-label">Views</p>
-          <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel" title="Browse your tasks in a decorative aquarium view">Aquarium view</button>
-          <button id="trophies-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="trophies-panel" title="View tide trophies earned from completing tasks">Tide trophies</button>
-          <button id="starter-shoals-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="starter-shoals-panel" title="Add one-click task templates for stand-ups, PR reviews, and other workflows">Starter shoals</button>
-        </div>
-        <div class="more-actions-group">
-          <p class="more-actions-label">Aquarium settings</p>
-          <button id="prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="prefs-panel" title="Adjust layout density, motion, contrast, and other display preferences">Calm Water</button>
-          <button id="reminder-prefs-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="reminder-prefs-panel" title="Set quiet hours to pause due-date notifications during off-hours">Quiet hours</button>
-        </div>
-        <div class="more-actions-group">
-          <p class="more-actions-label">Help &amp; tools</p>
-          <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel" title="Check lightweight diagnostics and copy a privacy-safe summary for debugging">Pond health</button>
-          <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel" title="Review recent task changes and pond activity">Tide log</button>
-          <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel" title="Learn what every button and fish-themed term in the pond means">Button help</button>
-          <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?" title="See all keyboard shortcuts for the pond (keyboard: ?)">Pond shortcuts</button>
-          <a class="secondary-action" href="/docs" title="Open the full documentation page">Docs</a>
+          <p class="more-actions-label">Tools live here now</p>
+          <button class="secondary-action" type="button" data-pond-view-target="tools">Open Tools view</button>
+          <button class="secondary-action" type="button" data-pond-view-target="settings">Open Settings &amp; Help</button>
         </div>
       </section>
 

@@ -276,15 +276,6 @@ const commandPaletteEl = document.querySelector('#command-palette');
 const commandSearch = document.querySelector('#command-search');
 const commandList = document.querySelector('#command-list');
 const commandPaletteToggle = document.querySelector('#command-palette-toggle');
-const githubImportToggle = document.querySelector('#github-import-toggle');
-const githubImportPanel = document.querySelector('#github-import-panel');
-const githubImportClose = document.querySelector('#github-import-close');
-const githubImportInput = document.querySelector('#github-import-input');
-const githubImportParse = document.querySelector('#github-import-parse');
-const githubImportPreview = document.querySelector('#github-import-preview');
-const githubImportActions = document.querySelector('#github-import-actions');
-const githubImportConfirm = document.querySelector('#github-import-confirm');
-const githubImportSelectAll = document.querySelector('#github-import-select-all');
 
 const tideGroups = [
   { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
@@ -990,71 +981,6 @@ function setActivityLogOpen(open) {
   } else {
     activityLogToggle.focus();
   }
-}
-
-function setGithubImportOpen(open) {
-  githubImportPanel.hidden = !open;
-  githubImportToggle.setAttribute('aria-expanded', String(open));
-  if (open) {
-    githubImportPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    githubImportClose.focus({ preventScroll: true });
-  } else {
-    githubImportToggle.focus({ preventScroll: true });
-  }
-}
-
-function renderGithubImportPreview(items) {
-  if (!items || items.length === 0) {
-    githubImportPreview.hidden = false;
-    githubImportPreview.textContent = 'No valid GitHub issue or PR URLs found.';
-    githubImportActions.hidden = true;
-    return;
-  }
-  const list = document.createElement('ul');
-  list.className = 'github-import-preview-list';
-  items.forEach((item) => {
-    const li = document.createElement('li');
-    li.className = `github-import-preview-item${item.duplicate ? ' github-import-preview-item--duplicate' : ''}`;
-    const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = item.url;
-    checkbox.dataset.title = item.title;
-    if (!item.duplicate) {
-      checkbox.checked = true;
-    } else {
-      checkbox.disabled = true;
-    }
-    const span = document.createElement('span');
-    span.textContent = item.title;
-    if (item.duplicate) {
-      const badge = document.createElement('span');
-      badge.className = 'github-import-duplicate-badge';
-      badge.textContent = ' (already in pond)';
-      span.append(badge);
-    }
-    label.append(checkbox, span);
-    li.append(label);
-    list.append(li);
-  });
-  githubImportPreview.hidden = false;
-  githubImportPreview.replaceChildren(list);
-  githubImportActions.hidden = false;
-}
-
-function confirmGithubImport() {
-  const checkboxes = [...githubImportPreview.querySelectorAll('input[type="checkbox"]:checked')];
-  checkboxes.forEach((checkbox) => {
-    const url = checkbox.value;
-    const title = checkbox.dataset.title || url;
-    addTodo(title, { githubUrl: url, priority: 'medium', source: 'github_import' });
-  });
-  setGithubImportOpen(false);
-  githubImportInput.value = '';
-  githubImportPreview.hidden = true;
-  githubImportPreview.replaceChildren();
-  githubImportActions.hidden = true;
-  if (checkboxes.length > 0) showPondMessage(`Imported ${checkboxes.length} task${checkboxes.length === 1 ? '' : 's'} from GitHub.`);
 }
 
 function renderActivityLog() {

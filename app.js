@@ -257,6 +257,7 @@ const activityLogList = document.querySelector('#activity-log-list');
 const activityLogUndo = document.querySelector('#activity-log-undo');
 const activityUndoBtn = document.querySelector('#activity-undo-btn');
 const shoalInput = document.querySelector('#shoal-input');
+const formContextHint = document.querySelector('#form-context-hint');
 const shoalDatalist = document.querySelector('#shoal-datalist');
 const shoalFilterSelect = document.querySelector('#shoal-filter-select');
 const commandPaletteEl = document.querySelector('#command-palette');
@@ -307,6 +308,7 @@ let detailsTodoId = '';
 let pendingEditFocusId = '';
 let pendingEditReturnId = '';
 let selectedTodoIds = new Set();
+const dirtyFormFields = new Set();
 let saveQueue = Promise.resolve();
 let saveVersion = 0;
 let lastUndoAction = null;
@@ -824,6 +826,45 @@ function resetAdvancedAddFields() {
   syncPriorityChips();
 }
 
+function contextFormDefaults() {
+  const defaults = {};
+  if (shoalFilter) defaults.shoal = shoalFilter;
+  if (quickFilter === 'high') defaults.priority = 'high';
+  if (quickFilter === 'due-soon' || filter === 'week') defaults.dueDate = todayKey();
+  return defaults;
+}
+
+function updateContextHint(defaults) {
+  if (!formContextHint) return;
+  const parts = [];
+  if (defaults.shoal) parts.push(`Shoal: ${defaults.shoal}`);
+  if (defaults.priority && defaults.priority !== 'medium') {
+    parts.push(`${defaults.priority[0].toUpperCase()}${defaults.priority.slice(1)} priority`);
+  }
+  if (defaults.dueDate) parts.push('Due today');
+  if (parts.length === 0) {
+    formContextHint.hidden = true;
+    return;
+  }
+  formContextHint.textContent = `Context: ${parts.join(' · ')}`;
+  formContextHint.hidden = false;
+}
+
+function applyContextDefaults() {
+  const defaults = contextFormDefaults();
+  if (!dirtyFormFields.has('priority')) {
+    priorityInput.value = defaults.priority || 'medium';
+    syncPriorityChips();
+  }
+  if (!dirtyFormFields.has('dueDate')) {
+    dueDateInput.value = defaults.dueDate || '';
+  }
+  if (!dirtyFormFields.has('shoal') && shoalInput) {
+    shoalInput.value = defaults.shoal || '';
+  }
+  updateContextHint(defaults);
+}
+
 function renderAddFormMode() {
   if (!advancedAddToggle || !advancedAddFields) return;
   const expanded = Boolean(viewPrefs.addFormAdvanced);
@@ -1028,6 +1069,7 @@ function setShoalFilter(name) {
   shoalFilter = name;
   if (shoalFilterSelect) shoalFilterSelect.value = name;
   render();
+  applyContextDefaults();
 }
 
 function updateShoalDatalist() {
@@ -1305,6 +1347,7 @@ function setDraftPriority(priority) {
   if (!PRIORITIES.includes(priority)) return;
   priorityInput.value = priority;
   syncPriorityChips();
+  dirtyFormFields.add('priority');
   showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
 }
 
@@ -3218,6 +3261,7 @@ function setFilter(nextFilter) {
   selectedTodoIds.clear();
   filter = nextFilter;
   render();
+  applyContextDefaults();
 }
 
 function focusTaskInputFromTour() {
@@ -4315,10 +4359,12 @@ form.addEventListener('submit', (event) => {
     showPondMessage(`Added quick task with ${hints}.`);
   }
   form.reset();
+  dirtyFormFields.clear();
   priorityInput.value = 'medium';
   if (shoalInput) shoalInput.value = '';
   recurrenceInput.value = 'none';
   syncPriorityChips();
+  applyContextDefaults();
   input.focus();
 });
 
@@ -4326,7 +4372,12 @@ filterButtons.forEach((button) => {
   button.addEventListener('click', () => setFilter(button.dataset.filter));
 });
 
-priorityInput.addEventListener('change', syncPriorityChips);
+priorityInput.addEventListener('change', () => {
+  syncPriorityChips();
+  dirtyFormFields.add('priority');
+});
+dueDateInput.addEventListener('change', () => dirtyFormFields.add('dueDate'));
+if (shoalInput) shoalInput.addEventListener('input', () => dirtyFormFields.add('shoal'));
 advancedAddToggle.addEventListener('click', () => setAddFormAdvanced(!viewPrefs.addFormAdvanced));
 priorityChips.forEach((chip) => {
   chip.addEventListener('click', () => setDraftPriority(chip.dataset.priority));
@@ -4355,6 +4406,7 @@ quickFilterButtons.forEach((button) => {
   button.addEventListener('click', () => {
     quickFilter = quickFilter === button.dataset.quickFilter ? '' : button.dataset.quickFilter;
     render();
+    applyContextDefaults();
   });
 });
 
@@ -4544,6 +4596,7 @@ function renderFromHistory() {
 window.addEventListener('popstate', renderFromHistory);
 window.addEventListener('hashchange', renderFromHistory);
 syncPriorityChips();
+applyContextDefaults();
 
 applyViewPrefs();
 renderStarterShoalsList();

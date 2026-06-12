@@ -86,20 +86,19 @@
             inputmode="url"
             placeholder="GitHub issue or PR URL"
           />
-          <label class="sr-only" for="priority-input">Priority</label>
-          <label for="priority-input" class="form-field-label">Priority</label>
           <div class="priority-picker">
+            <label for="priority-input" class="form-field-label">Priority</label>
             <select id="priority-input" name="priority" aria-label="Priority">
               <option value="low">Low tide</option>
               <option value="medium" selected>Medium tide</option>
               <option value="high">High tide</option>
             </select>
-          <div class="priority-chips" role="group" aria-label="Quick priority">
-            <button type="button" data-priority="low" aria-pressed="false">Low</button>
-            <button type="button" data-priority="medium" aria-pressed="true">Medium</button>
-            <button type="button" data-priority="high" aria-pressed="false">High</button>
+            <div class="priority-chips" role="group" aria-label="Quick priority">
+              <button type="button" data-priority="low" aria-pressed="false">Low</button>
+              <button type="button" data-priority="medium" aria-pressed="true">Medium</button>
+              <button type="button" data-priority="high" aria-pressed="false">High</button>
+            </div>
           </div>
-        </div>
           <label class="sr-only" for="shoal-input">Shoal (optional grouping)</label>
           <input id="shoal-input" name="shoal" type="text" maxlength="40" placeholder="Shoal…" list="shoal-datalist" />
           <datalist id="shoal-datalist"></datalist>

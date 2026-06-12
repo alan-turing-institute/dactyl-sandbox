@@ -606,6 +606,11 @@ h1 {
 
 .getting-started-checklist li {
   display: flex;
+}
+
+.checklist-action {
+  display: flex;
+  flex: 1;
   gap: .5rem;
   align-items: center;
   padding: .6rem .75rem;
@@ -614,12 +619,19 @@ h1 {
   background: rgb(255 255 255 / 6%);
   color: var(--muted);
   font-weight: 700;
+  cursor: pointer;
+  font-size: inherit;
+  text-align: left;
 }
 
-.getting-started-checklist li.complete {
+.checklist-action.complete {
   border-color: rgb(122 232 185 / 30%);
   color: var(--text);
   background: rgb(122 232 185 / 9%);
+}
+
+.checklist-action:hover:not(.complete) {
+  background: rgb(255 255 255 / 10%);
 }
 
 .getting-started-actions {

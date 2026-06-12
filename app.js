@@ -4962,6 +4962,9 @@ tourPastePond.addEventListener('click', openPastePanelFromTour);
 tourTideMode.addEventListener('click', switchToTideModeFromTour);
 tourCopyReport.addEventListener('click', copyPondProgressReport);
 dismissPondTour.addEventListener('click', dismissTour);
+checklistAddTask?.addEventListener('click', focusTaskInputFromTour);
+checklistTideMode?.addEventListener('click', switchToTideModeFromTour);
+checklistPondTour?.addEventListener('click', () => showPondTour.click());
 focusSprintPresets.forEach((button) => {
   button.addEventListener('click', () => selectFocusSprintLength(Number(button.dataset.sprintMinutes)));
 });

@@ -1607,6 +1607,35 @@ kbd {
   opacity: .55;
 }
 
+.overdue-nudge-switch,
+.overdue-nudge-dismiss {
+  border-radius: .25rem;
+}
+
+.overdue-nudge-switch {
+  padding: .2rem .55rem;
+  border: 1px solid rgb(255 160 0 / 40%);
+  background: rgb(255 160 0 / 16%);
+  color: var(--text);
+  font-size: .8rem;
+}
+
+.overdue-nudge-switch:hover,
+.overdue-nudge-switch:focus-visible {
+  background: rgb(255 160 0 / 24%);
+}
+
+.overdue-nudge-dismiss {
+  padding: .1rem .45rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.overdue-nudge-dismiss:hover,
+.overdue-nudge-dismiss:focus-visible { color: var(--text); }
+
 .mood-badge.mood-emergency,
 .todo-item[data-tide="washed"] .due-label { color: var(--danger); }
 .mood-badge.mood-high,

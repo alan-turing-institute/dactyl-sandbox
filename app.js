@@ -12,6 +12,7 @@ const PREFS_KEY = 'dactyl.viewPrefs:v1';
 const SMART_VIEWS_KEY = 'dactyl.smartViews:v1';
 const DAILY_CATCH_KEY = 'dactyl.dailyCatch:v1';
 const LAST_FILTER_KEY = 'dactyl.lastFilter:v1';
+const VALID_FILTERS = ['all', 'active', 'completed', 'archive', 'week', 'tide', 'ghost'];
 const OVERDUE_NUDGE_MIN = 2;
 const PREMIUM_CALLOUT_DISMISSED_KEY = 'dactyl.premiumCalloutDismissed:v1';
 const MAX_TODOS = 200;
@@ -878,8 +879,6 @@ function saveViewPrefs() {
     showStorageError('Preferences changed, but could not be saved in this browser.');
   }
 }
-
-const VALID_FILTERS = ['all', 'active', 'completed', 'archive', 'week', 'tide', 'ghost'];
 
 function loadLastFilter() {
   const saved = localStorage.getItem(LAST_FILTER_KEY);

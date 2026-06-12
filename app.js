@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode, DactylViewState */
+/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPondOs, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode, DactylViewState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state; (5) issue #227 Pond Life rebrand — `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy.
 const TOKEN_KEY = 'dactyl.authToken';
@@ -99,6 +99,7 @@ const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
 const { premiumHookForSurface } = DactylPremiumHooks;
+const { createKeySequenceDetector, runFishTermCommand } = DactylPondOs;
 const { normaliseRecurrence, recurrenceLabel, nextRecurrenceDate } = DactylRecurrence;
 const { contextualEmptyState, dailyCatchEmptyState } = DactylContextualEmptyStates;
 const analytics = DactylAnalytics.createAnalytics();
@@ -291,6 +292,11 @@ const commandPaletteEl = document.querySelector('#command-palette');
 const commandSearch = document.querySelector('#command-search');
 const commandList = document.querySelector('#command-list');
 const commandPaletteToggle = document.querySelector('#command-palette-toggle');
+const pondOsOverlay = document.querySelector('#pond-os-overlay');
+const pondOsClose = document.querySelector('#pond-os-close');
+const pondOsAppButtons = [...document.querySelectorAll('[data-pond-os-app]')];
+const pondOsWindowTitle = document.querySelector('#pond-os-window-title');
+const pondOsWindowContent = document.querySelector('#pond-os-window-content');
 const githubImportToggle = document.querySelector('#github-import-toggle');
 const githubImportPanel = document.querySelector('#github-import-panel');
 const githubImportClose = document.querySelector('#github-import-close');
@@ -369,6 +375,11 @@ let renderDurations = [];
 let commandPaletteOpen = false;
 let commandPalettePriorFocus = null;
 let commandPaletteActiveIndex = 0;
+let pondOsOpen = false;
+let pondOsPriorFocus = null;
+let activePondOsApp = 'pondpad';
+let fishTermLines = ['POND BIOS OK', 'Loading fish...', 'Type `help` for local commands.'];
+const pondOsSequence = createKeySequenceDetector();
 
 const POND_VIEW_SECTION_SELECTORS = {
   home: [
@@ -1750,6 +1761,124 @@ function trapCommandPaletteFocus(event) {
     event.preventDefault();
     first.focus();
   }
+}
+
+function pondOsFocusableElements() {
+  return [...pondOsOverlay.querySelectorAll(
+    'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => !element.disabled && element.offsetParent !== null);
+}
+
+function trapPondOsFocus(event) {
+  if (!pondOsOpen || event.key !== 'Tab') return;
+  const focusable = pondOsFocusableElements();
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (focusable.length === 1) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function pondOsTaskSummary() {
+  return {
+    total: todos.length,
+    active: todos.filter((todo) => !todo.completed && !todo.archived).length,
+    completed: todos.filter((todo) => todo.completed || todo.archived).length,
+  };
+}
+
+function renderPondPad() {
+  const summary = pondOsTaskSummary();
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <p>Welcome to Pond OS.</p>
+    <p>Your TODO list has teeth. Feed one fish. Sort the catch. Return when ready.</p>
+    <dl class="pond-os-system-list">
+      <dt>Product</dt><dd>Pond Life</dd>
+      <dt>Mode</dt><dd>Easter egg</dd>
+      <dt>Kernel</dt><dd>pond-kernel.js (fictional)</dd>
+      <dt>Memory</dt><dd>enough for one more task</dd>
+      <dt>Active fish</dt><dd>${summary.active}</dd>
+    </dl>
+  `;
+  pondOsWindowContent.replaceChildren(wrapper);
+}
+
+function renderFishTerm() {
+  const form = document.createElement('form');
+  form.className = 'pond-os-terminal-form';
+  const output = document.createElement('pre');
+  output.className = 'pond-os-terminal-output';
+  output.textContent = fishTermLines.join('\n');
+  const label = document.createElement('label');
+  label.className = 'sr-only';
+  label.setAttribute('for', 'pond-os-command');
+  label.textContent = 'FishTerm command';
+  const inputEl = document.createElement('input');
+  inputEl.id = 'pond-os-command';
+  inputEl.type = 'text';
+  inputEl.autocomplete = 'off';
+  inputEl.spellcheck = false;
+  inputEl.placeholder = 'help';
+  const button = document.createElement('button');
+  button.type = 'submit';
+  button.textContent = 'Run';
+  form.append(label, inputEl, button);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const command = inputEl.value;
+    const result = runFishTermCommand(command, pondOsTaskSummary());
+    if (result.clear) {
+      fishTermLines = [];
+    } else if (command.trim()) {
+      fishTermLines.push(`> ${command.trim()}`, ...result.lines);
+    }
+    inputEl.value = '';
+    if (result.close) closePondOs(); else renderFishTerm();
+  });
+  pondOsWindowContent.replaceChildren(output, form);
+  inputEl.focus({ preventScroll: true });
+}
+
+function openPondOsApp(appName) {
+  activePondOsApp = appName === 'fishterm' ? 'fishterm' : 'pondpad';
+  pondOsAppButtons.forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.pondOsApp === activePondOsApp));
+  });
+  pondOsWindowTitle.textContent = activePondOsApp === 'fishterm' ? 'FishTerm' : 'PondPad';
+  if (activePondOsApp === 'fishterm') renderFishTerm(); else renderPondPad();
+}
+
+function openPondOs() {
+  if (pondOsOpen) return;
+  pondOsPriorFocus = document.activeElement;
+  pondOsOpen = true;
+  pondOsOverlay.hidden = false;
+  fishTermLines = ['POND BIOS OK', 'Loading fish...', 'Type `help` for local commands.'];
+  openPondOsApp('pondpad');
+  pondOsClose.focus({ preventScroll: true });
+  trackProductEvent('pond_os_opened', { trigger: 'sequence' });
+}
+
+function closePondOs() {
+  if (!pondOsOpen) return;
+  pondOsOpen = false;
+  pondOsOverlay.hidden = true;
+  pondOsSequence.reset();
+  if (pondOsPriorFocus && typeof pondOsPriorFocus.focus === 'function') {
+    pondOsPriorFocus.focus({ preventScroll: true });
+  }
+  pondOsPriorFocus = null;
 }
 
 function renderCommandList(query) {
@@ -4799,8 +4928,23 @@ function handleGlobalShortcut(event) {
     return;
   }
 
+  if (pondOsOpen && event.key === 'Escape') {
+    event.preventDefault();
+    closePondOs();
+    return;
+  }
+
+  if (pondOsOpen) return;
+
   const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
   if (event.defaultPrevented || hasModifier || isInteractiveShortcutTarget(event.target)) {
+    if (hasModifier) pondOsSequence.reset();
+    return;
+  }
+
+  if (pondOsSequence.push(event.key)) {
+    event.preventDefault();
+    openPondOs();
     return;
   }
 
@@ -5115,6 +5259,11 @@ commandSearch.addEventListener('keydown', (event) => {
 commandPaletteEl.addEventListener('keydown', trapCommandPaletteFocus);
 commandPaletteEl.addEventListener('click', (event) => {
   if (event.target === commandPaletteEl) closeCommandPalette();
+});
+pondOsClose.addEventListener('click', closePondOs);
+pondOsOverlay.addEventListener('keydown', trapPondOsFocus);
+pondOsAppButtons.forEach((button) => {
+  button.addEventListener('click', () => openPondOsApp(button.dataset.pondOsApp));
 });
 triagePrev.addEventListener('click', () => moveTriage(-1));
 triageNext.addEventListener('click', () => moveTriage(1));

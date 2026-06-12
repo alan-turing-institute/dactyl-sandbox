@@ -1,5 +1,5 @@
 /* AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. */
-/* Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to style the campaign tagline. */
+/* Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to style the campaign tagline; (3) issue #237 Net Sweeper — attempted `claude -p "We need implement GitHub issue #237... add a Pond OS game called Net Sweeper..."`, then GPT-5.5 completed the game styling. */
 :root {
   color-scheme: light dark;
   --fish-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='24'%3E%F0%9F%90%9F%3C/text%3E%3C/svg%3E") 8 8;
@@ -3146,6 +3146,105 @@ kbd {
 }
 
 .pond-os-terminal-form button { padding: .35rem .7rem; }
+
+.pond-os-game-kicker {
+  margin-bottom: .35rem;
+  color: #005458;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.net-sweeper-app {
+  display: grid;
+  gap: .75rem;
+}
+
+.net-sweeper-summary {
+  display: grid;
+  gap: .45rem;
+}
+
+.net-sweeper-score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+
+.net-sweeper-score span {
+  padding: .2rem .4rem;
+  background: #fff;
+  border: 2px solid #000;
+}
+
+.net-sweeper-actions {
+  display: flex;
+  gap: .5rem;
+}
+
+.net-sweeper-actions button {
+  border: 3px solid #000;
+  background: #ffff55;
+  color: #000;
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+}
+
+.net-sweeper-board {
+  display: grid;
+  grid-template-columns: repeat(var(--net-sweeper-cols), minmax(2.25rem, 1fr));
+  gap: .25rem;
+}
+
+.net-sweeper-tile {
+  min-height: 2.5rem;
+  border: 2px solid #000;
+  background: #00aaaa;
+  color: #000;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.net-sweeper-tile:focus-visible {
+  outline: 4px solid #ffff55;
+  outline-offset: 2px;
+}
+
+.net-sweeper-tile:disabled {
+  cursor: default;
+  opacity: .9;
+}
+
+.net-sweeper-tile[data-state="revealed"] {
+  background: #e6ffff;
+}
+
+.net-sweeper-tile[data-state="marked"] {
+  background: #ffff55;
+}
+
+.net-sweeper-tile[data-hazard="true"] {
+  background: #ff7a7a;
+}
+
+.net-sweeper-tile[data-fish-bonus="true"] {
+  background: #55ff55;
+}
+
+.net-sweeper-help {
+  margin-bottom: 0;
+  font-size: .82rem;
+}
+
+.net-sweeper-log {
+  max-height: 6rem;
+  overflow-y: auto;
+  margin: 0;
+  padding-left: 1.3rem;
+}
 
 .pond-os-system-list {
   display: grid;

@@ -1,5 +1,5 @@
 <!-- AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`. -->
-<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero; (3) `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy; (4) issue #230 Pond OS easter egg. -->
+<!-- Prompts: (1) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection, Ghost net panel, and per-task Focus/Snooze/Release actions; (2) `claude -p "In repo alan-turing-institute/dactyl-sandbox, integrate campaign 1 ad copy into the UI: 'Your TODO list has teeth.' Find the best minimal UI placement..."` plus GPT-5.5 edits to add the campaign tagline to the auth hero; (3) `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy; (4) issue #230 Pond OS easter egg; (5) issue #237 Net Sweeper — attempted `claude -p "We need implement GitHub issue #237... add a Pond OS game called Net Sweeper..."`, then GPT-5.5 completed the Pond OS game icon wiring. -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -733,6 +733,10 @@
             <button class="pond-os-icon" type="button" data-pond-os-app="pondpad" aria-pressed="true">
               <span aria-hidden="true">📝</span>
               PondPad
+            </button>
+            <button class="pond-os-icon" type="button" data-pond-os-app="netsweeper" aria-pressed="false">
+              <span aria-hidden="true">🕸</span>
+              Net Sweeper
             </button>
           </nav>
           <section class="pond-os-window" aria-live="polite" aria-labelledby="pond-os-window-title">

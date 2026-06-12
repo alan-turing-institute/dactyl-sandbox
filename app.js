@@ -1,6 +1,6 @@
 /* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPondOs, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode, DactylViewState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
-// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state; (5) issue #227 Pond Life rebrand — `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy.
+// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state; (5) issue #227 Pond Life rebrand — `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy; (6) issue #237 Net Sweeper — attempted `claude -p "We need implement GitHub issue #237... add a Pond OS game called Net Sweeper..."`, then GPT-5.5 completed the Pond OS UI wiring.
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
@@ -99,7 +99,16 @@ const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
 const { premiumHookForSurface } = DactylPremiumHooks;
-const { createKeySequenceDetector, runFishTermCommand } = DactylPondOs;
+const {
+  createKeySequenceDetector,
+  createNetSweeperGame,
+  markNetSweeperTile,
+  netSweeperWinnerText,
+  runFishTermCommand,
+  runNetSweeperComputerTurn,
+  sonarNetSweeperTile,
+  sweepNetSweeperTile,
+} = DactylPondOs;
 const { normaliseRecurrence, recurrenceLabel, nextRecurrenceDate } = DactylRecurrence;
 const { contextualEmptyState, dailyCatchEmptyState } = DactylContextualEmptyStates;
 const analytics = DactylAnalytics.createAnalytics();
@@ -379,6 +388,7 @@ let pondOsOpen = false;
 let pondOsPriorFocus = null;
 let activePondOsApp = 'pondpad';
 let fishTermLines = ['POND BIOS OK', 'Loading fish...', 'Type `help` for local commands.'];
+let netSweeperGame = createNetSweeperGame();
 const pondOsSequence = createKeySequenceDetector();
 
 const POND_VIEW_SECTION_SELECTORS = {
@@ -1850,13 +1860,124 @@ function renderFishTerm() {
   inputEl.focus({ preventScroll: true });
 }
 
+function netSweeperStatusText() {
+  if (netSweeperGame.status === 'complete') {
+    return `Game over: ${netSweeperWinnerText(netSweeperGame)}. Human ${netSweeperGame.scores.human}, computer ${netSweeperGame.scores.computer}.`;
+  }
+  return netSweeperGame.turn === 'human'
+    ? 'Your turn: sweep safe water, mark a ghost net, or spend your one sonar ping.'
+    : 'Computer shoal thinking…';
+}
+
+function netSweeperCellLabel(cell) {
+  if (cell.revealed && cell.hazard) return `Revealed ${cell.hazardLabel} at row ${cell.row + 1}, column ${cell.col + 1}`;
+  if (cell.revealed) return `Cleared water at row ${cell.row + 1}, column ${cell.col + 1}, ${cell.clue} nearby hazards${cell.fishBonus ? ', rescued fish bonus' : ''}`;
+  if (cell.marked) return `Warning buoy by ${cell.markerOwner} at row ${cell.row + 1}, column ${cell.col + 1}`;
+  if (cell.sonar) return `Murky tile at row ${cell.row + 1}, column ${cell.col + 1}, sonar says ${cell.clue} nearby hazards`;
+  return `Murky tile at row ${cell.row + 1}, column ${cell.col + 1}`;
+}
+
+function renderNetSweeper() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'net-sweeper-app';
+
+  const summary = document.createElement('div');
+  summary.className = 'net-sweeper-summary';
+  summary.innerHTML = `
+    <p class="pond-os-game-kicker">Human v computer pond clearance</p>
+    <p id="net-sweeper-status" role="status" aria-live="polite">${netSweeperStatusText()}</p>
+    <div class="net-sweeper-score" aria-label="Net Sweeper score">
+      <span>Human <strong>${netSweeperGame.scores.human}</strong></span>
+      <span>Computer <strong>${netSweeperGame.scores.computer}</strong></span>
+      <span>Safe water left <strong>${netSweeperGame.safeRemaining}</strong></span>
+      <span>Sonar pings <strong>${netSweeperGame.sonarLeft.human}</strong></span>
+    </div>
+  `;
+
+  const actions = document.createElement('div');
+  actions.className = 'net-sweeper-actions';
+  const restart = document.createElement('button');
+  restart.type = 'button';
+  restart.dataset.netSweeperAction = 'restart';
+  restart.textContent = 'New pond';
+  actions.append(restart);
+
+  const board = document.createElement('div');
+  board.className = 'net-sweeper-board';
+  board.setAttribute('role', 'grid');
+  board.setAttribute('aria-label', 'Net Sweeper pond grid');
+  board.style.setProperty('--net-sweeper-cols', String(netSweeperGame.cols));
+  netSweeperGame.cells.forEach((cell) => {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'net-sweeper-tile';
+    tile.dataset.netSweeperCell = cell.id;
+    tile.dataset.state = cell.revealed ? 'revealed' : cell.marked ? 'marked' : 'hidden';
+    if (cell.hazard && cell.revealed) tile.dataset.hazard = 'true';
+    if (cell.fishBonus && cell.revealed) tile.dataset.fishBonus = 'true';
+    tile.setAttribute('role', 'gridcell');
+    tile.setAttribute('aria-label', netSweeperCellLabel(cell));
+    tile.disabled = netSweeperGame.status !== 'playing' || netSweeperGame.turn !== 'human';
+    if (cell.revealed && cell.hazard) {
+      tile.textContent = '🕸';
+    } else if (cell.revealed && cell.fishBonus) {
+      tile.textContent = `🐟 ${cell.clue}`;
+    } else if (cell.revealed) {
+      tile.textContent = cell.clue ? `≈${cell.clue}` : '≈';
+    } else if (cell.marked) {
+      tile.textContent = '🚩';
+    } else if (cell.sonar) {
+      tile.textContent = `📡${cell.clue}`;
+    } else {
+      tile.textContent = '🌊';
+    }
+    board.append(tile);
+  });
+
+  const help = document.createElement('p');
+  help.className = 'net-sweeper-help';
+  help.textContent = 'Controls: click/Enter sweeps, Shift-click or M marks a buoy, S spends sonar. Safe water is +2, rescued fish +5, hazards -5. Correct buoys score at the end.';
+
+  const log = document.createElement('ol');
+  log.className = 'net-sweeper-log';
+  log.setAttribute('aria-label', 'Recent Net Sweeper moves');
+  netSweeperGame.log.slice(0, 4).forEach((line) => {
+    const item = document.createElement('li');
+    item.textContent = line;
+    log.append(item);
+  });
+
+  wrapper.append(summary, actions, board, help, log);
+  pondOsWindowContent.replaceChildren(wrapper);
+}
+
+function takeNetSweeperComputerTurn() {
+  if (netSweeperGame.status !== 'playing' || netSweeperGame.turn !== 'computer') return;
+  netSweeperGame = runNetSweeperComputerTurn(netSweeperGame);
+  renderNetSweeper();
+}
+
+function handleNetSweeperTileAction(cellId, action = 'sweep') {
+  if (netSweeperGame.status !== 'playing' || netSweeperGame.turn !== 'human') return;
+  if (action === 'mark') netSweeperGame = markNetSweeperTile(netSweeperGame, cellId, 'human');
+  else if (action === 'sonar') netSweeperGame = sonarNetSweeperTile(netSweeperGame, cellId, 'human');
+  else netSweeperGame = sweepNetSweeperTile(netSweeperGame, cellId, 'human');
+  renderNetSweeper();
+  window.setTimeout(takeNetSweeperComputerTurn, 350);
+}
+
 function openPondOsApp(appName) {
-  activePondOsApp = appName === 'fishterm' ? 'fishterm' : 'pondpad';
+  const validApps = ['fishterm', 'pondpad', 'netsweeper'];
+  activePondOsApp = validApps.includes(appName) ? appName : 'pondpad';
   pondOsAppButtons.forEach((button) => {
     button.setAttribute('aria-pressed', String(button.dataset.pondOsApp === activePondOsApp));
   });
-  pondOsWindowTitle.textContent = activePondOsApp === 'fishterm' ? 'FishTerm' : 'PondPad';
-  if (activePondOsApp === 'fishterm') renderFishTerm(); else renderPondPad();
+  if (activePondOsApp === 'fishterm') pondOsWindowTitle.textContent = 'FishTerm';
+  else if (activePondOsApp === 'netsweeper') pondOsWindowTitle.textContent = 'Net Sweeper';
+  else pondOsWindowTitle.textContent = 'PondPad';
+  if (activePondOsApp === 'fishterm') renderFishTerm();
+  else if (activePondOsApp === 'netsweeper') renderNetSweeper();
+  else renderPondPad();
 }
 
 function openPondOs() {
@@ -5262,6 +5383,28 @@ commandPaletteEl.addEventListener('click', (event) => {
 });
 pondOsClose.addEventListener('click', closePondOs);
 pondOsOverlay.addEventListener('keydown', trapPondOsFocus);
+pondOsOverlay.addEventListener('click', (event) => {
+  const restart = event.target.closest('[data-net-sweeper-action="restart"]');
+  if (restart) {
+    netSweeperGame = createNetSweeperGame();
+    renderNetSweeper();
+    return;
+  }
+  const tile = event.target.closest('[data-net-sweeper-cell]');
+  if (!tile) return;
+  handleNetSweeperTileAction(tile.dataset.netSweeperCell, event.shiftKey ? 'mark' : 'sweep');
+});
+pondOsOverlay.addEventListener('keydown', (event) => {
+  const tile = event.target.closest('[data-net-sweeper-cell]');
+  if (!tile) return;
+  if (event.key.toLowerCase() === 'm') {
+    event.preventDefault();
+    handleNetSweeperTileAction(tile.dataset.netSweeperCell, 'mark');
+  } else if (event.key.toLowerCase() === 's') {
+    event.preventDefault();
+    handleNetSweeperTileAction(tile.dataset.netSweeperCell, 'sonar');
+  }
+});
 pondOsAppButtons.forEach((button) => {
   button.addEventListener('click', () => openPondOsApp(button.dataset.pondOsApp));
 });

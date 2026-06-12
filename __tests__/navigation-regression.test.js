@@ -38,6 +38,7 @@ describe('top-level navigation regression coverage', () => {
     ['Home / Today', 'Tasks', 'Tools', 'Settings & Help'].forEach((label) => {
       expect(readme).toContain(label);
     });
+    // docsHtml is raw HTML, so the ampersand is expected to remain entity-escaped here.
     ['Home / Today', 'Tasks', 'Tools', 'Settings &amp; Help'].forEach((label) => {
       expect(docsHtml).toContain(label);
     });

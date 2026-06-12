@@ -58,6 +58,13 @@ describe('auth and task API', () => {
     });
   });
 
+  test('POST / redirects to GET / so native auth form submission never returns Cannot POST /', async () => {
+    app = makeApp();
+
+    await request(app).post('/').expect(303).expect('Location', '/');
+    await request(app).post('/index.html').expect(303).expect('Location', '/');
+  });
+
   test('does not expose server source files', async () => {
     app = makeApp();
 

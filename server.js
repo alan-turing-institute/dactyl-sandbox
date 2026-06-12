@@ -639,6 +639,7 @@ function createApp(options = {}) {
   });
 
   app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+  app.post(['/', '/index.html'], (req, res) => res.redirect(303, '/'));
   app.get(['/docs', '/docs.html'], (req, res) => res.sendFile(path.join(__dirname, 'docs.html')));
   app.get('/styles.css', (req, res) => res.type('text/css').sendFile(path.join(__dirname, 'styles.css')));
   app.get('/analytics-config.js', (req, res) => {

@@ -26,13 +26,22 @@
     return FIRST_TASK_TEMPLATES.find((template) => template.id === templateId) || null;
   }
 
-  function shouldShowFirstTaskOnboarding({ dismissed, filter, hasActiveSearchFilter, liveCount, visibleCount }) {
+  function isGuidedEmptyPond({ dismissed, filter, hasActiveSearchFilter, liveCount }) {
     const guidedFilters = ['all', 'active'];
     return !dismissed
       && !hasActiveSearchFilter
       && guidedFilters.includes(filter)
-      && liveCount === 0
+      && liveCount === 0;
+  }
+
+  function shouldShowFirstTaskOnboarding({ dismissed, filter, hasActiveSearchFilter, liveCount, visibleCount }) {
+    return isGuidedEmptyPond({ dismissed, filter, hasActiveSearchFilter, liveCount })
       && visibleCount === 0;
+  }
+
+  function shouldUseNewUserOnboardingMode({ signedIn, dismissed, filter, hasActiveSearchFilter, liveCount }) {
+    return Boolean(signedIn)
+      && isGuidedEmptyPond({ dismissed, filter, hasActiveSearchFilter, liveCount });
   }
 
   function shouldCelebrateFirstCompletion({ alreadyCelebrated, previousCompletedCount, nextCompletedCount }) {
@@ -43,6 +52,7 @@
     FIRST_TASK_TEMPLATES,
     shouldCelebrateFirstCompletion,
     shouldShowFirstTaskOnboarding,
+    shouldUseNewUserOnboardingMode,
     templateForId,
   };
 }));

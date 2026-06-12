@@ -1,6 +1,6 @@
 /* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode, DactylViewState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
-// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state.
+// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state; (5) issue #227 Pond Life rebrand — `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible UI copy.
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
@@ -3708,7 +3708,7 @@ function checkDueNotifications() {
   );
 
   newlyDue.forEach((todo) => {
-    new notificationApi('Dactyl TODO', {
+    new notificationApi('Pond Life', {
       body: todo.dueDate < today ? `Overdue: ${todo.text}` : `Due today: ${todo.text}`,
       tag: `dactyl-due-${todo.id}`,
     });
@@ -3747,7 +3747,7 @@ function renderAuth() {
   authTitle.textContent = signedIn ? 'Account' : 'Sign in to sync tasks';
   authStatus.textContent = signedIn
     ? `Signed in as ${currentUser.username}. Your tasks sync to the backend.`
-    : 'Create an account or log in to load your TODO pond.';
+    : 'Create an account or log in to load your Pond Life.';
   logoutButton.hidden = !signedIn;
   usernameInput.disabled = signedIn;
   passwordInput.disabled = signedIn;

@@ -1,5 +1,6 @@
 // AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
 // `claude -p "Investigate likely cause... Do not modify files"` for issue #198; edits add missing static script coverage used by the login page.
+// `claude -p "We need address GitHub issue #227... Rebrand TODO app to 'Pond Life'..."` plus GPT-5.5 edits to rebrand visible shared-page copy.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -491,7 +492,7 @@ function createApp(options = {}) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(share.title)} · Dactyl shared pond</title>
+    <title>${escapeHtml(share.title)} · Pond Life shared pond</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>

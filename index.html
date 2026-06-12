@@ -29,7 +29,7 @@
           <p id="auth-status" class="auth-status" role="status" aria-live="polite">Create an account or log in to load your TODO pond.</p>
           <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
         </div>
-        <form id="auth-form" class="auth-form" autocomplete="on">
+        <form id="auth-form" class="auth-form" method="post" autocomplete="on">
           <label>
             <span>Username</span>
             <input id="username-input" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" aria-describedby="auth-help" title="Use 3–32 letters, numbers, dots, underscores, or hyphens." required />

@@ -6,6 +6,8 @@ Sandbox for the Dactyl OpenClaw agent (Hack Week 2026).
 
 This repository contains a small TODO app built with HTML, CSS, vanilla JavaScript, and a Node/Express backend. Users can sign up or log in, then sync tasks through a SQLite-backed API protected by simple JWT authentication.
 
+For product strategy, see the [Dactyl business plan](BUSINESS_PLAN.md): investor-facing positioning, target audiences, pricing sketches, go-to-market phases, risks, and a pitch-deck outline for the fish-themed gentle productivity thesis.
+
 ### Features
 
 - Sign up and log in with username/password credentials
@@ -60,6 +62,27 @@ Use **GitHub import** from the action bar to turn public GitHub issue or pull re
 4. Select the items you want and choose **Import selected**. Each imported task keeps the GitHub URL so the compact link chip and reports point back to the source issue or PR.
 
 The first import slice does not use OAuth or private repository tokens; it is intended for public GitHub issue and PR URLs only.
+
+### Top-level pond views
+
+The signed-in app is split into four top-level views so new workflow controls have a clear home instead of collecting in one crowded panel.
+
+- **Home / Today** — a calm landing view for Daily Catch and high-level pond status.
+- **Tasks** — the main task workspace: add, search, filter, select, edit, complete, archive, restore, and triage tasks.
+- **Tools** — import/export, GitHub restock, reports, sharing, and diagnostics.
+- **Settings & Help** — display comfort, reminders/quiet hours, shortcuts, button help, tour controls, and documentation.
+
+Navigation buttons keep `aria-current`, `aria-pressed`, a live status message, and keyboard focus in sync when switching views. When adding a new control, place it in the smallest matching view and add static or helper-level coverage so future changes do not re-clutter the task workspace.
+
+#### Navigation QA checklist
+
+For navigation-related PRs, smoke-test with keyboard only:
+
+1. `Tab` reaches each top-level view button in order.
+2. `Enter` or `Space` switches the view and leaves focus on the active button.
+3. The active view has a visible selected state and `aria-current="page"`.
+4. Hidden-view controls are not the target of shortcuts or proxy buttons without switching back to the owning view first.
+5. Reduced-motion settings keep the view usable without relying on animation.
 
 ### Keyboard shortcuts
 

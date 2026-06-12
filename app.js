@@ -82,6 +82,7 @@ const STARTER_SHOALS = [
 const {
   shouldCelebrateFirstCompletion,
   shouldShowFirstTaskOnboarding,
+  shouldUseNewUserOnboardingMode,
   templateForId,
 } = DactylFirstTaskOnboarding;
 const {
@@ -3598,6 +3599,16 @@ function onboardingIsComplete() {
   return tourDismissed && hasRealTask();
 }
 
+function isNewUserOnboardingMode() {
+  return shouldUseNewUserOnboardingMode({
+    signedIn: Boolean(currentUser),
+    dismissed: firstTaskOnboardingDismissed,
+    filter,
+    hasActiveSearchFilter: hasActiveSearchFilter(),
+    liveCount: liveTodos().length,
+  });
+}
+
 function setGettingStartedOpen(open) {
   viewPrefs = { ...viewPrefs, [GETTING_STARTED_PREF_KEY]: Boolean(open) };
   saveViewPrefs();
@@ -3625,7 +3636,8 @@ function renderGettingStartedPanel() {
     saveViewPrefs();
   }
 
-  const open = Boolean(currentUser) && (storedOpen === null ? !complete : storedOpen);
+  const forceNewUserOpen = isNewUserOnboardingMode();
+  const open = Boolean(currentUser) && (forceNewUserOpen || (storedOpen === null ? !complete : storedOpen));
   gettingStartedPanel.hidden = !open;
   gettingStartedToggle.hidden = !currentUser;
   gettingStartedToggle.setAttribute('aria-expanded', String(open));
@@ -3922,8 +3934,16 @@ function setFilter(nextFilter) {
   applyContextDefaults();
 }
 
+function exitNewUserOnboardingForAction() {
+  if (!isNewUserOnboardingMode()) return false;
+  saveFirstTaskOnboardingDismissed(true);
+  return true;
+}
+
 function focusTaskInputFromTour() {
+  const exitedNewUserOnboarding = exitNewUserOnboardingForAction();
   setPondView('tasks', { announce: false });
+  if (exitedNewUserOnboarding) render();
   input.focus();
   showPondMessage('Add one small next action, then let it swim.');
 }
@@ -3934,6 +3954,15 @@ function openPastePanelFromTour() {
 
 function switchToTideModeFromTour() {
   setFilter('tide');
+}
+
+function openPondTour(source = 'manual') {
+  exitNewUserOnboardingForAction();
+  tourForcedVisible = true;
+  trackProductEvent('tour_opened', { source });
+  render();
+  pondTour.focus({ preventScroll: true });
+  pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function dismissTour() {
@@ -4104,6 +4133,7 @@ function render() {
   renderEmptyStateActions(empty);
   firstTaskOnboarding.hidden = !showFirstTaskGuide;
   emptyState.classList.toggle('visible', filter !== 'tide' && filter !== 'week' && filter !== 'ghost' && visiblePond.length === 0);
+  pondScreen.classList.toggle('new-user-onboarding', isNewUserOnboardingMode());
   clearCompleted.textContent = filter === 'archive' ? 'Release archived permanently' : 'Send all to reef';
   clearCompleted.classList.toggle('visible', filter !== 'ghost' && (filter === 'archive' ? archivedTodos().length > 0 : liveTodos().some((todo) => todo.completed)));
   releaseDemo.disabled = !currentUser || !liveTodos().some((todo) => DEMO_TODO_IDS.includes(todo.id));
@@ -5162,6 +5192,9 @@ clearCompleted.addEventListener('click', () => {
 
 gettingStartedToggle.addEventListener('click', () => setGettingStartedOpen(gettingStartedPanel.hidden));
 gettingStartedCollapse.addEventListener('click', () => setGettingStartedOpen(false));
+checklistAddTask.addEventListener('click', focusTaskInputFromTour);
+checklistTideMode.addEventListener('click', switchToTideModeFromTour);
+checklistPondTour.addEventListener('click', () => openPondTour('getting_started_checklist'));
 stockPond.addEventListener('click', stockDemoPond);
 releaseDemo.addEventListener('click', releaseDemoFish);
 firstTaskTemplateButtons.forEach((button) => {
@@ -5244,13 +5277,7 @@ copyPondDiagnostics.addEventListener('click', copyDiagnosticsReport);
 castNet.addEventListener('click', toggleNetMode);
 releaseSelected.addEventListener('click', releaseSelectedTodos);
 moveShoal.addEventListener('click', moveSelectedToShoal);
-showPondTour.addEventListener('click', () => {
-  tourForcedVisible = true;
-  trackProductEvent('tour_opened', { source: 'manual' });
-  render();
-  pondTour.focus({ preventScroll: true });
-  pondTour.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-});
+showPondTour.addEventListener('click', () => openPondTour('manual'));
 tourAddTask.addEventListener('click', focusTaskInputFromTour);
 tourStockDemo.addEventListener('click', stockDemoPond);
 tourPastePond.addEventListener('click', openPastePanelFromTour);

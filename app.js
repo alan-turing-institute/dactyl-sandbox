@@ -3824,6 +3824,7 @@ function openPastePanelFromTour() {
 }
 
 function switchToTideModeFromTour() {
+  // Tide is outside the simplified onboarding filters, so this exits onboarding on render.
   setFilter('tide');
 }
 

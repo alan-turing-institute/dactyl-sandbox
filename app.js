@@ -1,4 +1,4 @@
-/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
+/* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode, DactylViewState */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
 // Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state.
 const TOKEN_KEY = 'dactyl.authToken';
@@ -89,6 +89,11 @@ const {
   screenKeyFromLocation,
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
+const {
+  DEFAULT_POND_VIEW,
+  desiredPondView,
+  viewButtonState,
+} = DactylViewState;
 const { fishEmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
@@ -232,6 +237,10 @@ const tourCopyReport = document.querySelector('#tour-copy-report');
 const dismissPondTour = document.querySelector('#dismiss-pond-tour');
 const focusPanel = document.querySelector('#focus-panel');
 const screenRoots = { auth: authScreen, pond: pondScreen, focus: focusPanel };
+const pondViewTabs = [...document.querySelectorAll('[data-pond-view]')];
+const pondViewTargets = [...document.querySelectorAll('[data-pond-view-target]')];
+const pondViewStatus = document.querySelector('#pond-view-status');
+const homeViewSummaryText = document.querySelector('#home-view-summary-text');
 const focusTitle = document.querySelector('#focus-title');
 const focusMeta = document.querySelector('#focus-meta');
 const focusSprintStatus = document.querySelector('#focus-sprint-status');
@@ -347,6 +356,7 @@ let activityLog = [];
 let pendingRestore = null;
 let buttonHelpReturnFocus = null;
 let currentScreen = '';
+let currentPondView = DEFAULT_POND_VIEW;
 let suppressScreenHistory = false;
 let lastSync = {
   state: 'never synced',
@@ -358,6 +368,47 @@ let renderDurations = [];
 let commandPaletteOpen = false;
 let commandPalettePriorFocus = null;
 let commandPaletteActiveIndex = 0;
+
+const POND_VIEW_SECTION_SELECTORS = {
+  home: [
+    '[data-pond-view-section="home"]',
+    '#todo-form',
+    '#storage-error',
+    '#pond-message',
+    '#undo-toast',
+    '#getting-started-panel',
+    '#daily-catch-panel',
+  ],
+  tasks: [
+    '.toolbar',
+    '#overdue-nudge',
+    '.search-panel',
+    '#todo-list',
+    '#empty-state',
+    '#clear-completed',
+    '#triage-panel',
+  ],
+  tools: [
+    '[data-pond-view-section="tools"]',
+    '.pond-actions',
+    '#more-actions-panel',
+    '#paste-panel',
+    '#github-import-panel',
+    '#restore-panel',
+    '#pond-health-panel',
+    '#activity-log-panel',
+    '#showcase-panel',
+    '#trophies-panel',
+    '#starter-shoals-panel',
+  ],
+  settings: [
+    '[data-pond-view-section="settings"]',
+    '#prefs-panel',
+    '#reminder-prefs-panel',
+    '#button-help-panel',
+    '#shortcut-help',
+  ],
+};
 
 
 function requestedScreenKey() {
@@ -403,6 +454,70 @@ function setScreen(nextScreen, options = {}) {
 
 function syncScreen(options = {}) {
   setScreen(desiredScreenKey(), options);
+}
+
+function pondViewLabel(viewKey) {
+  return {
+    home: 'Home / Today',
+    tasks: 'Tasks',
+    tools: 'Tools',
+    settings: 'Settings & Help',
+  }[viewKey] || 'Home / Today';
+}
+
+function pondViewSectionElements() {
+  const entries = Object.entries(POND_VIEW_SECTION_SELECTORS).map(([viewKey, selectors]) => {
+    const elements = selectors.flatMap((selector) => [...document.querySelectorAll(selector)]);
+    return [viewKey, [...new Set(elements)]];
+  });
+  return Object.fromEntries(entries);
+}
+
+function updateHomeViewSummary() {
+  if (!homeViewSummaryText) return;
+  const activeCount = liveTodos().filter((todo) => !todo.completed).length;
+  const highCount = liveTodos().filter((todo) => !todo.completed && todo.priority === 'high').length;
+  const catchCount = dailyCatch.pinnedIds.length;
+  const summaryParts = [pluralise(activeCount, 'active fish', 'active fish')];
+  if (highCount > 0) summaryParts.push(pluralise(highCount, 'high-tide task'));
+  if (catchCount > 0) summaryParts.push(pluralise(catchCount, 'Daily Catch pin'));
+  homeViewSummaryText.textContent = `${summaryParts.join(', ')}. Add a task here, then jump into Tasks when you are ready to review the full pond.`;
+}
+
+function applyPondView(options = {}) {
+  const activeView = desiredPondView(currentPondView);
+  currentPondView = activeView;
+  const sections = pondViewSectionElements();
+
+  Object.entries(sections).forEach(([viewKey, elements]) => {
+    elements.forEach((element) => {
+      element.classList.toggle('pond-view-section-hidden', viewKey !== activeView);
+    });
+  });
+
+  pondViewTabs.forEach((button) => {
+    const state = viewButtonState(button.dataset.pondView, activeView);
+    button.classList.toggle('active', state.active);
+    button.setAttribute('aria-pressed', state.ariaPressed);
+    if (state.ariaCurrent) {
+      button.setAttribute('aria-current', state.ariaCurrent);
+    } else {
+      button.removeAttribute('aria-current');
+    }
+  });
+
+  document.body.dataset.pondView = activeView;
+  updateHomeViewSummary();
+  if (pondViewStatus && options.announce !== false) pondViewStatus.textContent = `${pondViewLabel(activeView)} view selected.`;
+}
+
+function setPondView(nextView, options = {}) {
+  currentPondView = desiredPondView(nextView, currentPondView);
+  applyPondView(options);
+  if (options.focus) {
+    const activeButton = pondViewTabs.find((button) => button.dataset.pondView === currentPondView);
+    if (activeButton) activeButton.focus({ preventScroll: true });
+  }
 }
 
 function diagnosticNow() {
@@ -3883,6 +3998,7 @@ function render() {
   renderTrophies();
   if (!reminderPrefsPanel.hidden) renderReminderPrefs();
   renderOverdueNudge();
+  applyPondView({ announce: false });
 }
 
 function addTodo(text, options = {}) {
@@ -5087,6 +5203,18 @@ githubImportSelectAll.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);
+pondViewTabs.forEach((button) => {
+  button.addEventListener('click', () => setPondView(button.dataset.pondView, { focus: true }));
+});
+pondViewTargets.forEach((button) => {
+  button.addEventListener('click', () => setPondView(button.dataset.pondViewTarget, { focus: true }));
+});
+document.querySelectorAll('[data-proxy-click]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const target = document.getElementById(button.dataset.proxyClick);
+    if (target && typeof target.click === 'function') target.click();
+  });
+});
 function renderFromHistory() {
   suppressScreenHistory = true;
   render();

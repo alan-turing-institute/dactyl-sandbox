@@ -67,6 +67,56 @@ button:disabled {
 
 .hero { margin-bottom: 1.5rem; }
 
+.pond-shell,
+.view-summary {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.25rem;
+  background: rgb(255 255 255 / 5%);
+}
+
+.pond-shell h3,
+.view-summary h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.view-summary p { margin: .35rem 0 0; }
+
+.pond-view-nav,
+.view-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.pond-view-tab {
+  padding: .7rem 1rem;
+  color: var(--text);
+  background: rgb(255 255 255 / 8%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+}
+
+.pond-view-tab:hover,
+.pond-view-tab:focus-visible,
+.pond-view-tab.active,
+.pond-view-tab[aria-current="page"] {
+  color: #06111e;
+  background: var(--accent);
+}
+
+.view-summary-actions .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.pond-view-section-hidden { display: none !important; }
+
 @keyframes fishSwim {
   0%   { transform: translateX(0) rotate(0deg); }
   25%  { transform: translateX(4px) rotate(4deg); }

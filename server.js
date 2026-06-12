@@ -656,6 +656,7 @@ function createApp(options = {}) {
   app.get('/premium-hooks.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'premium-hooks.js')));
   app.get('/recurrence.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'recurrence.js')));
   app.get('/screen-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'screen-state.js')));
+  app.get('/view-state.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'view-state.js')));
   app.get('/fish-emoji.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'fish-emoji.js')));
   app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));
   app.get('/quick-add-parser.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'quick-add-parser.js')));

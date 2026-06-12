@@ -72,6 +72,61 @@
           <span class="reef-swimmer reef-swimmer-one">🐟</span>
           <span class="reef-swimmer reef-swimmer-two">🐠</span>
         </div>
+
+        <header class="pond-shell" aria-labelledby="pond-navigation-title">
+          <div>
+            <p class="eyebrow">Pond navigation</p>
+            <h3 id="pond-navigation-title">Choose a view</h3>
+          </div>
+          <nav id="pond-view-nav" class="pond-view-nav" aria-label="Top-level pond views">
+            <button class="pond-view-tab" type="button" data-pond-view="home" aria-controls="home-view-summary" aria-current="page" aria-pressed="true">Home / Today</button>
+            <button class="pond-view-tab" type="button" data-pond-view="tasks" aria-controls="todo-list" aria-pressed="false">Tasks</button>
+            <button class="pond-view-tab" type="button" data-pond-view="tools" aria-controls="tools-view-summary" aria-pressed="false">Tools</button>
+            <button class="pond-view-tab" type="button" data-pond-view="settings" aria-controls="settings-view-summary" aria-pressed="false">Settings &amp; Help</button>
+          </nav>
+          <p id="pond-view-status" class="sr-only" role="status" aria-live="polite">Home / Today view selected.</p>
+        </header>
+
+        <section id="home-view-summary" class="view-summary home-view-summary" data-pond-view-section="home" aria-labelledby="home-view-title">
+          <div>
+            <p class="eyebrow">Home / Today</p>
+            <h3 id="home-view-title">Today's pond</h3>
+            <p id="home-view-summary-text">Add a task, review your Daily Catch, then jump into the task list when you are ready.</p>
+          </div>
+          <div class="view-summary-actions">
+            <button class="secondary-action" type="button" data-proxy-click="daily-catch-toggle">Open Daily Catch</button>
+            <button class="secondary-action" type="button" data-pond-view-target="tasks">Review tasks</button>
+          </div>
+        </section>
+
+        <section id="tools-view-summary" class="view-summary" data-pond-view-section="tools" aria-labelledby="tools-view-title">
+          <div>
+            <p class="eyebrow">Tools</p>
+            <h3 id="tools-view-title">Import, export, reports, and diagnostics</h3>
+            <p>Use the pond tools without leaving your current task state behind.</p>
+          </div>
+          <div class="view-summary-actions">
+            <button class="secondary-action" type="button" data-proxy-click="paste-pond">Paste to pond</button>
+            <button class="secondary-action" type="button" data-proxy-click="github-import-toggle">GitHub restock</button>
+            <button class="secondary-action" type="button" data-proxy-click="copy-pond-report">Copy report</button>
+            <button class="secondary-action" type="button" data-proxy-click="pond-health-toggle">Pond health</button>
+          </div>
+        </section>
+
+        <section id="settings-view-summary" class="view-summary" data-pond-view-section="settings" aria-labelledby="settings-view-title">
+          <div>
+            <p class="eyebrow">Settings &amp; Help</p>
+            <h3 id="settings-view-title">Comfort, reminders, shortcuts, and docs</h3>
+            <p>Tune the pond or open help from one calmer corner.</p>
+          </div>
+          <div class="view-summary-actions">
+            <button class="secondary-action" type="button" data-proxy-click="prefs-toggle">Calm Water</button>
+            <button class="secondary-action" type="button" data-proxy-click="reminder-prefs-toggle">Quiet hours</button>
+            <button class="secondary-action" type="button" data-proxy-click="shortcut-help-toggle">Pond shortcuts</button>
+            <button class="secondary-action" type="button" data-proxy-click="button-help-toggle">Button help</button>
+            <a class="secondary-action" href="/docs">Docs</a>
+          </div>
+        </section>
       <form id="todo-form" class="todo-form" autocomplete="off">
         <label class="sr-only" for="todo-input">New TODO</label>
         <input
@@ -677,6 +732,7 @@
     <script src="due-nudges.js"></script>
     <script src="premium-hooks.js"></script>
     <script src="screen-state.js"></script>
+    <script src="view-state.js"></script>
     <script src="fish-emoji.js"></script>
     <script src="first-task-onboarding.js"></script>
     <script src="recurrence.js"></script>

@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
+# `claude -p "In repo alan-turing-institute/dactyl-sandbox, issue #201 reports Docker runtime login failure after #199: ENOENT stat /app/github-import.js. Investigate likely minimal fix and tests. Do not modify files; return concise diagnosis."`
 set -eu
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
@@ -128,6 +130,13 @@ fetch /triage-mode.js
 case "$(header_value "Content-Type")" in
   application/javascript*|text/javascript*) ;;
   *) printf 'Unexpected /triage-mode.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
+esac
+assert_header "Content-Security-Policy" "$EXPECTED_CSP"
+
+fetch /github-import.js
+case "$(header_value "Content-Type")" in
+  application/javascript*|text/javascript*) ;;
+  *) printf 'Unexpected /github-import.js Content-Type: %s\n' "$(header_value "Content-Type")" >&2; exit 1 ;;
 esac
 assert_header "Content-Security-Policy" "$EXPECTED_CSP"
 

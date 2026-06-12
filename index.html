@@ -81,7 +81,7 @@
           </div>
           <nav id="pond-view-nav" class="pond-view-nav" aria-label="Top-level pond views">
             <button class="pond-view-tab" type="button" data-pond-view="home" aria-controls="home-view-summary" aria-current="page" aria-pressed="true">Home / Today</button>
-            <button class="pond-view-tab" type="button" data-pond-view="tasks" aria-controls="todo-list" aria-pressed="false">Tasks</button>
+            <button class="pond-view-tab" type="button" data-pond-view="tasks" aria-controls="tasks-view-summary" aria-pressed="false">Tasks</button>
             <button class="pond-view-tab" type="button" data-pond-view="tools" aria-controls="tools-view-summary" aria-pressed="false">Tools</button>
             <button class="pond-view-tab" type="button" data-pond-view="settings" aria-controls="settings-view-summary" aria-pressed="false">Settings &amp; Help</button>
           </nav>
@@ -92,11 +92,24 @@
           <div>
             <p class="eyebrow">Home / Today</p>
             <h3 id="home-view-title">Today's pond</h3>
-            <p id="home-view-summary-text">Add a task, review your Daily Catch, then jump into the task list when you are ready.</p>
+            <p id="home-view-summary-text">Review your Daily Catch, then jump into Tasks when you are ready to work the pond.</p>
           </div>
           <div class="view-summary-actions">
             <button class="secondary-action" type="button" data-proxy-click="daily-catch-toggle">Open Daily Catch</button>
-            <button class="secondary-action" type="button" data-pond-view-target="tasks">Review tasks</button>
+            <button class="secondary-action" type="button" data-pond-view-target="tasks">Open Tasks view</button>
+          </div>
+        </section>
+
+        <section id="tasks-view-summary" class="view-summary tasks-view-summary" data-pond-view-section="tasks" aria-labelledby="tasks-view-title">
+          <div>
+            <p class="eyebrow">Tasks</p>
+            <h3 id="tasks-view-title">Work the task pond</h3>
+            <p>Add, search, filter, select, edit, complete, archive, and restore tasks from this dedicated workflow view.</p>
+          </div>
+          <div class="view-summary-actions">
+            <button class="secondary-action" type="button" data-proxy-click="todo-input">Add task</button>
+            <button class="secondary-action" type="button" data-proxy-click="task-search">Search tasks</button>
+            <button class="secondary-action" type="button" data-proxy-click="triage-toggle">Sort the catch</button>
           </div>
         </section>
 

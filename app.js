@@ -372,14 +372,16 @@ let commandPaletteActiveIndex = 0;
 const POND_VIEW_SECTION_SELECTORS = {
   home: [
     '[data-pond-view-section="home"]',
-    '#todo-form',
-    '#storage-error',
-    '#pond-message',
-    '#undo-toast',
     '#getting-started-panel',
     '#daily-catch-panel',
   ],
   tasks: [
+    '[data-pond-view-section="tasks"]',
+    '#todo-form',
+    '#storage-error',
+    '#pond-message',
+    '#undo-toast',
+    '.pond-actions',
     '.toolbar',
     '#overdue-nudge',
     '.search-panel',
@@ -390,7 +392,6 @@ const POND_VIEW_SECTION_SELECTORS = {
   ],
   tools: [
     '[data-pond-view-section="tools"]',
-    '.pond-actions',
     '#more-actions-panel',
     '#paste-panel',
     '#github-import-panel',
@@ -481,7 +482,7 @@ function updateHomeViewSummary() {
   const summaryParts = [pluralise(activeCount, 'active fish', 'active fish')];
   if (highCount > 0) summaryParts.push(pluralise(highCount, 'high-tide task'));
   if (catchCount > 0) summaryParts.push(pluralise(catchCount, 'Daily Catch pin'));
-  homeViewSummaryText.textContent = `${summaryParts.join(', ')}. Add a task here, then jump into Tasks when you are ready to review the full pond.`;
+  homeViewSummaryText.textContent = `${summaryParts.join(', ')}. Open Tasks when you are ready to add, search, or review the full pond.`;
 }
 
 function applyPondView(options = {}) {
@@ -1125,6 +1126,7 @@ function logActivity(action, todoText) {
 }
 
 function setMoreActionsOpen(open) {
+  if (open) setPondView('tools');
   moreActionsPanel.hidden = !open;
   moreActionsToggle.setAttribute('aria-expanded', String(open));
   if (open) {
@@ -1697,8 +1699,8 @@ const COMMANDS = [
   { id: 'pond-health', label: 'Open pond health', action: () => setPondHealthOpen(true) },
   { id: 'keyboard-shortcuts', label: 'Show keyboard shortcuts', action: () => setShortcutHelpOpen(true) },
   { id: 'triage-mode', label: 'Open triage mode', action: () => setTriageOpen(true) },
-  { id: 'add-task', label: 'Add a task', action: () => { input.focus(); input.select(); } },
-  { id: 'search-tasks', label: 'Search tasks', action: () => { taskSearch.focus(); taskSearch.select(); } },
+  { id: 'add-task', label: 'Add a task', action: () => { setPondView('tasks'); input.focus(); input.select(); } },
+  { id: 'search-tasks', label: 'Search tasks', action: () => { setPondView('tasks'); taskSearch.focus(); taskSearch.select(); } },
   { id: 'log-out', label: 'Log out', action: () => logout() },
 ];
 
@@ -3782,6 +3784,7 @@ function renderAuth() {
 }
 
 function setFilter(nextFilter) {
+  setPondView('tasks', { announce: false });
   // Clear selection when filter changes so hidden tasks can't be affected by bulk actions.
   selectedTodoIds.clear();
   filter = nextFilter;
@@ -3791,6 +3794,7 @@ function setFilter(nextFilter) {
 }
 
 function focusTaskInputFromTour() {
+  setPondView('tasks', { announce: false });
   input.focus();
   showPondMessage('Add one small next action, then let it swim.');
 }
@@ -3821,6 +3825,7 @@ function currentTriageTodo() {
 }
 
 function setTriageOpen(open) {
+  if (open) setPondView('tasks', { announce: false });
   if (open && !currentUser) {
     showPondMessage('Sign in first to use triage mode.');
     return;
@@ -4821,6 +4826,7 @@ function handleGlobalShortcut(event) {
 
   if (event.key === '/') {
     event.preventDefault();
+    setPondView('tasks', { announce: false });
     input.focus();
     return;
   }
@@ -5213,6 +5219,7 @@ document.querySelectorAll('[data-proxy-click]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = document.getElementById(button.dataset.proxyClick);
     if (target && typeof target.click === 'function') target.click();
+    if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
   });
 });
 function renderFromHistory() {

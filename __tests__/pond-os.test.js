@@ -8,11 +8,12 @@ describe('Pond OS easter egg helpers', () => {
     expect(detector.push('s')).toBe(false);
   });
 
-  test('ignores non-letter keys while detecting the launch phrase', () => {
+  test('resets detection on non-letter keys before detecting the launch phrase', () => {
     const detector = createKeySequenceDetector();
     expect(detector.push('p')).toBe(false);
     expect(detector.push('ArrowLeft')).toBe(false);
     expect(['o', 'n', 'd', 'o', 's'].some((key) => detector.push(key))).toBe(false);
+    expect(['p', 'o', 'n', 'd', 'o', 's'].some((key) => detector.push(key))).toBe(true);
   });
 
   test('runs local FishTerm commands without mutating tasks', () => {

@@ -379,7 +379,8 @@ h1 {
 .shoal-control[hidden],
 .shoal-chip[hidden],
 .secondary-action[hidden],
-.blocker-badge[hidden] { display: none; }
+.blocker-badge[hidden],
+.overdue-nudge[hidden] { display: none; }
 
 .pond-actions {
   display: flex;
@@ -475,6 +476,24 @@ h1 {
   color: var(--muted);
   font-size: .92rem;
   font-weight: 700;
+}
+
+.overdue-nudge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  margin-bottom: .75rem;
+  padding: .65rem 1rem;
+  border: 1px solid rgb(122 184 245 / 28%);
+  border-radius: 999px;
+  background: rgb(122 184 245 / 8%);
+  font-size: .9rem;
+}
+
+.overdue-nudge-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .secondary-action,

@@ -1524,13 +1524,30 @@ kbd {
 
 .overdue-nudge-text { flex: 1; }
 
+.overdue-nudge-switch,
+.overdue-nudge-dismiss {
+  border-radius: .25rem;
+}
+
+.overdue-nudge-switch {
+  padding: .2rem .55rem;
+  border: 1px solid rgb(255 160 0 / 40%);
+  background: rgb(255 160 0 / 16%);
+  color: var(--fg);
+  font-size: .8rem;
+}
+
+.overdue-nudge-switch:hover,
+.overdue-nudge-switch:focus-visible {
+  background: rgb(255 160 0 / 24%);
+}
+
 .overdue-nudge-dismiss {
   padding: .1rem .45rem;
   background: transparent;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1;
-  border-radius: .25rem;
 }
 
 .overdue-nudge-dismiss:hover,

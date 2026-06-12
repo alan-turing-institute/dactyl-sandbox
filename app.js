@@ -887,14 +887,15 @@ function overdueActiveTodoCount() {
 function renderOverdueNudge() {
   const nudge = document.querySelector('#overdue-nudge');
   if (!nudge) return;
+  const showOnFilter = ['all', 'active'].includes(filter);
   const count = overdueActiveTodoCount();
-  if (count < OVERDUE_NUDGE_MIN || overdueNudgeDismissed) {
+  if (!showOnFilter || count < OVERDUE_NUDGE_MIN || overdueNudgeDismissed) {
     nudge.hidden = true;
     return;
   }
   nudge.hidden = false;
   nudge.querySelector('.overdue-nudge-text').textContent =
-    `${count} overdue task${count === 1 ? '' : 's'} — switch to Active or Tide mode to review them.`;
+    `${count} overdue task${count === 1 ? '' : 's'} — switch to Tide mode to prioritise them.`;
 }
 
 function applyViewPrefs() {
@@ -4812,6 +4813,7 @@ copyStandupDraftButton.addEventListener('click', copyStandupDraft);
 dailyCatchToggle.addEventListener('click', () => setDailyCatchOpen(dailyCatchPanel.hidden));
 dailyCatchClose.addEventListener('click', () => setDailyCatchOpen(false));
 upgradeCalloutDismiss.addEventListener('click', dismissPremiumCallout);
+document.querySelector('#overdue-nudge-switch')?.addEventListener('click', () => setFilter('tide'));
 document.querySelector('#overdue-nudge-dismiss')?.addEventListener('click', () => {
   overdueNudgeDismissed = true;
   renderOverdueNudge();

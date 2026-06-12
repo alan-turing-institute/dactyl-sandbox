@@ -59,6 +59,7 @@ describe('Tools and Settings view relocation', () => {
     expect(more).not.toContain('id="prefs-toggle"');
     expect(indexHtml.match(/id="paste-pond"/g)).toHaveLength(1);
     expect(indexHtml.match(/id="prefs-toggle"/g)).toHaveLength(1);
+    expect(indexHtml.match(/id="daily-catch-toggle"/g)).toHaveLength(1);
   });
 
   test('view action clusters have explicit styling hooks', () => {

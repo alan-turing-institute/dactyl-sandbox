@@ -39,6 +39,7 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Export a versioned JSON pond backup and restore it later with a merge/replace preview before anything changes
 - Export a calendar snapshot (`.ics`) of active tasks with due dates and projected recurring-task occurrences over the next 60 days; open in any calendar app — the file is a user-controlled snapshot, not a live-sync feed
 - Attach validated GitHub issue or PR URLs to tasks and show compact link chips plus report links
+- Import public GitHub issue or PR URLs in batches, previewing titles and duplicates before tasks are added
 - Review a Pond health panel with counts, sync status, render timing, and copy-safe diagnostics that omit task text and private account data
 - Copy a read-only pond snapshot for standups and demos without account credentials or edit controls
 - Use a dismissible first-run Pond tour and empty-state quick start for self-serve onboarding
@@ -47,6 +48,17 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Clear completed tasks
 - Validate saved task data before rendering
 - Responsive layout with accessible labels
+
+### GitHub issue import
+
+Use **GitHub import** from the action bar to turn public GitHub issue or pull request URLs into pond tasks without copying titles by hand.
+
+1. Paste one URL per line, or paste Markdown bullets that contain GitHub issue or PR links.
+2. Choose **Preview tasks**. The app validates the links, fetches public titles when GitHub allows it, and falls back to a readable `owner/repo #number` label if metadata is unavailable.
+3. Review the preview. URLs already attached to existing tasks are marked as duplicates and cannot be selected again.
+4. Select the items you want and choose **Import selected**. Each imported task keeps the GitHub URL so the compact link chip and reports point back to the source issue or PR.
+
+The first import slice does not use OAuth or private repository tokens; it is intended for public GitHub issue and PR URLs only.
 
 ### Keyboard shortcuts
 

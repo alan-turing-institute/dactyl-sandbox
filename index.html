@@ -134,6 +134,7 @@
         <button id="showcase-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="showcase-panel">Aquarium view</button>
         <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel">Button help</button>
         <a class="secondary-action" href="/docs">Docs</a>
+        <button id="github-import-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="github-import-panel" title="Import GitHub issues and PRs as tasks">GitHub import</button>
         <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?">Pond shortcuts</button>
         <button id="triage-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="triage-panel" aria-keyshortcuts="U">Triage mode</button>
         <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel">Activity</button>
@@ -421,6 +422,24 @@
         </div>
       </section>
 
+      <section id="github-import-panel" class="github-import-panel" aria-labelledby="github-import-title" hidden>
+        <div class="github-import-header">
+          <div>
+            <p class="eyebrow">GitHub</p>
+            <h2 id="github-import-title">Import issues &amp; PRs</h2>
+          </div>
+          <button id="github-import-close" class="secondary-action" type="button">Close</button>
+        </div>
+        <p class="github-import-note">Paste GitHub issue or PR URLs — one per line, or from a Markdown bullet list. Public repositories only; no sign-in required.</p>
+        <textarea id="github-import-input" class="github-import-input" rows="5" placeholder="https://github.com/owner/repo/issues/123&#10;https://github.com/owner/repo/pull/456" aria-label="GitHub URLs to import"></textarea>
+        <button id="github-import-parse" type="button">Preview tasks</button>
+        <div id="github-import-preview" class="github-import-preview" aria-live="polite" hidden></div>
+        <div id="github-import-actions" class="github-import-actions" hidden>
+          <button id="github-import-confirm" type="button">Import selected</button>
+          <button id="github-import-select-all" class="secondary-action" type="button">Select all</button>
+        </div>
+      </section>
+
       <section id="restore-panel" class="restore-panel" aria-labelledby="restore-title" hidden>
         <div class="restore-panel-header">
           <div>
@@ -611,6 +630,7 @@
     <script src="recurrence.js"></script>
     <script src="quick-add-parser.js"></script>
     <script src="triage-mode.js"></script>
+    <script src="github-import.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

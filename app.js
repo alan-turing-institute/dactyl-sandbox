@@ -4275,7 +4275,9 @@ function handleGlobalShortcut(event) {
     if (closedPrefs) setPrefsOpen(false);
     const closedActivityLog = !activityLogPanel.hidden;
     if (closedActivityLog) setActivityLogOpen(false);
-    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog) event.preventDefault();
+    const closedGithubImport = !githubImportPanel.hidden;
+    if (closedGithubImport) setGithubImportOpen(false);
+    if (helpWasOpen || buttonHelpWasOpen || leftNetMode || closedShowcase || closedTrophies || closedStarterShoals || closedDailyCatch || closedTriage || closedReminderPrefs || closedPrefs || closedActivityLog || closedGithubImport) event.preventDefault();
   }
 }
 
@@ -4533,6 +4535,22 @@ activityUndoBtn.addEventListener('click', () => {
     restoreUndoAction();
     logActivity('Undone', '');
   }
+});
+
+githubImportToggle.addEventListener('click', () => setGithubImportOpen(githubImportPanel.hidden));
+githubImportClose.addEventListener('click', () => setGithubImportOpen(false));
+githubImportParse.addEventListener('click', async () => {
+  const urls = window.GithubImport.parseImportUrls(githubImportInput.value);
+  const existingUrls = todos.map((t) => t.githubUrl).filter(Boolean);
+  githubImportPreview.hidden = false;
+  githubImportPreview.textContent = 'Fetching titles…';
+  githubImportActions.hidden = true;
+  const items = await window.GithubImport.buildPreviewItems(urls, existingUrls);
+  renderGithubImportPreview(items);
+});
+githubImportConfirm.addEventListener('click', confirmGithubImport);
+githubImportSelectAll.addEventListener('click', () => {
+  [...githubImportPreview.querySelectorAll('input[type="checkbox"]:not(:disabled)')].forEach((cb) => { cb.checked = true; });
 });
 
 document.addEventListener('keydown', handleGlobalShortcut);

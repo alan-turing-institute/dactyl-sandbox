@@ -1,3 +1,5 @@
+// AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
+// `claude -p "Investigate likely cause... Do not modify files"` for issue #198; test verifies all auth page scripts are served.
 const request = require('supertest');
 const { createApp } = require('../server');
 
@@ -112,6 +114,10 @@ describe('auth and task API', () => {
       .expect('Content-Type', /javascript/);
     await request(app)
       .get('/recurrence.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+    await request(app)
+      .get('/github-import.js')
       .expect(200)
       .expect('Content-Type', /javascript/);
     await request(app)

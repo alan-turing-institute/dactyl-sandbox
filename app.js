@@ -1,6 +1,6 @@
 /* global DactylAnalytics, DactylContextualEmptyStates, DactylDailyCatch, DactylDueNudges, DactylFirstTaskOnboarding, DactylFishEmoji, DactylPremiumHooks, DactylQuickAdd, DactylRecurrence, DactylScreenState, DactylTriageMode */
 // AI-assisted coding: Claude Code (claude-sonnet-4-6) via `claude -p`.
-// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release).
+// Prompts: (1) fix issue #61 by clearing/constraining Cast net selections so bulk actions cannot affect hidden tasks; (2) review/refine with renderedTodoIds() so render(), release, and shoal moves all scope selection to rendered tasks per filter; (3) issue #22 Ghost net stale-task review mode — ghost filter button, stale detection (overdue / no-due-date 7d / high-priority 7d), Ghost net panel with count/empty-state, per-task actions (Focus, Snooze tomorrow, Snooze 1 week, Release); (4) issue #198 login submit robustness — `claude -p "Investigate likely cause... Do not modify files"` plus GPT-5.5 edits to keep explicit Log in/Sign up button intent and busy state.
 const TOKEN_KEY = 'dactyl.authToken';
 const FOCUS_KEY = 'dactyl.focusedTodoId';
 const SPRINT_LENGTH_KEY = 'dactyl.focusSprintLengthMinutes';
@@ -113,6 +113,8 @@ const authTitle = document.querySelector('#auth-title');
 const authForm = document.querySelector('#auth-form');
 const usernameInput = document.querySelector('#username-input');
 const passwordInput = document.querySelector('#password-input');
+const loginButton = document.querySelector('#login-button');
+const signupButton = document.querySelector('#signup-button');
 const logoutButton = document.querySelector('#logout-button');
 const authStatus = document.querySelector('#auth-status');
 const passwordForm = document.querySelector('#password-form');
@@ -304,6 +306,8 @@ const celebrations = [
 
 let authToken = loadAuthToken();
 let currentUser = null;
+let pendingAuthMode = 'login';
+let authRequestInFlight = false;
 let todos = [];
 let filter = loadLastFilter();
 let searchQuery = '';
@@ -3631,6 +3635,8 @@ function renderAuth() {
   logoutButton.hidden = !signedIn;
   usernameInput.disabled = signedIn;
   passwordInput.disabled = signedIn;
+  loginButton.disabled = signedIn || authRequestInFlight;
+  signupButton.disabled = signedIn || authRequestInFlight;
   form.classList.toggle('disabled', !signedIn);
   [...form.elements].forEach((element) => {
     element.disabled = !signedIn;
@@ -4507,6 +4513,7 @@ function renderGhostNet() {
 }
 
 async function authenticate(mode) {
+  if (authRequestInFlight) return;
   if (!authForm.reportValidity()) return;
 
   const username = usernameInput.value.trim();
@@ -4524,6 +4531,9 @@ async function authenticate(mode) {
     return;
   }
 
+  authRequestInFlight = true;
+  loginButton.disabled = true;
+  signupButton.disabled = true;
   authStatus.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
   try {
     const body = await apiRequest(`/api/${mode}`, {
@@ -4544,6 +4554,12 @@ async function authenticate(mode) {
     authStatus.textContent = error.message;
     if (error.field === 'username') usernameInput.focus();
     if (error.field === 'password') passwordInput.focus();
+  } finally {
+    authRequestInFlight = false;
+    if (!currentUser) {
+      loginButton.disabled = false;
+      signupButton.disabled = false;
+    }
   }
 }
 
@@ -4761,8 +4777,17 @@ function handleGlobalShortcut(event) {
 
 authForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const mode = event.submitter?.value === 'signup' ? 'signup' : 'login';
+  const submittedMode = event.submitter?.value;
+  const mode = ['login', 'signup'].includes(submittedMode) ? submittedMode : pendingAuthMode;
   authenticate(mode);
+});
+
+loginButton.addEventListener('click', () => {
+  pendingAuthMode = 'login';
+});
+
+signupButton.addEventListener('click', () => {
+  pendingAuthMode = 'signup';
 });
 
 logoutButton.addEventListener('click', logout);

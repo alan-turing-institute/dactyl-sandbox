@@ -1,3 +1,5 @@
+// AI-assisted coding: GPT-5.5 plus Claude Code CLI investigation command
+// `claude -p "Investigate likely cause... Do not modify files"` for issue #198; edits add missing static script coverage used by the login page.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -658,6 +660,7 @@ function createApp(options = {}) {
   app.get('/first-task-onboarding.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'first-task-onboarding.js')));
   app.get('/quick-add-parser.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'quick-add-parser.js')));
   app.get('/triage-mode.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'triage-mode.js')));
+  app.get('/github-import.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'github-import.js')));
   app.get('/app.js', (req, res) => res.type('application/javascript').sendFile(path.join(__dirname, 'app.js')));
 
   app.close = () => db.close();

@@ -786,7 +786,7 @@ function loadViewPrefs() {
     return {
       reducedMotion: typeof saved.reducedMotion === 'boolean' ? saved.reducedMotion : defaults.reducedMotion,
       highContrast: typeof saved.highContrast === 'boolean' ? saved.highContrast : false,
-      compact: typeof saved.compact === 'boolean' ? saved.compact : false,
+      density: (() => { const VALID_DENSITY = ['condensed', 'comfortable', 'detailed']; return VALID_DENSITY.includes(saved.density) ? saved.density : (saved.compact ? 'condensed' : 'comfortable'); })(),
       textBadges: typeof saved.textBadges === 'boolean' ? saved.textBadges : false,
       addFormAdvanced: typeof saved.addFormAdvanced === 'boolean' ? saved.addFormAdvanced : false,
       [GETTING_STARTED_PREF_KEY]: typeof saved[GETTING_STARTED_PREF_KEY] === 'boolean'
@@ -813,7 +813,7 @@ function applyViewPrefs() {
   const root = document.documentElement;
   root.dataset.motion = viewPrefs.reducedMotion ? 'reduced' : 'full';
   root.dataset.contrast = viewPrefs.highContrast ? 'high' : 'default';
-  root.dataset.density = viewPrefs.compact ? 'compact' : 'default';
+  root.dataset.density = viewPrefs.density || 'comfortable';
   root.dataset.badges = viewPrefs.textBadges ? 'text-first' : 'default';
   renderAddFormMode();
 }
@@ -847,7 +847,7 @@ function setPrefsOpen(open) {
   if (open) {
     prefReducedMotion.checked = viewPrefs.reducedMotion;
     prefHighContrast.checked = viewPrefs.highContrast;
-    prefCompact.checked = viewPrefs.compact;
+    if (prefDensity) prefDensity.value = viewPrefs.density || 'comfortable';
     prefTextBadges.checked = viewPrefs.textBadges;
     prefsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -4589,8 +4589,8 @@ prefHighContrast.addEventListener('change', () => {
   saveViewPrefs();
   applyViewPrefs();
 });
-prefCompact.addEventListener('change', () => {
-  viewPrefs = { ...viewPrefs, compact: prefCompact.checked };
+prefDensity?.addEventListener('change', () => {
+  viewPrefs = { ...viewPrefs, density: prefDensity.value };
   saveViewPrefs();
   applyViewPrefs();
 });

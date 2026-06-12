@@ -2184,8 +2184,16 @@ kbd {
 
 [data-contrast="high"] { --muted: var(--text); }
 
-[data-density="compact"] .todo-item { padding: .2rem .5rem; }
-[data-density="compact"] .pond-actions { gap: .35rem; }
+[data-density="condensed"] .todo-item { padding: .3rem .6rem; }
+[data-density="condensed"] .todo-actions { gap: .3rem; }
+[data-density="condensed"] .mood-badge,
+[data-density="condensed"] .recurrence-badge,
+[data-density="condensed"] .checklist-badge,
+[data-density="condensed"] .shoal-chip { display: none; }
+[data-density="condensed"] .pond-actions { gap: .35rem; }
+
+[data-density="detailed"] .todo-item { padding: 1rem 1.1rem; }
+[data-density="detailed"] .metadata { display: flex; }
 
 .command-palette {
   position: fixed;

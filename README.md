@@ -13,17 +13,17 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Sync TODOs to a server-side SQLite database instead of browser-only task storage
 - REST API for creating, reading, updating, replacing, and deleting tasks
 - Add, edit, and delete tasks with optional due dates, GitHub issue/PR links, and low, medium, or high priority
-- Use quick priority chips to mark the next fish as low, medium, or high tide
+- Use quick priority chips to mark the next 鱼 as low, medium, or high tide
 - Mark tasks as complete
 - Archive completed tasks to a reef view, restore them later, or permanently release archived tasks
 - Filter all, active, completed, archived, Tide mode grouped urgency lanes, a Week ahead agenda, and a Ghost net stale-task review
 - Search task text and narrow the pond with quick chips for high priority, due soon, no due date, or selected net tasks
 - Save repeated planning filters as local smart views for quick reuse
-- Open fish-themed button help to decode key controls and pond-specific UI language
-- Swim through decorative pond polish: a fish cursor, hover fish pops, animated bubbles, and reef plants that respect reduced-motion settings
+- Open 鱼-themed button help to decode key controls and pond-specific UI language
+- Swim through decorative pond polish: a 鱼 cursor, hover 鱼 pops, animated bubbles, and reef plants that respect reduced-motion settings
 - Review Ghost net tasks (overdue, no-due-date tasks older than 7 days, high-priority tasks older than 7 days) with per-task Focus, Snooze to tomorrow, Snooze one week, and Release actions
-- Show deterministic fishy mood badges with accessible text
-- Rotate mood badges through a wider pool of fish and sea-life emoji while keeping the labels stable
+- Show deterministic 鱼y mood badges with accessible text
+- Rotate mood badges through a wider pool of 鱼 and sea-life emoji while keeping the labels stable
 - Capture quick tasks with natural-language hints like `tomorrow`, `next Friday`, `due:2026-06-14`, `low`, `medium`, or `high`; expand `+ more options` only when you need due date, GitHub URL, recurrence, or priority fields
 - Clear active tasks keyboard-first with triage mode: one task card, complete/archive/priority, and due-date nudges
 - Nudge due dates inline from each task chip with keyboard-reachable ±1 day / ±1 week controls, or set no-date tasks to tomorrow
@@ -32,8 +32,8 @@ This repository contains a small TODO app built with HTML, CSS, vanilla JavaScri
 - Plan a small Daily Catch from overdue, due-today, high-priority, and focused tasks; pins stay local to the app
 - Show dismissible, non-blocking premium hooks from centralised copy/config; no payment processing or feature blocking is included
 - Mark tasks as daily, weekly, or monthly recurring; completing one schedules the next active occurrence
-- Pick one active task for "feed the fish" focus mode
-- Stock or release fish-themed demo tasks without duplicating sample data
+- Pick one active task for "feed the 鱼" focus mode
+- Stock or release 鱼-themed demo tasks without duplicating sample data
 - Cast a net to select multiple visible tasks, release them, or move them to a custom shoal
 - **Custom shoals** — group tasks into named shoals (project, workstream, demo, etc.) and filter by shoal
 - Paste Slack-style bullets or checklists into the pond in bulk, with optional `[high]` and `due:YYYY-MM-DD` markers

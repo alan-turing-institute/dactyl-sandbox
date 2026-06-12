@@ -88,7 +88,7 @@ const {
   screenKeyFromLocation,
   desiredScreenKey: chooseScreenKey,
 } = DactylScreenState;
-const { fishEmojiFor } = DactylFishEmoji;
+const { 鱼EmojiFor } = DactylFishEmoji;
 const { parseQuickAdd } = DactylQuickAdd;
 const { selectDailyCatchSuggestions } = DactylDailyCatch;
 const { premiumHookForSurface } = DactylPremiumHooks;
@@ -291,7 +291,7 @@ const githubImportConfirm = document.querySelector('#github-import-confirm');
 const githubImportSelectAll = document.querySelector('#github-import-select-all');
 
 const tideGroups = [
-  { key: 'washed', label: 'Washed ashore', description: 'Active overdue fish looking sternly at you.' },
+  { key: 'washed', label: 'Washed ashore', description: 'Active overdue 鱼 looking sternly at you.' },
   { key: 'high', label: 'High tide', description: 'Active tasks due today or marked high priority.' },
   { key: 'ebbing', label: 'Ebbing', description: 'Active scheduled tasks due after today.' },
   { key: 'incoming', label: 'Incoming', description: 'Active unscheduled or low-pressure tasks.' },
@@ -299,7 +299,7 @@ const tideGroups = [
 ];
 
 const celebrations = [
-  'The task fish has been fed. Begrudgingly proud of you.',
+  'The task 鱼 has been fed. Begrudgingly proud of you.',
   'One less barnacle on the hull.',
   'A productive splash has occurred.',
 ];
@@ -1319,7 +1319,7 @@ function currentSmartViewName() {
   if (filter !== 'all') parts.push(filter.replace('-', ' '));
   if (quickFilter) parts.push(quickFilter.replace('-', ' '));
   if (normalisedSearchQuery()) parts.push('search ' + searchQuery.trim());
-  return parts.length > 0 ? parts.join(' + ') : 'All fish';
+  return parts.length > 0 ? parts.join(' + ') : 'All 鱼';
 }
 
 function saveCurrentSmartView() {
@@ -1400,14 +1400,14 @@ function tideFor(todo) {
 function moodFor(todo) {
   const tide = tideFor(todo);
   const emojiSeed = todo.id || todo.text;
-  if (todo.completed) return { emoji: fishEmojiFor('resting', emojiSeed), text: 'Resting shell', className: 'mood-resting' };
+  if (todo.completed) return { emoji: 鱼EmojiFor('resting', emojiSeed), text: 'Resting shell', className: 'mood-resting' };
   if (tide === 'washed' && todo.priority === 'high') {
-    return { emoji: fishEmojiFor('emergency', emojiSeed), text: 'Tentacular emergency', className: 'mood-emergency' };
+    return { emoji: 鱼EmojiFor('emergency', emojiSeed), text: 'Tentacular emergency', className: 'mood-emergency' };
   }
-  if (todo.priority === 'high') return { emoji: fishEmojiFor('high', emojiSeed), text: 'Puffed up', className: 'mood-high' };
-  if (!todo.dueDate) return { emoji: fishEmojiFor('mythical', emojiSeed), text: 'Mythical commitment', className: 'mood-mythical' };
-  if (todo.priority === 'medium') return { emoji: fishEmojiFor('medium', emojiSeed), text: 'Sideways but moving', className: 'mood-medium' };
-  return { emoji: fishEmojiFor('normal', emojiSeed), text: 'Swimming nicely', className: 'mood-normal' };
+  if (todo.priority === 'high') return { emoji: 鱼EmojiFor('high', emojiSeed), text: 'Puffed up', className: 'mood-high' };
+  if (!todo.dueDate) return { emoji: 鱼EmojiFor('mythical', emojiSeed), text: 'Mythical commitment', className: 'mood-mythical' };
+  if (todo.priority === 'medium') return { emoji: 鱼EmojiFor('medium', emojiSeed), text: 'Sideways but moving', className: 'mood-medium' };
+  return { emoji: 鱼EmojiFor('normal', emojiSeed), text: 'Swimming nicely', className: 'mood-normal' };
 }
 
 function dueLabelFor(todo) {
@@ -1506,7 +1506,7 @@ function updatePastePreview() {
   const importableCount = Math.min(parsedCount, remainingSlots);
 
   if (remainingSlots === 0) {
-    pastePreview.textContent = `The pond is full at ${MAX_TODOS} tasks. Release a fish before importing.`;
+    pastePreview.textContent = `The pond is full at ${MAX_TODOS} tasks. Release a 鱼 before importing.`;
   } else if (parsedCount === 0) {
     pastePreview.textContent = 'Paste notes to preview tasks. Supported: bullets, checkboxes, [high]/[medium]/[low], and due:YYYY-MM-DD.';
   } else if (parsedCount > remainingSlots) {
@@ -1566,7 +1566,7 @@ function setDraftPriority(priority) {
   syncPriorityChips();
   dirtyFormFields.add('priority');
   applyContextDefaults();
-  showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next fish.');
+  showPondMessage(priority[0].toUpperCase() + priority.slice(1) + ' tide selected for the next 鱼.');
 }
 
 function toggleShortcutHelp() {
@@ -1759,7 +1759,7 @@ function exportPondBackup() {
   const backup = buildPondBackup();
   downloadJsonFile(backupFileName(), backup);
   trackProductEvent('export_created', { taskCount: backup.tasks.length });
-  showPondMessage(`Exported ${pluralise(backup.tasks.length, 'fish', 'fish')} as a JSON pond backup.`);
+  showPondMessage(`Exported ${pluralise(backup.tasks.length, '鱼', '鱼')} as a JSON pond backup.`);
 }
 
 function backupTasksFromJson(value) {
@@ -1805,12 +1805,12 @@ function updateRestorePreview() {
   const remainingSlots = Math.max(0, MAX_TODOS - todos.length);
   const mergeableCount = Math.min(readyCount, remainingSlots);
   const parts = [
-    `${pluralise(readyCount, 'fish', 'fish')} ready`,
+    `${pluralise(readyCount, '鱼', '鱼')} ready`,
     `${pendingRestore.skippedCount} skipped`,
   ];
   if (pendingRestore.duplicateHints > 0) parts.push(`${pluralise(pendingRestore.duplicateHints, 'possible duplicate')} by title/date`);
-  if (mergeableCount < readyCount) parts.push(`${mergeableCount} can be merged before the ${MAX_TODOS}-fish pond limit`);
-  restorePreview.textContent = `${parts.join(' · ')}. Merge keeps existing fish; replace requires confirmation.`;
+  if (mergeableCount < readyCount) parts.push(`${mergeableCount} can be merged before the ${MAX_TODOS}-鱼 pond limit`);
+  restorePreview.textContent = `${parts.join(' · ')}. Merge keeps existing 鱼; replace requires confirmation.`;
 }
 
 function setRestorePanelOpen(open) {
@@ -1825,7 +1825,7 @@ function setRestorePanelOpen(open) {
 function clearRestoreSelection() {
   pendingRestore = null;
   restoreFile.value = '';
-  restorePreview.textContent = 'Choose a backup file to preview its fish.';
+  restorePreview.textContent = 'Choose a backup file to preview its 鱼.';
   updateRestorePreview();
 }
 
@@ -1864,7 +1864,7 @@ function applyRestore(mode) {
   const imported = normaliseTodos(pendingRestore.todos);
   let restoredCount = imported.length;
   if (mode === 'replace') {
-    const confirmed = window.confirm(`Replace your current pond with ${pluralise(imported.length, 'fish', 'fish')} from this backup? This cannot be undone after sync.`);
+    const confirmed = window.confirm(`Replace your current pond with ${pluralise(imported.length, '鱼', '鱼')} from this backup? This cannot be undone after sync.`);
     if (!confirmed) return;
     todos = imported;
   } else {
@@ -1881,7 +1881,7 @@ function applyRestore(mode) {
   selectedTodoIds.clear();
   saveFocusedTodoId(focusedTodoId && todos.some((todo) => todo.id === focusedTodoId) ? focusedTodoId : '');
   saveTodos();
-  showPondMessage(`${mode === 'replace' ? 'Replaced' : 'Merged'} ${pluralise(restoredCount, 'fish', 'fish')} from the pond backup.`);
+  showPondMessage(`${mode === 'replace' ? 'Replaced' : 'Merged'} ${pluralise(restoredCount, '鱼', '鱼')} from the pond backup.`);
   clearRestoreSelection();
   setRestorePanelOpen(false);
   render();
@@ -1911,7 +1911,7 @@ function importPastedTodos() {
   pasteInput.value = '';
   trackProductEvent('task_created', { taskCount: imported.length, source: 'paste' });
   saveTodos();
-  showPondMessage(`Added ${pluralise(imported.length, 'pasted fish', 'pasted fish')} to the pond.`);
+  showPondMessage(`Added ${pluralise(imported.length, 'pasted 鱼', 'pasted 鱼')} to the pond.`);
   setPastePanelOpen(false);
   render();
 }
@@ -1938,7 +1938,7 @@ function buildPondReport() {
   lines.push(`Pond report: ${headlineParts.join(' — ')}.`);
 
   const focusedTodo = activeTodos.find((todo) => todo.id === focusedTodoId);
-  if (focusedTodo) lines.push(`Focus fish: ${reportTodoText(focusedTodo)}.`);
+  if (focusedTodo) lines.push(`Focus 鱼: ${reportTodoText(focusedTodo)}.`);
 
   const highPriorityTodos = sortTodos(activeTodos.filter((todo) => todo.priority === 'high')).slice(0, 3);
   if (highPriorityTodos.length > 0) {
@@ -1995,24 +1995,24 @@ function buildPondSnapshot() {
     `Priority: ${highPriorityTodos.length} high tide · ${overdueTodos.length} overdue`,
   ];
 
-  if (focusTodo) lines.push(`Focus fish: ${reportTodoText(focusTodo)}`);
-  else lines.push('Focus fish: none selected');
+  if (focusTodo) lines.push(`Focus 鱼: ${reportTodoText(focusTodo)}`);
+  else lines.push('Focus 鱼: none selected');
 
   if (overdueTodos.length > 0) {
-    lines.push('Overdue fish:');
+    lines.push('Overdue 鱼:');
     sortTodos(overdueTodos).slice(0, 5).forEach((todo) => {
       lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
   if (upcomingTodos.length > 0) {
-    lines.push('Upcoming fish:');
+    lines.push('Upcoming 鱼:');
     upcomingTodos.forEach((todo) => {
       lines.push(`• ${reportDueLabel(todo)} · ${todo.priority} · ${reportTodoText(todo)}`);
     });
   }
 
-  if (activeTodos.length === 0) lines.push('No active fish need attention.');
+  if (activeTodos.length === 0) lines.push('No active 鱼 need attention.');
 
   lines.push('Snapshot is read-only and excludes account credentials, tokens, and diagnostics.');
   return lines.join('\n');
@@ -2092,10 +2092,10 @@ function renderPondHealth() {
 
   pondHealthMetrics.replaceChildren();
   renderMetric('Tasks', `${diagnostics.totalCount} total · ${diagnostics.activeCount} active · ${diagnostics.completedCount} completed`);
-  renderMetric('Archive', `${diagnostics.archivedCount} reefed fish`);
+  renderMetric('Archive', `${diagnostics.archivedCount} reefed 鱼`);
   renderMetric('Current view', `${diagnostics.filter} · ${diagnostics.visibleCount} visible`);
   renderMetric('Net', diagnostics.netMode ? `${diagnostics.selectedCount} selected` : 'not cast');
-  renderMetric('Focus', diagnostics.focusedTaskPresent ? 'active focus fish' : 'none');
+  renderMetric('Focus', diagnostics.focusedTaskPresent ? 'active focus 鱼' : 'none');
   renderMetric('Tide lanes', `washed ${diagnostics.tides.washed} · high ${diagnostics.tides.high} · ebbing ${diagnostics.tides.ebbing} · incoming ${diagnostics.tides.incoming} · resting ${diagnostics.tides.completed}`);
   renderMetric('Sync', syncLabel(diagnostics.sync));
   renderMetric('Render', `${diagnostics.lastRenderDuration.toFixed(1)} ms last · ${diagnostics.averageRender.toFixed(1)} ms avg`);
@@ -2212,14 +2212,14 @@ function setDailyCatchOpen(open) {
 function pinDailyCatchTodo(id) {
   if (!dailyCatch.ids.includes(id)) dailyCatch.ids = [...dailyCatch.ids, id].slice(0, 5);
   persistDailyCatch();
-  showPondMessage('Added fish to today’s catch.');
+  showPondMessage('Added 鱼 to today’s catch.');
   render();
 }
 
 function unpinDailyCatchTodo(id) {
   dailyCatch.ids = dailyCatch.ids.filter((candidate) => candidate !== id);
   persistDailyCatch();
-  showPondMessage('Removed fish from today’s catch.');
+  showPondMessage('Removed 鱼 from today’s catch.');
   render();
 }
 
@@ -2259,7 +2259,7 @@ function renderDailyCatch() {
   const completed = catchTodos.filter((todo) => todo.completed).length;
   const activeCatch = catchTodos.filter((todo) => !todo.completed);
   dailyCatchSummary.textContent = catchTodos.length > 0
-    ? `${completed}/${catchTodos.length} fish fed today · ${activeCatch.length} still swimming.`
+    ? `${completed}/${catchTodos.length} 鱼 fed today · ${activeCatch.length} still swimming.`
     : emptyState.heading;
 
   dailyCatchPinned.replaceChildren();
@@ -2401,8 +2401,8 @@ function renderShowcase() {
     const hint = document.createElement('p');
     hint.className = 'showcase-hint';
     hint.textContent = currentUser
-      ? 'No focus fish selected. Use Feed on any task to pick one.'
-      : 'Sign in to see your focus fish here.';
+      ? 'No focus 鱼 selected. Use Feed on any task to pick one.'
+      : 'Sign in to see your focus 鱼 here.';
     feedSection.append(hint);
   }
   showcaseBody.append(feedSection);
@@ -2434,7 +2434,7 @@ function renderShowcase() {
   } else {
     const hint = document.createElement('p');
     hint.className = 'showcase-hint';
-    hint.textContent = 'No urgent or overdue fish. Clear waters!';
+    hint.textContent = 'No urgent or overdue 鱼. Clear waters!';
     urgentSection.append(hint);
   }
   showcaseBody.append(urgentSection);
@@ -2509,9 +2509,9 @@ const TROPHY_DEFS = [
     earned: () => todos.length > 0,
   },
   {
-    id: 'fed-fish',
+    id: 'fed-鱼',
     emoji: '🐟',
-    name: 'Fed the fish',
+    name: 'Fed the 鱼',
     description: 'Completed at least one task.',
     earned: () => todos.some((t) => t.completed),
   },
@@ -3465,9 +3465,9 @@ function renderFocusSprint() {
   completeFocusSprint.disabled = !hasFocus || !isFinished;
 
   if (!hasFocus) {
-    focusSprintStatus.textContent = 'Pick a fish to start a focus sprint.';
+    focusSprintStatus.textContent = 'Pick a 鱼 to start a focus sprint.';
   } else if (isFinished) {
-    focusSprintStatus.textContent = 'Sprint complete. Mark this fish fed when you are ready.';
+    focusSprintStatus.textContent = 'Sprint complete. Mark this 鱼 fed when you are ready.';
   } else if (isRunning) {
     focusSprintStatus.textContent = formatSprintTime(remaining) + ' left in this sprint.';
   } else if (isPaused) {
@@ -3529,7 +3529,7 @@ function finishFocusSprint() {
 function tickFocusSprint() {
   if (focusSprint.status !== 'running') return;
   if (!selectedFocusTodo() || focusSprint.todoId !== focusedTodoId) {
-    cancelCurrentFocusSprint('Focus sprint cancelled because the selected fish changed.');
+    cancelCurrentFocusSprint('Focus sprint cancelled because the selected 鱼 changed.');
     return;
   }
   const remaining = focusSprint.endsAt - Date.now();
@@ -3712,7 +3712,7 @@ function setTriageOpen(open) {
     return;
   }
   if (open && triageTasks().length === 0) {
-    showPondMessage('No active fish to triage right now.');
+    showPondMessage('No active 鱼 to triage right now.');
     return;
   }
   triageOpen = open;
@@ -3731,8 +3731,8 @@ function renderTriagePanel() {
   const todo = tasks[triageIndex];
   const hasTodo = Boolean(todo);
   triageStatus.textContent = hasTodo
-    ? `${triageIndex + 1} of ${tasks.length} active fish. J/K move, C completes, E archives, P cycles priority, [ and ] nudge due date.`
-    : 'No active fish to triage right now.';
+    ? `${triageIndex + 1} of ${tasks.length} active 鱼. J/K move, C completes, E archives, P cycles priority, [ and ] nudge due date.`
+    : 'No active 鱼 to triage right now.';
   triageTaskTitle.textContent = todo?.text || 'No active task selected';
   triageTaskMeta.textContent = todo
     ? [moodFor(todo).text, dueLabelFor(todo), priorityLabelFor(todo), recurrenceLabelFor(todo)].filter(Boolean).join(' · ')
@@ -3758,7 +3758,7 @@ function completeTriageTodo() {
   if (generatedTodo) todos = [generatedTodo, ...todos];
   saveTodos();
   showPondMessage(generatedTodo
-    ? `Completed from triage and scheduled the next ${normaliseRecurrence(todo.recurrence)} fish.`
+    ? `Completed from triage and scheduled the next ${normaliseRecurrence(todo.recurrence)} 鱼.`
     : `Completed from triage: ${todo.text}.`);
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
   render();
@@ -3847,9 +3847,9 @@ function render() {
   count.textContent = filter === 'ghost'
     ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
     : hasActiveSearchFilter()
-      ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
+      ? `${pluralise(visibleCount, 'matching 鱼', 'matching 鱼')}`
       : filter === 'archive'
-        ? `${pluralise(archivedTodos().length, 'archived fish', 'archived fish')}`
+        ? `${pluralise(archivedTodos().length, 'archived 鱼', 'archived 鱼')}`
         : `${pluralise(activeCount, 'task')} left`;
   emptyState.querySelector('h2').textContent = empty.heading;
   emptyState.querySelector('p').textContent = empty.description;
@@ -3921,14 +3921,14 @@ function addStarterTask(templateId) {
   if (!templateTodo) return;
 
   addTodo(templateTodo.text, { priority: templateTodo.priority, source: 'starter_template' });
-  showPondMessage(`Starter fish added: ${templateTodo.text}.`);
+  showPondMessage(`Starter 鱼 added: ${templateTodo.text}.`);
   input.focus();
 }
 
 function dismissFirstTaskGuide() {
   saveFirstTaskOnboardingDismissed(true);
   render();
-  showPondMessage('First-task guide dismissed. Add your own fish whenever you are ready.');
+  showPondMessage('First-task guide dismissed. Add your own 鱼 whenever you are ready.');
   input.focus();
 }
 
@@ -3969,7 +3969,7 @@ function celebrateFirstCompletionIfNeeded(previousCompletedCount, nextCompletedC
   }
 
   saveFirstCompletionCelebrated(true);
-  showPondMessage('First fish fed! Nice launch — the pond officially has momentum.');
+  showPondMessage('First 鱼 fed! Nice launch — the pond officially has momentum.');
   return true;
 }
 
@@ -3984,7 +3984,7 @@ function applyStarterShoal(shoal) {
   }
   const available = MAX_TODOS - todos.length;
   if (available <= 0) {
-    showPondMessage('The pond is full. Release some fish first.');
+    showPondMessage('The pond is full. Release some 鱼 first.');
     return;
   }
   const existingTaskKeys = new Set(todos.map((todo) => starterShoalTaskKey(todo.text)));
@@ -4030,7 +4030,7 @@ function toggleTodo(id, options = {}) {
   });
   if (generatedTodo) todos = [generatedTodo, ...todos];
   if (id === focusedTodoId && todos.find((todo) => todo.id === id)?.completed) {
-    cancelCurrentFocusSprint('Focus sprint cancelled because this fish was completed.');
+    cancelCurrentFocusSprint('Focus sprint cancelled because this 鱼 was completed.');
     saveFocusedTodoId('');
   }
   saveTodos();
@@ -4039,7 +4039,7 @@ function toggleTodo(id, options = {}) {
   if (toggledTodo?.completed) {
     trackProductEvent('task_completed', { priority: toggledTodo.priority, source: 'list' });
     logActivity('Completed', toggledTodo.text);
-    if (generatedTodo) showPondMessage(`Scheduled next ${normaliseRecurrence(toggledTodo.recurrence)} fish for ${dueLabelFor(generatedTodo).toLowerCase()}.`);
+    if (generatedTodo) showPondMessage(`Scheduled next ${normaliseRecurrence(toggledTodo.recurrence)} 鱼 for ${dueLabelFor(generatedTodo).toLowerCase()}.`);
   }
   celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount());
 }
@@ -4087,13 +4087,13 @@ function removeTodosWithUndo(predicate, message) {
 
   todos = previousTodos.filter((todo) => !predicate(todo));
   if (snapshot.focusedTodoId && removedTodos.some((todo) => todo.id === snapshot.focusedTodoId)) {
-    cancelCurrentFocusSprint('Focus sprint cancelled because that fish left the pond.');
+    cancelCurrentFocusSprint('Focus sprint cancelled because that 鱼 left the pond.');
     saveFocusedTodoId('');
   }
   selectedTodoIds = new Set(snapshot.selectedTodoIds.filter((id) => todos.some((todo) => todo.id === id)));
 
   const undoMessage = message(removedTodos.length);
-  applyUndoableTodoChange(snapshot, undoMessage, `Restored ${pluralise(removedTodos.length, 'fish', 'fish')} to the pond.`);
+  applyUndoableTodoChange(snapshot, undoMessage, `Restored ${pluralise(removedTodos.length, '鱼', '鱼')} to the pond.`);
   return true;
 }
 
@@ -4169,7 +4169,7 @@ function saveEditedTodo(id, updates) {
   });
 
   if (!updatedTodo) {
-    showPondMessage('Give this fish a task name before saving.');
+    showPondMessage('Give this 鱼 a task name before saving.');
     pendingEditFocusId = id;
     render();
     return;
@@ -4179,7 +4179,7 @@ function saveEditedTodo(id, updates) {
   editingTodoId = '';
   pendingEditFocusId = '';
   saveTodos();
-  showPondMessage('Updated this fish in the pond.');
+  showPondMessage('Updated this 鱼 in the pond.');
   render();
 }
 
@@ -4224,8 +4224,8 @@ function deleteTodo(id) {
   removeTodosWithUndo(
     (todo) => todo.id === id,
     () => (isArchivedDelete
-      ? 'Permanently released 1 archived fish from the reef.'
-      : 'Released 1 fish from the pond.'),
+      ? 'Permanently released 1 archived 鱼 from the reef.'
+      : 'Released 1 鱼 from the pond.'),
   );
 }
 
@@ -4238,12 +4238,12 @@ function archiveTodo(id, options = {}) {
     todo.id === id ? { ...todo, completed: true, archivedAt } : todo
   ));
   if (id === focusedTodoId) {
-    cancelCurrentFocusSprint('Focus sprint cancelled because this fish moved to the reef.');
+    cancelCurrentFocusSprint('Focus sprint cancelled because this 鱼 moved to the reef.');
     saveFocusedTodoId('');
   }
   selectedTodoIds.delete(id);
   if (todoToArchive) logActivity('Archived', todoToArchive.text);
-  applyUndoableTodoChange(snapshot, 'Moved 1 completed fish to the reef archive.', 'Restored 1 fish from the reef archive.');
+  applyUndoableTodoChange(snapshot, 'Moved 1 completed 鱼 to the reef archive.', 'Restored 1 鱼 from the reef archive.');
 }
 
 function archiveCompletedTodos() {
@@ -4256,14 +4256,14 @@ function archiveCompletedTodos() {
     completedIdSet.has(todo.id) ? { ...todo, completed: true, archivedAt } : todo
   ));
   if (completedIdSet.has(focusedTodoId)) {
-    cancelCurrentFocusSprint('Focus sprint cancelled because this fish moved to the reef.');
+    cancelCurrentFocusSprint('Focus sprint cancelled because this 鱼 moved to the reef.');
     saveFocusedTodoId('');
   }
   selectedTodoIds = new Set([...selectedTodoIds].filter((id) => !completedIdSet.has(id)));
   applyUndoableTodoChange(
     snapshot,
-    `Moved ${pluralise(completedIds.length, 'completed fish', 'completed fish')} to the reef archive.`,
-    `Restored ${pluralise(completedIds.length, 'fish', 'fish')} from the reef archive.`,
+    `Moved ${pluralise(completedIds.length, 'completed 鱼', 'completed 鱼')} to the reef archive.`,
+    `Restored ${pluralise(completedIds.length, '鱼', '鱼')} from the reef archive.`,
   );
 }
 
@@ -4274,14 +4274,14 @@ function restoreArchivedTodo(id) {
   ));
   if (todoToRestore) logActivity('Restored', todoToRestore.text);
   saveTodos();
-  showPondMessage('Restored 1 fish from the reef archive.');
+  showPondMessage('Restored 1 鱼 from the reef archive.');
   render();
 }
 
 function releaseArchivedTodos() {
   removeTodosWithUndo(
     (todo) => Boolean(todo.archivedAt),
-    (count) => `Permanently released ${pluralise(count, 'archived fish', 'archived fish')} from the reef.`,
+    (count) => `Permanently released ${pluralise(count, 'archived 鱼', 'archived 鱼')} from the reef.`,
   );
 }
 
@@ -4320,7 +4320,7 @@ function releaseSelectedTodos() {
   const selectedIds = new Set([...selectedTodoIds].filter((id) => renderedTodoIds().has(id)));
   if (removeTodosWithUndo(
     (todo) => selectedIds.has(todo.id),
-    (count) => `Released ${pluralise(count, 'selected fish', 'selected fish')} from the pond.`,
+    (count) => `Released ${pluralise(count, 'selected 鱼', 'selected 鱼')} from the pond.`,
   )) {
     selectedTodoIds.clear();
     render();
@@ -4340,9 +4340,9 @@ function moveSelectedToShoal() {
   ));
   if (bulkShoalInput) bulkShoalInput.value = '';
   applyUndoableTodoChange(snapshot, shoal
-    ? `Moved ${pluralise(selectedCount, 'selected fish', 'selected fish')} to the ${shoal} shoal.`
-    : `Cleared shoal grouping for ${pluralise(selectedCount, 'selected fish', 'selected fish')}.`,
-  `Restored previous shoals for ${pluralise(selectedCount, 'fish', 'fish')}.`);
+    ? `Moved ${pluralise(selectedCount, 'selected 鱼', 'selected 鱼')} to the ${shoal} shoal.`
+    : `Cleared shoal grouping for ${pluralise(selectedCount, 'selected 鱼', 'selected 鱼')}.`,
+  `Restored previous shoals for ${pluralise(selectedCount, '鱼', '鱼')}.`);
 }
 
 function completeFocusedTodo(source = 'focus_button') {
@@ -4362,7 +4362,7 @@ function completeFocusedTodo(source = 'focus_button') {
     trackProductEvent('task_completed', { priority: completedTask.priority, source });
     if (celebrateFirstCompletionIfNeeded(previousCompletedCount, completedTodoCount())) return;
     const celebration = generatedTodo
-      ? `Fed the recurring fish and scheduled the next ${normaliseRecurrence(completedTask.recurrence)} occurrence.`
+      ? `Fed the recurring 鱼 and scheduled the next ${normaliseRecurrence(completedTask.recurrence)} occurrence.`
       : celebrations[Math.floor(Math.random() * celebrations.length)];
     showPondMessage(celebration);
   }
@@ -4393,7 +4393,7 @@ function demoTodos() {
 }
 
 function stockDemoPond() {
-  if (todos.length > 0 && !window.confirm('Add demo fish-themed tasks to this pond? Existing tasks will stay put.')) {
+  if (todos.length > 0 && !window.confirm('Add demo 鱼-themed tasks to this pond? Existing tasks will stay put.')) {
     return;
   }
 
@@ -4405,7 +4405,7 @@ function stockDemoPond() {
     .filter(Boolean);
 
   if (newTodos.length === 0) {
-    showPondMessage('The pond is already stocked with demo fish.');
+    showPondMessage('The pond is already stocked with demo 鱼.');
     return;
   }
 
@@ -4413,14 +4413,14 @@ function stockDemoPond() {
   if (newTodos.length > 0) saveFirstTaskOnboardingDismissed(true);
   trackProductEvent('task_created', { taskCount: newTodos.length, source: 'demo' });
   saveTodos();
-  showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo fish', 'demo fish')}.`);
+  showPondMessage(`Stocked the pond with ${pluralise(newTodos.length, 'demo 鱼', 'demo 鱼')}.`);
   render();
 }
 
 function releaseDemoFish() {
   removeTodosWithUndo(
     (todo) => DEMO_TODO_IDS.includes(todo.id),
-    (count) => `Released ${pluralise(count, 'demo fish', 'demo fish')} from the pond.`,
+    (count) => `Released ${pluralise(count, 'demo 鱼', 'demo 鱼')} from the pond.`,
   );
 }
 
@@ -4449,7 +4449,7 @@ function renderGhostNet() {
   const summaryHeading = document.createElement('h3');
   summaryHeading.textContent = `Ghost net found ${pluralise(ghosts.length, 'task')}`;
   const summaryDescription = document.createElement('p');
-  summaryDescription.textContent = `Review active fish that are overdue, unscheduled for more than ${GHOST_STALE_DAYS} days, or high priority and drifting.`;
+  summaryDescription.textContent = `Review active 鱼 that are overdue, unscheduled for more than ${GHOST_STALE_DAYS} days, or high priority and drifting.`;
   summaryItem.append(summaryHeading, summaryDescription);
   list.append(summaryItem);
 

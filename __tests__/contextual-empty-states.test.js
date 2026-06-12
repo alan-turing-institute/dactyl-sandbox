@@ -27,7 +27,7 @@ describe('contextual empty states', () => {
 
   test('quick-filter empty state clears filters', () => {
     expect(contextualEmptyState({ filter: 'all', quickFilter: 'high' })).toMatchObject({
-      heading: 'No fish match these filters.',
+      heading: 'No 鱼 match these filters.',
       cta: { label: 'Clear filter', action: 'clear-filter' },
     });
   });

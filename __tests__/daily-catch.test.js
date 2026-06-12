@@ -16,11 +16,11 @@ describe('Daily Catch planning helpers', () => {
     const todos = [
       { id: 'done', text: 'Done', completed: true, dueDate: '2026-06-10', priority: 'high' },
       { id: 'pinned', text: 'Already pinned', completed: false, dueDate: '2026-06-10', priority: 'high' },
-      { id: 'overdue', text: 'Overdue fish', completed: false, dueDate: '2026-06-10', priority: 'low' },
-      { id: 'today', text: 'Today fish', completed: false, dueDate: '2026-06-11', priority: 'medium' },
-      { id: 'high', text: 'High tide fish', completed: false, dueDate: '', priority: 'high' },
-      { id: 'medium', text: 'Medium fish', completed: false, dueDate: '', priority: 'medium' },
-      { id: 'low', text: 'Low fish', completed: false, dueDate: '', priority: 'low' },
+      { id: 'overdue', text: 'Overdue 鱼', completed: false, dueDate: '2026-06-10', priority: 'low' },
+      { id: 'today', text: 'Today 鱼', completed: false, dueDate: '2026-06-11', priority: 'medium' },
+      { id: 'high', text: 'High tide 鱼', completed: false, dueDate: '', priority: 'high' },
+      { id: 'medium', text: 'Medium 鱼', completed: false, dueDate: '', priority: 'medium' },
+      { id: 'low', text: 'Low 鱼', completed: false, dueDate: '', priority: 'low' },
       { id: 'archived', text: 'Old shell', completed: false, archivedAt: '2026-06-11T00:00:00.000Z', dueDate: '2026-06-10', priority: 'high' },
     ];
 

@@ -1,5 +1,5 @@
 /* global module, window */
-(function fishEmojiModule(root, factory) {
+(function 鱼EmojiModule(root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.DactylFishEmoji = api;
@@ -22,10 +22,10 @@
     return modulo > 0 ? hash % modulo : 0;
   }
 
-  function fishEmojiFor(poolKey, seed = '') {
+  function 鱼EmojiFor(poolKey, seed = '') {
     const pool = FISH_EMOJI_POOLS[poolKey] || FISH_EMOJI_POOLS.normal;
     return pool[stableIndex(seed, pool.length)];
   }
 
-  return { FISH_EMOJI_POOLS, fishEmojiFor, stableIndex };
+  return { FISH_EMOJI_POOLS, 鱼EmojiFor, stableIndex };
 }));

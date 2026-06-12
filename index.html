@@ -12,10 +12,10 @@
     <main class="app" aria-labelledby="app-title">
       <section id="auth-screen" class="screen auth-screen" aria-labelledby="app-title" tabindex="-1">
       <section class="hero">
-        <div class="fish-decoration" aria-hidden="true">
-          <span class="fish fish-1">🐟</span>
-          <span class="fish fish-2">🐠</span>
-          <span class="fish fish-3">🐬</span>
+        <div class="鱼-decoration" aria-hidden="true">
+          <span class="鱼 鱼-1">🐟</span>
+          <span class="鱼 鱼-2">🐠</span>
+          <span class="鱼 鱼-3">🐬</span>
         </div>
         <p class="eyebrow">Dactyl Sandbox</p>
         <h1 id="app-title">TODO List</h1>
@@ -180,7 +180,7 @@
           <p class="more-actions-label">Help &amp; tools</p>
           <button id="pond-health-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="pond-health-panel" title="Check lightweight diagnostics and copy a privacy-safe summary for debugging">Pond health</button>
           <button id="activity-log-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="activity-log-panel" title="Review recent task changes and pond activity">Tide log</button>
-          <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel" title="Learn what every button and fish-themed term in the pond means">Button help</button>
+          <button id="button-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="button-help-panel" title="Learn what every button and 鱼-themed term in the pond means">Button help</button>
           <button id="shortcut-help-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="shortcut-help" aria-keyshortcuts="?" title="See all keyboard shortcuts for the pond (keyboard: ?)">Pond shortcuts</button>
           <a class="secondary-action" href="/docs" title="Open the full documentation page">Docs</a>
         </div>
@@ -202,7 +202,7 @@
         </ul>
         <div class="getting-started-actions">
           <button id="stock-pond" class="secondary-action" type="button" title="Add a set of demo tasks to try out the pond features">Stock the pond</button>
-          <button id="release-demo" class="secondary-action" type="button" title="Remove all demo tasks from the pond">Release demo fish</button>
+          <button id="release-demo" class="secondary-action" type="button" title="Remove all demo tasks from the pond">Release demo 鱼</button>
           <button id="show-pond-tour" class="secondary-action" type="button" title="Reopen the pond tour walkthrough">Show pond tour</button>
         </div>
       </section>
@@ -215,17 +215,17 @@
           </div>
           <button id="button-help-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
         </div>
-        <p class="button-help-note">A quick map for TODO-app developers swimming through the fishy UI. Opening this guide is read-only; no fish are moved.</p>
+        <p class="button-help-note">A quick map for TODO-app developers swimming through the 鱼y UI. Opening this guide is read-only; no 鱼 are moved.</p>
         <dl class="button-help-list">
-          <div><dt>➕ Add task</dt><dd><span class="help-safety help-safety-change">Creates task</span> Adds a new TODO fish with optional due date, GitHub link, priority, and quick-add hints. Requires sign-in.</dd></div>
-          <div><dt>✓ Complete</dt><dd><span class="help-safety help-safety-change">Changes task</span> Marks a fish fed/completed. This can be undone from the Archive before permanent release; recurring fish schedule the next occurrence.</dd></div>
-          <div><dt>× Delete / Release</dt><dd><span class="help-safety help-safety-danger">Destructive</span> Removes a fish. Archive release can be permanent; bulk release shows an undo affordance where supported.</dd></div>
-          <div><dt>🌊 Filters</dt><dd><span class="help-safety help-safety-view">View only</span> Full pond, Swimming, Tide mode, Ghost net, Coming tide, and The reef only change which fish you see. Hidden fish are not modified.</dd></div>
-          <div><dt>🐟 Stock the pond</dt><dd><span class="help-safety help-safety-change">Creates demos</span> Adds sample tasks so new users can explore the pond. Your existing fish stay untouched.</dd></div>
-          <div><dt>🧹 Release demo fish</dt><dd><span class="help-safety help-safety-danger">Deletes demos</span> Removes only demo/sample fish. It never touches your own non-demo tasks.</dd></div>
-          <div><dt>📋 Paste to pond</dt><dd><span class="help-safety help-safety-change">Creates tasks</span> Turns pasted bullets or checkbox notes into tasks. Preview first; importing creates real fish in your account.</dd></div>
+          <div><dt>➕ Add task</dt><dd><span class="help-safety help-safety-change">Creates task</span> Adds a new TODO 鱼 with optional due date, GitHub link, priority, and quick-add hints. Requires sign-in.</dd></div>
+          <div><dt>✓ Complete</dt><dd><span class="help-safety help-safety-change">Changes task</span> Marks a 鱼 fed/completed. This can be undone from the Archive before permanent release; recurring 鱼 schedule the next occurrence.</dd></div>
+          <div><dt>× Delete / Release</dt><dd><span class="help-safety help-safety-danger">Destructive</span> Removes a 鱼. Archive release can be permanent; bulk release shows an undo affordance where supported.</dd></div>
+          <div><dt>🌊 Filters</dt><dd><span class="help-safety help-safety-view">View only</span> Full pond, Swimming, Tide mode, Ghost net, Coming tide, and The reef only change which 鱼 you see. Hidden 鱼 are not modified.</dd></div>
+          <div><dt>🐟 Stock the pond</dt><dd><span class="help-safety help-safety-change">Creates demos</span> Adds sample tasks so new users can explore the pond. Your existing 鱼 stay untouched.</dd></div>
+          <div><dt>🧹 Release demo 鱼</dt><dd><span class="help-safety help-safety-danger">Deletes demos</span> Removes only demo/sample 鱼. It never touches your own non-demo tasks.</dd></div>
+          <div><dt>📋 Paste to pond</dt><dd><span class="help-safety help-safety-change">Creates tasks</span> Turns pasted bullets or checkbox notes into tasks. Preview first; importing creates real 鱼 in your account.</dd></div>
           <div><dt>💾 Haul</dt><dd><span class="help-safety help-safety-external">Downloads file</span> Saves a backup of your task pond to your device. It does not change task data.</dd></div>
-          <div><dt>♻️ Restock</dt><dd><span class="help-safety help-safety-danger">Can replace data</span> Loads a backup file. Merge adds imported fish; Replace swaps the current pond after the preview.</dd></div>
+          <div><dt>♻️ Restock</dt><dd><span class="help-safety help-safety-danger">Can replace data</span> Loads a backup file. Merge adds imported 鱼; Replace swaps the current pond after the preview.</dd></div>
           <div><dt>📣 Copy pond report / snapshot / stand-up draft</dt><dd><span class="help-safety help-safety-external">Clipboard</span> Copies text for updates or stand-up notes. The app does not post externally for you.</dd></div>
           <div><dt>🔗 Share visible pond</dt><dd><span class="help-safety help-safety-external">External share</span> Opens your browser/device share sheet for the currently visible pond summary. You choose where it goes.</dd></div>
           <div><dt>🎣 Daily Catch</dt><dd><span class="help-safety help-safety-change">Planning only</span> Suggests a small focus list from due, priority, and feeding signals. Pinning changes only the local planning catch.</dd></div>
@@ -233,14 +233,14 @@
           <div><dt>🏆 Tide trophies</dt><dd><span class="help-safety help-safety-view">View only</span> Displays progress badges. This is read-only and reflects your current task pond.</dd></div>
           <div><dt>🔕 Quiet hours</dt><dd><span class="help-safety help-safety-change">Local setting</span> Configures due-date reminder timing. Notifications are opt-in and stay in the browser.</dd></div>
           <div><dt>🫧 Calm Water</dt><dd><span class="help-safety help-safety-change">Display setting</span> Adjusts visual preferences like reduced celebration intensity and text-first badges. It is stored locally.</dd></div>
-          <div><dt>🐠 Aquarium view</dt><dd><span class="help-safety help-safety-view">View only</span> Opens a visual showcase of active fish. It is decorative and does not change task state.</dd></div>
+          <div><dt>🐠 Aquarium view</dt><dd><span class="help-safety help-safety-view">View only</span> Opens a visual showcase of active 鱼. It is decorative and does not change task state.</dd></div>
           <div><dt>⌨ Pond shortcuts</dt><dd><span class="help-safety help-safety-view">Help only</span> Lists keyboard commands like search focus, tide filters, reports, and triage. Opening it is read-only.</dd></div>
-          <div><dt>🧭 Sort the catch</dt><dd><span class="help-safety help-safety-change">Fast edits</span> Shows one active fish at a time for keyboard completion, send-to-reef, tide level, and due-date changes.</dd></div>
-          <div><dt>🎯 Feed</dt><dd><span class="help-safety help-safety-change">Focus state</span> Pins one active task into focus mode. Focus sprints and reports follow this fish until it is fed or cleared.</dd></div>
-          <div><dt>📝 Details / Edit</dt><dd><span class="help-safety help-safety-change">Edits task</span> Edit changes core task fields. Details opens private depth notes and scales (checklist) for the selected fish.</dd></div>
-          <div><dt>🕸 Cast net</dt><dd><span class="help-safety help-safety-view">Selection mode</span> Lets you select visible fish for batch actions. Hidden tasks stay out of the net until their view is active.</dd></div>
-          <div><dt>🌊 Release selected</dt><dd><span class="help-safety help-safety-danger">Bulk destructive</span> Releases the fish currently caught in the net. Use the undo message immediately if the wrong fish swim off.</dd></div>
-          <div><dt>🏷 Move to shoal</dt><dd><span class="help-safety help-safety-change">Bulk edit</span> Moves selected fish into a custom shoal name, or clears the shoal when left blank. It changes only the caught fish.</dd></div>
+          <div><dt>🧭 Sort the catch</dt><dd><span class="help-safety help-safety-change">Fast edits</span> Shows one active 鱼 at a time for keyboard completion, send-to-reef, tide level, and due-date changes.</dd></div>
+          <div><dt>🎯 Feed</dt><dd><span class="help-safety help-safety-change">Focus state</span> Pins one active task into focus mode. Focus sprints and reports follow this 鱼 until it is fed or cleared.</dd></div>
+          <div><dt>📝 Details / Edit</dt><dd><span class="help-safety help-safety-change">Edits task</span> Edit changes core task fields. Details opens private depth notes and scales (checklist) for the selected 鱼.</dd></div>
+          <div><dt>🕸 Cast net</dt><dd><span class="help-safety help-safety-view">Selection mode</span> Lets you select visible 鱼 for batch actions. Hidden tasks stay out of the net until their view is active.</dd></div>
+          <div><dt>🌊 Release selected</dt><dd><span class="help-safety help-safety-danger">Bulk destructive</span> Releases the 鱼 currently caught in the net. Use the undo message immediately if the wrong 鱼 swim off.</dd></div>
+          <div><dt>🏷 Move to shoal</dt><dd><span class="help-safety help-safety-change">Bulk edit</span> Moves selected 鱼 into a custom shoal name, or clears the shoal when left blank. It changes only the caught 鱼.</dd></div>
         </dl>
       </section>
 
@@ -273,7 +273,7 @@
         <div class="triage-header">
           <div>
             <p class="eyebrow">Keyboard triage</p>
-            <h2 id="triage-title">One fish at a time</h2>
+            <h2 id="triage-title">One 鱼 at a time</h2>
             <p id="triage-status" class="triage-status">Press J/K to swim through tasks.</p>
           </div>
           <button id="triage-close" class="secondary-action" type="button" aria-keyshortcuts="Escape">Close</button>
@@ -420,7 +420,7 @@
           <div>
             <p class="eyebrow">Daily Catch</p>
             <h2 id="daily-catch-title">Plan a realistic catch for today</h2>
-            <p id="daily-catch-summary" class="daily-catch-summary">Pick a few fish to focus on.</p>
+            <p id="daily-catch-summary" class="daily-catch-summary">Pick a few 鱼 to focus on.</p>
           </div>
           <button id="daily-catch-close" class="secondary-action" type="button">Close</button>
         </div>
@@ -430,7 +430,7 @@
             <ul id="daily-catch-pinned" class="daily-catch-list"></ul>
           </div>
           <div>
-            <h3>Suggested fish</h3>
+            <h3>Suggested 鱼</h3>
             <ul id="daily-catch-suggestions" class="daily-catch-list"></ul>
           </div>
         </div>
@@ -489,7 +489,7 @@
         </div>
         <label for="restore-file">Choose a Dactyl pond JSON backup to preview before importing.</label>
         <input id="restore-file" type="file" accept="application/json,.json" />
-        <p id="restore-preview" class="restore-preview" role="status" aria-live="polite">Choose a backup file to preview its fish.</p>
+        <p id="restore-preview" class="restore-preview" role="status" aria-live="polite">Choose a backup file to preview its 鱼.</p>
         <div class="restore-actions">
           <button id="merge-restore" type="button" disabled>Merge into pond</button>
           <button id="replace-restore" class="secondary-action" type="button" disabled>Replace pond</button>
@@ -499,7 +499,7 @@
       <section id="pond-tour" class="pond-tour" aria-labelledby="pond-tour-title" aria-live="polite" tabindex="-1" hidden>
         <div>
           <p class="eyebrow">Pond tour</p>
-          <h2 id="pond-tour-title">Start with one useful fish</h2>
+          <h2 id="pond-tour-title">Start with one useful 鱼</h2>
           <p>Try the core pond moves without leaving the app: add a task, stock a demo pond, switch to Tide mode, paste a shoal of notes, or copy a report when you have work to share.</p>
         </div>
         <ol class="tour-steps">
@@ -509,7 +509,7 @@
           </li>
           <li>
             <strong>Try a demo pond</strong>
-            <span>Stock sample fish to explore focus mode, Tide lanes, net actions, and reports.</span>
+            <span>Stock sample 鱼 to explore focus mode, Tide lanes, net actions, and reports.</span>
           </li>
           <li>
             <strong>Paste a shoal</strong>
@@ -517,12 +517,12 @@
           </li>
           <li>
             <strong>Use Tide mode</strong>
-            <span>Group active work by urgency so the washed-ashore fish are obvious.</span>
+            <span>Group active work by urgency so the washed-ashore 鱼 are obvious.</span>
           </li>
         </ol>
         <div class="tour-actions">
           <button id="tour-add-task" type="button">Add a task</button>
-          <button id="tour-stock-demo" class="secondary-action" type="button">Stock demo fish</button>
+          <button id="tour-stock-demo" class="secondary-action" type="button">Stock demo 鱼</button>
           <button id="tour-paste-pond" class="secondary-action" type="button">Paste to pond</button>
           <button id="tour-tide-mode" class="secondary-action" type="button">Try Tide mode</button>
           <button id="tour-copy-report" class="secondary-action" type="button">Copy report</button>
@@ -577,9 +577,9 @@
         </div>
         <div class="smart-views" aria-label="Fishing spots">
           <div class="smart-view-form">
-            <label for="smart-view-name">Save current fishing spot</label>
+            <label for="smart-view-name">Save current 鱼ing spot</label>
             <input id="smart-view-name" type="text" maxlength="32" autocomplete="off" placeholder="Planning view name" />
-            <button id="save-smart-view" class="secondary-action" type="button">Save fishing spot</button>
+            <button id="save-smart-view" class="secondary-action" type="button">Save 鱼ing spot</button>
           </div>
           <ul id="smart-view-list" class="smart-view-list" aria-live="polite"></ul>
         </div>
@@ -592,7 +592,7 @@
         <p>Add your first task above, stock the pond with demo tasks, or reopen the Pond tour for a quick walkthrough.</p>
         <div id="empty-state-actions" class="empty-state-actions"></div>
         <div id="first-task-onboarding" class="first-task-onboarding" aria-label="Starter task suggestions" hidden>
-          <p>Pick a starter fish to get the pond moving:</p>
+          <p>Pick a starter 鱼 to get the pond moving:</p>
           <div class="first-task-actions">
             <button class="secondary-action" type="button" data-first-task-template="today">Plan one small win</button>
             <button class="secondary-action" type="button" data-first-task-template="plan">Map three next steps</button>
@@ -606,8 +606,8 @@
       </section>
 
       <section id="focus-panel" class="focus-panel screen" aria-labelledby="focus-title" aria-live="polite" tabindex="-1" hidden>
-        <p class="eyebrow">Feed the fish</p>
-        <h2 id="focus-title">No fish selected</h2>
+        <p class="eyebrow">Feed the 鱼</p>
+        <h2 id="focus-title">No 鱼 selected</h2>
         <p id="focus-meta" class="focus-meta"></p>
         <div class="focus-sprint" aria-labelledby="focus-sprint-title">
           <div>
@@ -658,7 +658,7 @@
           </span>
         </label>
         <div class="todo-actions" role="toolbar" aria-label="Task actions">
-          <button class="focus-task" type="button" title="Set this task as your active focus fish for a timed sprint">Feed</button>
+          <button class="focus-task" type="button" title="Set this task as your active focus 鱼 for a timed sprint">Feed</button>
           <button class="edit-task" type="button" title="Edit this task's text, due date, priority, shoal, or notes">Edit</button>
           <button class="details-task secondary-action" type="button" aria-expanded="false" title="Open private depth notes and scales (checklist) for this task">Details</button>
           <button class="block-task secondary-action" type="button" title="Mark this task as blocked or clear its blocker state">Block</button>
@@ -676,7 +676,7 @@
     <script src="due-nudges.js"></script>
     <script src="premium-hooks.js"></script>
     <script src="screen-state.js"></script>
-    <script src="fish-emoji.js"></script>
+    <script src="鱼-emoji.js"></script>
     <script src="first-task-onboarding.js"></script>
     <script src="recurrence.js"></script>
     <script src="calendar-export.js"></script>

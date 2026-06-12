@@ -30,14 +30,14 @@ describe('auth and task API', () => {
       .post('/api/tasks')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        text: 'Sync the fish pond',
+        text: 'Sync the 鱼 pond',
         dueDate: '2026-06-11',
         priority: 'high',
         githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31?from=test',
       })
       .expect(201);
 
-    expect(createTask.body.todo.text).toBe('Sync the fish pond');
+    expect(createTask.body.todo.text).toBe('Sync the 鱼 pond');
     expect(createTask.body.todo.githubUrl).toBe('https://github.com/alan-turing-institute/dactyl-sandbox/issues/31');
 
     await request(app)
@@ -53,7 +53,7 @@ describe('auth and task API', () => {
 
     expect(login.body.todos).toHaveLength(1);
     expect(login.body.todos[0]).toMatchObject({
-      text: 'Sync the fish pond',
+      text: 'Sync the 鱼 pond',
       completed: true,
       priority: 'high',
       githubUrl: 'https://github.com/alan-turing-institute/dactyl-sandbox/issues/31',
@@ -426,7 +426,7 @@ describe('auth and task API', () => {
       .post('/api/tasks')
       .set('Authorization', `Bearer ${signup.body.token}`)
       .send({
-        text: 'Detailed fish',
+        text: 'Detailed 鱼',
         notes: ` ${'n'.repeat(1100)} `,
         checklist: [
           { id: 'one', text: 'Write test', completed: true },
@@ -759,7 +759,7 @@ describe('auth and task API', () => {
     const created = await request(app)
       .post('/api/tasks')
       .set('Authorization', `Bearer ${token}`)
-      .send({ text: 'Blocked fish', blocked: true, blockerReason: 'Waiting on PR review' })
+      .send({ text: 'Blocked 鱼', blocked: true, blockerReason: 'Waiting on PR review' })
       .expect(201);
 
     expect(created.body.todo.blocked).toBe(true);

@@ -1003,6 +1003,16 @@ kbd {
   background: var(--accent-strong);
 }
 
+.github-import-rate-limit-warning {
+  margin: 0 0 .6rem;
+  padding: .45rem .7rem;
+  border-radius: .4rem;
+  background: rgb(255 160 0 / 12%);
+  border: 1px solid rgb(255 160 0 / 28%);
+  color: var(--warning);
+  font-size: .82rem;
+}
+
 .pond-tour {
   margin-bottom: 1rem;
   padding: .65rem .85rem;

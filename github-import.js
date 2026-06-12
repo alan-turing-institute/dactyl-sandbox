@@ -42,19 +42,22 @@
       const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${number}`, {
         headers: { Accept: 'application/vnd.github+json' },
       });
-      if (!res.ok) return fallbackLabel(url);
+      const rateLimited = res.status === 403 || res.headers.get('X-RateLimit-Remaining') === '0';
+      if (!res.ok) return { title: fallbackLabel(url), rateLimited };
       const data = await res.json();
-      return typeof data.title === 'string' ? data.title : fallbackLabel(url);
-    } catch { return fallbackLabel(url); }
+      return { title: typeof data.title === 'string' ? data.title : fallbackLabel(url), rateLimited: false };
+    } catch { return { title: fallbackLabel(url), rateLimited: false }; }
   }
 
   async function buildPreviewItems(urls, existingGithubUrls) {
     const existingSet = new Set(existingGithubUrls);
-    const items = await Promise.all(urls.map(async (url) => {
-      const title = await fetchTitle(url);
-      return { url, title, duplicate: existingSet.has(url) };
+    const results = await Promise.all(urls.map(async (url) => {
+      const { title, rateLimited } = await fetchTitle(url);
+      return { url, title, duplicate: existingSet.has(url), rateLimited };
     }));
-    return items;
+    const rateLimitHit = results.some((r) => r.rateLimited);
+    const items = results.map(({ url, title, duplicate }) => ({ url, title, duplicate }));
+    return { items, rateLimitHit };
   }
 
   return { parseImportUrls, buildPreviewItems, fallbackLabel, normaliseGithubUrl };

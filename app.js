@@ -264,6 +264,7 @@ const trophiesSummary = document.querySelector('#trophies-summary');
 const starterShoalsToggle = document.querySelector('#starter-shoals-toggle');
 const starterShoalsPanel = document.querySelector('#starter-shoals-panel');
 const starterShoalsClose = document.querySelector('#starter-shoals-close');
+const starterShoalsStatus = document.querySelector('#starter-shoals-status');
 const reminderPrefsToggle = document.querySelector('#reminder-prefs-toggle');
 const reminderPrefsPanel = document.querySelector('#reminder-prefs-panel');
 const reminderPrefsClose = document.querySelector('#reminder-prefs-close');
@@ -2832,9 +2833,17 @@ function setTrophiesOpen(open) {
 }
 
 function setStarterShoalsOpen(open) {
+  if (open) setPondView('tools');
   starterShoalsPanel.hidden = !open;
   starterShoalsToggle.setAttribute('aria-expanded', String(open));
-  if (open) starterShoalsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (open) {
+    starterShoalsStatus.textContent = '';
+    starterShoalsPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function setStarterShoalsStatus(message) {
+  starterShoalsStatus.textContent = message;
 }
 
 function loadReminderPrefs() {
@@ -4258,12 +4267,12 @@ function starterShoalTaskKey(text) {
 
 function applyStarterShoal(shoal) {
   if (!currentUser) {
-    showPondMessage('Sign in first to stock a starter shoal.');
+    setStarterShoalsStatus('Sign in first to stock a starter shoal.');
     return;
   }
   const available = MAX_TODOS - todos.length;
   if (available <= 0) {
-    showPondMessage('The pond is full. Release some fish first.');
+    setStarterShoalsStatus('The pond is full. Release some fish first.');
     return;
   }
   const existingTaskKeys = new Set(todos.map((todo) => starterShoalTaskKey(todo.text)));
@@ -4272,13 +4281,16 @@ function applyStarterShoal(shoal) {
   const toAdd = uniqueTasks.slice(0, available);
   if (toAdd.length === 0) {
     const reason = skippedCount > 0 ? 'those tasks are already in the pond' : 'the pond is full';
-    showPondMessage(`No new tasks stocked from "${shoal.name}" — ${reason}.`);
+    setStarterShoalsStatus(`No new fish stocked from "${shoal.name}" — ${reason}.`);
     return;
   }
-  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority, source: 'starter_shoal' }));
+  toAdd.forEach((task) => addTodo(task.text, { priority: task.priority, shoal: shoal.name, source: 'starter_shoal' }));
   setStarterShoalsOpen(false);
-  const skippedMessage = skippedCount > 0 ? ` Skipped ${skippedCount} already-stocked ${skippedCount === 1 ? 'task' : 'tasks'}.` : '';
-  showPondMessage(`Stocked ${toAdd.length} new ${toAdd.length === 1 ? 'task' : 'tasks'} from the "${shoal.name}" shoal.${skippedMessage}`);
+  clearSearchState();
+  setShoalFilter('');
+  setFilter('all');
+  const skippedMessage = skippedCount > 0 ? ` Skipped ${pluralise(skippedCount, 'already-stocked fish', 'already-stocked fish')}.` : '';
+  showPondMessage(`Stocked ${pluralise(toAdd.length, 'new fish', 'new fish')} from the "${shoal.name}" shoal.${skippedMessage}`);
 }
 
 function renderStarterShoalsList() {

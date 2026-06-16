@@ -65,4 +65,19 @@ describe('Tools and Settings view relocation', () => {
     expect(styles).toContain('.view-action-groups {');
     expect(styles).toContain('.view-action-label {');
   });
+
+  test('starter shoals provide visible feedback and reveal stocked fish', () => {
+    const starterShoals = sectionHtml('starter-shoals-panel');
+    const appJs = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+
+    expect(starterShoals).toContain('id="starter-shoals-status"');
+    expect(starterShoals).toContain('aria-live="polite"');
+    expect(styles).toContain('.starter-shoals-status {');
+    expect(appJs).toContain('function setStarterShoalsStatus(message)');
+    expect(appJs).toContain("if (open) setPondView('tools');");
+    expect(appJs).toContain('clearSearchState();');
+    expect(appJs).toContain("setShoalFilter('');");
+    expect(appJs).toContain("setFilter('all');");
+    expect(appJs).toContain("shoal: shoal.name");
+  });
 });

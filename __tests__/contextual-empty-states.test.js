@@ -15,7 +15,7 @@ describe('contextual empty states', () => {
       cta: { label: 'Switch to Active', action: 'show-active' },
     });
     expect(contextualEmptyState({ filter: 'tide' }).heading).toBe('No overdue or high-priority tasks.');
-    expect(contextualEmptyState({ filter: 'ghost' }).heading).toBe('No stale tasks.');
+    expect(contextualEmptyState({ filter: 'ghost' }).heading).toBe('Nothing needs attention.');
   });
 
   test('search empty state includes the query and clear action', () => {

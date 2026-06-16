@@ -55,8 +55,8 @@
     }
     if (filter === 'ghost') {
       return {
-        heading: 'No stale tasks.',
-        description: 'Your pond is healthy: no overdue, drifting, or neglected high-priority fish found.',
+        heading: 'Nothing needs attention.',
+        description: 'Your pond is healthy: no overdue, drifting, or neglected high-priority fish need review.',
         cta: null,
       };
     }

@@ -1706,7 +1706,7 @@ const COMMANDS = [
   { id: 'filter-active', label: 'Show active tasks', action: () => setFilter('active') },
   { id: 'filter-completed', label: 'Show completed tasks', action: () => setFilter('completed') },
   { id: 'filter-tide', label: 'Switch to Tide mode', action: () => setFilter('tide') },
-  { id: 'filter-ghost', label: 'Switch to Ghost net review', action: () => setFilter('ghost') },
+  { id: 'filter-ghost', label: 'Switch to Needs Attention review', action: () => setFilter('ghost') },
   { id: 'copy-pond-report', label: 'Copy pond report', action: () => copyPondProgressReport() },
   { id: 'pond-health', label: 'Open pond health', action: () => setPondHealthOpen(true) },
   { id: 'keyboard-shortcuts', label: 'Show keyboard shortcuts', action: () => setShortcutHelpOpen(true) },
@@ -4122,7 +4122,7 @@ function render() {
   });
   const empty = contextualEmptyState({ filter, searchQuery, quickFilter, showFirstTaskGuide });
   count.textContent = filter === 'ghost'
-    ? `${pluralise(ghostNetTodos().length, 'ghost task')} found`
+    ? `${pluralise(ghostNetTodos().length, 'stale task')} flagged for review`
     : hasActiveSearchFilter()
       ? `${pluralise(visibleCount, 'matching fish', 'matching fish')}`
       : filter === 'archive'
@@ -4726,9 +4726,9 @@ function renderGhostNet() {
   const summaryItem = document.createElement('li');
   summaryItem.className = 'ghost-group';
   const summaryHeading = document.createElement('h3');
-  summaryHeading.textContent = `Ghost net found ${pluralise(ghosts.length, 'task')}`;
+  summaryHeading.textContent = `${pluralise(ghosts.length, 'stale task')} flagged for review`;
   const summaryDescription = document.createElement('p');
-  summaryDescription.textContent = `Review active fish that are overdue, unscheduled for more than ${GHOST_STALE_DAYS} days, or high priority and drifting.`;
+  summaryDescription.textContent = `Review stale fish caught here: overdue, unscheduled for more than ${GHOST_STALE_DAYS} days, or high priority and drifting.`;
   summaryItem.append(summaryHeading, summaryDescription);
   list.append(summaryItem);
 

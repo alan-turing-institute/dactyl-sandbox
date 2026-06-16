@@ -323,8 +323,10 @@ h1 {
   display: grid;
   gap: 1.5rem;
   width: min(100%, 28rem);
+  min-width: 0;
   margin: 0 auto 1rem;
-  padding: 1.5rem;
+  padding: clamp(1rem, 5vw, 1.5rem);
+  overflow: hidden;
   border: 1px solid rgb(122 184 245 / 20%);
   border-radius: 1.25rem;
   background: rgb(122 184 245 / 7%);
@@ -362,15 +364,22 @@ h1 {
 }
 
 .auth-field-group {
+  min-width: 0;
   gap: 1rem;
+}
+
+.auth-forgot-action {
+  margin: -.35rem 0 0;
+  text-align: right;
 }
 
 .password-form {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(12rem, 1fr)) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: .65rem;
   align-items: end;
+  min-width: 0;
   margin-top: .25rem;
   padding-top: 1rem;
   border-top: 1px solid rgb(122 184 245 / 18%);
@@ -385,6 +394,7 @@ h1 {
 .auth-form label,
 .password-form label {
   display: grid;
+  min-width: 0;
   gap: .35rem;
   color: var(--muted);
   font-size: .9rem;

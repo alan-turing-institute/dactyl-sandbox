@@ -40,7 +40,8 @@
               <span>Password</span>
               <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" aria-describedby="auth-help" title="Use 8–128 characters." required />
             </label>
-            <p id="auth-help" class="auth-help">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
+            <p id="auth-help" class="auth-help sr-only">Usernames are 3–32 letters, numbers, dots, underscores, or hyphens. Passwords are 8–128 characters.</p>
+            <p class="auth-forgot-action"><button id="forgot-password-button" class="link-action" type="button">Forgot my password</button></p>
           </div>
           <div class="auth-actions">
             <button id="login-button" type="submit" name="auth-mode" value="login">Log in</button>
@@ -49,7 +50,7 @@
         </form>
         <form id="password-form" class="password-form" autocomplete="on" hidden>
           <p class="eyebrow">Security</p>
-          <h3>Change password</h3>
+          <h3>Password</h3>
           <label>
             <span>Current password</span>
             <input id="current-password-input" name="current-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required />

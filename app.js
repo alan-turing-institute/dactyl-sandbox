@@ -123,6 +123,7 @@ const usernameInput = document.querySelector('#username-input');
 const passwordInput = document.querySelector('#password-input');
 const loginButton = document.querySelector('#login-button');
 const signupButton = document.querySelector('#signup-button');
+const forgotPasswordButton = document.querySelector('#forgot-password-button');
 const logoutButton = document.querySelector('#logout-button');
 const authStatus = document.querySelector('#auth-status');
 const passwordForm = document.querySelector('#password-form');
@@ -3922,6 +3923,8 @@ function renderAuth() {
   passwordInput.disabled = signedIn;
   loginButton.disabled = signedIn || authRequestInFlight;
   signupButton.disabled = signedIn || authRequestInFlight;
+  forgotPasswordButton.hidden = signedIn;
+  forgotPasswordButton.disabled = signedIn || authRequestInFlight;
   form.classList.toggle('disabled', !signedIn);
   [...form.elements].forEach((element) => {
     element.disabled = !signedIn;
@@ -5114,6 +5117,10 @@ loginButton.addEventListener('click', () => {
 
 signupButton.addEventListener('click', () => {
   pendingAuthMode = 'signup';
+});
+
+forgotPasswordButton.addEventListener('click', () => {
+  authStatus.textContent = 'Password reset is not available in this demo yet. Ask an admin to help recover your pond.';
 });
 
 logoutButton.addEventListener('click', logout);

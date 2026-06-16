@@ -6,10 +6,11 @@ const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appJs = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 
 describe('Tasks view layout wiring', () => {
-  test('top-level Tasks tab targets a dedicated task workflow summary', () => {
+  test('top-level View Fish tab targets a dedicated fish workflow summary', () => {
     expect(indexHtml).toContain('data-pond-view="tasks" aria-controls="tasks-view-summary"');
+    expect(indexHtml).toContain('data-pond-view="tasks" aria-controls="tasks-view-summary" aria-pressed="false">View Fish</button>');
     expect(indexHtml).toContain('id="tasks-view-summary"');
-    expect(indexHtml).toContain('Add, search, filter, select, edit, complete, archive, and restore tasks');
+    expect(indexHtml).toContain('Add, search, filter, select, edit, complete, archive, and restore fish');
   });
 
   test('core task workflow controls are owned by the Tasks view selectors', () => {

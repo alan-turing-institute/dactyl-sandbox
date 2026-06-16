@@ -83,7 +83,7 @@
           </div>
           <nav id="pond-view-nav" class="pond-view-nav" aria-label="Top-level pond views">
             <button class="pond-view-tab" type="button" data-pond-view="home" aria-controls="home-view-summary" aria-current="page" aria-pressed="true">Home / Today</button>
-            <button class="pond-view-tab" type="button" data-pond-view="tasks" aria-controls="tasks-view-summary" aria-pressed="false">Tasks</button>
+            <button class="pond-view-tab" type="button" data-pond-view="tasks" aria-controls="tasks-view-summary" aria-pressed="false">View Fish</button>
             <button class="pond-view-tab" type="button" data-pond-view="tools" aria-controls="tools-view-summary" aria-pressed="false">Tools</button>
             <button class="pond-view-tab" type="button" data-pond-view="settings" aria-controls="settings-view-summary" aria-pressed="false">Settings &amp; Help</button>
           </nav>
@@ -94,19 +94,19 @@
           <div>
             <p class="eyebrow">Home / Today</p>
             <h3 id="home-view-title">Today's pond</h3>
-            <p id="home-view-summary-text">Review your Daily Catch, then jump into Tasks when you are ready to work the pond.</p>
+            <p id="home-view-summary-text">Review your Daily Catch, then switch to View Fish when you are ready to work the pond.</p>
           </div>
-          <div class="view-summary-actions">
-            <button id="daily-catch-toggle" class="secondary-action" type="button" aria-expanded="false" aria-controls="daily-catch-panel" title="Pin up to five tasks as today's Daily Catch focus list">Open Daily Catch</button>
-            <button class="secondary-action" type="button" data-pond-view-target="tasks">Open Tasks view</button>
+          <div class="view-summary-actions home-view-tabs" role="tablist" aria-label="Home / Today panels">
+            <button id="daily-catch-toggle" class="secondary-action active" type="button" role="tab" aria-selected="true" aria-expanded="true" aria-controls="daily-catch-panel" title="Pin up to five fish as today's Daily Catch focus list">Daily Catch</button>
+            <button class="secondary-action" type="button" role="tab" aria-selected="false" data-pond-view-target="tasks">View Fish</button>
           </div>
         </section>
 
         <section id="tasks-view-summary" class="view-summary tasks-view-summary" data-pond-view-section="tasks" aria-labelledby="tasks-view-title">
           <div>
-            <p class="eyebrow">Tasks</p>
-            <h3 id="tasks-view-title">Work the task pond</h3>
-            <p>Add, search, filter, select, edit, complete, archive, and restore tasks from this dedicated workflow view.</p>
+            <p class="eyebrow">View Fish</p>
+            <h3 id="tasks-view-title">Work the fish pond</h3>
+            <p>Add, search, filter, select, edit, complete, archive, and restore fish from this dedicated workflow view.</p>
           </div>
           <div class="view-summary-actions">
             <button class="secondary-action" type="button" data-proxy-click="todo-input">Add task</button>
@@ -509,7 +509,7 @@
             <h2 id="daily-catch-title">Plan a realistic catch for today</h2>
             <p id="daily-catch-summary" class="daily-catch-summary">Pick a few fish to focus on.</p>
           </div>
-          <button id="daily-catch-close" class="secondary-action" type="button">Close</button>
+          <button id="daily-catch-close" class="secondary-action" type="button">View Fish</button>
         </div>
         <div class="daily-catch-columns">
           <div>

@@ -67,8 +67,8 @@ The first import slice does not use OAuth or private repository tokens; it is in
 
 The signed-in app is split into four top-level views so new workflow controls have a clear home instead of collecting in one crowded panel.
 
-- **Home / Today** — a calm landing view for Daily Catch and high-level pond status.
-- **Tasks** — the main task workspace: add, search, filter, select, edit, complete, archive, restore, and triage tasks.
+- **Home / Today** — a calm landing view that always opens Daily Catch, with a simple tab to switch to the full fish list.
+- **View Fish** — the main fish workspace: add, search, filter, select, edit, complete, archive, restore, and triage tasks.
 - **Tools** — import/export, GitHub restock, reports, sharing, and diagnostics.
 - **Settings & Help** — display comfort, reminders/quiet hours, shortcuts, button help, tour controls, and documentation.
 
